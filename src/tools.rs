@@ -8,6 +8,8 @@ pub mod tools{
     use std::path::PathBuf;
     use std::io::BufRead;
     use std::io::Seek;
+    use crate::stack::Stack;
+    use std::collections::HashMap;
 
     pub struct TextFile{
         file_path: PathBuf,
@@ -91,22 +93,22 @@ pub mod tools{
 
 
     pub struct Tools{
-        authorized_type: Vec<&'static str>,
-        operator_list: Vec<&'static str>,
-        authorized_char_for_variable: &'static str
+        authorized_char_for_variable: &'static str,
+        operators: &'static str,
+        operator_priority: HashMap<&'static str, u8>
     }
 
     impl Tools{
 
         pub fn new() -> Tools{
             Tools{
-                authorized_type: vec!{"INT"},
-                operator_list: vec!{"+"},
-                authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_"
+                authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_",
+                operators: "+-*/",
+                operator_priority: build_operator_priority()
             }
         }
 
-        pub fn is_correct_name(&self, name: &str) -> bool{
+        pub fn is_valid_name(&self, name: &str) -> bool{
             for letter in name.chars(){
                 if !self.authorized_char_for_variable.contains(letter){
                     return false;
@@ -115,68 +117,49 @@ pub mod tools{
             true
         }
 
-        pub fn get_nth_operator(&self, n: i32)->&str{
-            self.operator_list[n as usize]
+        pub fn is_operator(&self, x: String) -> bool{
+            self.operators.contains(&x)
         }
 
-        pub fn operator_exist(&self, op: &str)->bool{
-            self.operator_list.contains(&op)
-        }
+        pub fn convert_in_postfix_exp(&self, exp: Vec::<String>) -> Vec::<String>{
+            let mut result = Vec::<String>::new();
+            let mut stack = Stack::<String>::new();
 
-        
-        pub fn descript_a_string_bool(&self, exp: &str) -> bool{
-            self.evaluate_postfix_exp(&self.valid_infix_to_postfix(exp))
-        }
-
-        fn valid_infix_to_postfix(&self, exp: &str) -> String{
-            let mut result = String::new();
-            let mut stack = Vec::<&str>::new();
-            let split_exp: Vec<&str> = exp.split_whitespace().collect();
-            for elt in split_exp{
-                if self.operator_list.contains(&elt){
-                    while stack.len()>0 && stack.last().unwrap().to_string() != String::from("(") && get_priority(elt) < get_priority(stack.last().unwrap()){
-                        result.push_str(&format!(" {}", stack.pop().unwrap()));
+            for elt in exp.iter(){
+                if self.is_operator(String::from(elt)){
+                    while !stack.is_empty() && *stack.val() != String::from("(") && self.get_priority(elt) < self.get_priority(stack.val()){
+                        result.push(stack.pop());
                     }
-                    stack.push(elt);
+                    stack.push(String::from(elt));
                 }else if elt == ")"{
-                    while stack.last().unwrap().to_string() != String::from("(") {
-                        result.push_str(&format!(" {}", stack.pop().unwrap()));
+                    while stack.val() != "(" {
+                        result.push(stack.pop());
                     }
                     stack.pop();
                 }else{
-                    result.push_str(&format!(" {}", elt));
+                    result.push(String::from(elt));
                 }
             }
-            while stack.len() != 0 {
-                result.push_str(&format!(" {}", stack.pop().unwrap()));
+            while stack.size() != 0 {
+                result.push(stack.pop());
             }
-            result.remove(0);
             result
         }
 
-
-
-
-        fn evaluate_postfix_exp(&self, exp: &str) -> bool{
-            let mut stack = Vec::<&str>::new();
-            let split_exp: Vec<&str> = exp.split_whitespace().collect();
-            for elt in split_exp{
-                if self.operator_list.contains(&elt){
-                    let right = stack.pop().unwrap();
-                    let left = stack.pop().unwrap();
-                    if compare_to_valid_element(left, elt, right){
-                        stack.push("1");
-                    }else{
-                        stack.push("0");
-                    }
-                }else{
-                    stack.push(elt);
-                }
+        fn get_priority(&self, operator: &str) -> u8{
+            if operator == "+" || operator == "-"{
+                return 1;
+            }else if operator == "("{
+                return 3;
+            }else{
+                return 2;
             }
-            return stack[0] == "1";
         }
+    
 
     }
+
+    
 
     pub fn split(string: &str, splitter: &str) -> Vec::<String>{
         string.split(splitter).map(String::from).collect()
@@ -192,88 +175,16 @@ pub mod tools{
         return count;
     }
 
-    pub fn convert_bool_to_number(string: &str) -> String{
-        match string{
-            "true" => return String::from("1"),
-            _ => return String::from("0")
-        }
+    fn build_operator_priority() -> HashMap<&'static str, u8>{
+        let mut res = HashMap::<&'static str, u8>::new();
+        res.insert("+", 1);
+        res.insert("-", 1);
+        res.insert("*", 2);
+        res.insert("/", 2);
+        res.insert("(", 3);
+        res.insert(")", 2);
+        res
     }
+  
 
-    pub fn hash_string_to_number(string: String)->i32{
-        let mut result: i32 = 0;
-        for chara in string.chars(){
-            result += chara as i32;
-        }
-        result
-    }
-
-
-    fn compare_to_valid_element(left_s: &str, operator: &str, right_s: &str) -> bool{
-        let left: f32 = String::from(left_s).parse().unwrap_or_default();
-        let right: f32 = String::from(right_s).parse().unwrap_or_default();
-        match operator{
-            "==" => return left == right,
-            "!=" => return left != right,
-            ">" => return left > right,
-            "<" => return left < right,
-            ">=" => return left >= right,
-            "<=" => return left <= right,
-            "AND" => return left == 1.0 && right == 1.0,
-            "OR" => return left == 1.0 || right == 1.0,
-            _ => return false
-        }
-    }
-
-    fn get_priority(operator: &str) -> i32{
-        if operator == "AND" || operator == "OR"{
-            return 1;
-        }else if operator == "("{
-            return 3;
-        }else{
-            return 2;
-        }
-    }
-
-    pub fn good_type_and_good_value(type_value: &str, value: &str) -> bool{
-        match type_value{
-            "BOOL" => return value == "false" || value == "true",
-            "STRING" => return true,
-            "INT" => return is_int(value),
-            _ => return is_float(value)
-        }
-    }
-
-    pub fn is_int(string : &str) -> bool{
-        let numbers = "1234567890";
-        for chara in string.chars(){
-            if !numbers.contains(chara.clone()){
-                return false;
-            } 
-        }
-        true
-    }
-
-    pub fn is_float(string : &str) -> bool{
-        let numbers = "1234567890";
-        let mut point = false;
-        let mut i = 0;
-        for chara in string.chars(){
-            if !numbers.contains(chara.clone()){
-                if chara == '.' && !point{
-                    if i == string.len() - 1{
-                        return false;
-                    }
-                    point = true;
-                }else{
-                    return false;
-                }
-            }
-            i += 1;
-        }
-        true
-    }
-
-    pub fn is_value(string: &str) -> bool{
-        return is_float(string);
-    }
 }

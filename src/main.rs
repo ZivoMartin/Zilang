@@ -23,14 +23,11 @@ fn main() -> Result<(), String> {
 }
 
 
-fn compile(input: &str, output: &str) -> Result<(), String>{
+fn compile(input: &str, _output: &str) -> Result<(), String>{
     if !file_exists(&input){
         return Err(format!("File {} don't exist.", input));
     }
     let mut input_file = TextFile::new(String::from(input))?; 
-    let output_string = compile_txt(String::from(input_file.get_text()))?;
-    let mut output_file = TextFile::new(String::from(output))?;
-    output_file.reset(&output_string);
-    Ok(())
+    compile_txt(String::from(input_file.get_text()))
 }
 

@@ -2,7 +2,7 @@
 pub mod hammer{
     use std::collections::HashMap;
     use crate::stack::Stack;
-    use crate::tools::tools::{Tools, split, count_occur};
+    use crate::tools::tools::{Tools, TextFile, split, count_occur};
 
     struct Type {
         name: String,
@@ -20,22 +20,17 @@ pub mod hammer{
         } 
     }
 
+    struct AsmType{
+        long: &'static str,
+        short: &'static str,
+        registre: &'static str
+    }
+
     struct VariableDefinition{
         name: String,
         type_var: Type,
     }
     
-    impl VariableDefinition{
-
-        pub fn clone(&self) -> VariableDefinition{
-            VariableDefinition{
-                name: self.name.clone(),
-                type_var: self.type_var.clone(),
-            }
-        }
-
-    }
-
     struct Macro{
         name: String,
         nb_arg: usize,
@@ -47,26 +42,6 @@ pub mod hammer{
         type_return: Type,
         args: Vec::<VariableDefinition>
     }
-
-    impl Function{
-
-        pub fn clone(&self) -> Function{
-            Function{
-                name: self.name.clone(),
-                type_return: self.type_return.clone(),
-                args: self.clone_arg_tab()
-            }
-        }
-        
-        pub fn clone_arg_tab(&self) -> Vec::<VariableDefinition>{
-            let mut result = Vec::<VariableDefinition>::new();
-            for i in 0..self.args.len(){
-                result.push(self.args[i].clone());
-            }
-            return result;
-        }
-    }
-
     
     struct Affectation{
         addr: i32,
@@ -85,7 +60,7 @@ pub mod hammer{
     
 
 
-    struct Hammer<'a>{
+    struct Hammer{
         tools: Tools,
         type_list: HashMap::<String, Type>,
         defined_var_list: HashMap::<String, Stack::<i32>>,
@@ -94,12 +69,11 @@ pub mod hammer{
         macro_list: HashMap::<String, Macro>,
         inst_list: Vec::<Instruction>,
         jumps_stack: Stack<Vec::<i32>>,
-        authorized_char_for_variable: &'a str,
-        operators: &'a str 
+        size: HashMap<i32, AsmType>
     }
 
-    impl<'a> Hammer<'a>{
-        pub fn new()->Hammer<'a>{
+    impl Hammer{
+        pub fn new()->Hammer{
             let mut res = Hammer{
                 tools: Tools::new(),
                 type_list: HashMap::<String, Type>::new(),
@@ -109,13 +83,36 @@ pub mod hammer{
                 macro_list: HashMap::<String, Macro>::new(),
                 inst_list: Vec::new(),
                 jumps_stack: Stack::new(),
-                authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_",
-                operators: "+-*"
+                size: HashMap::<i32, AsmType>::new()
             };
+            res.init_size();
             res.init_dispo_type();
             res.init_dispo_func();
             res.init_dispo_macro();
             return res
+        }
+
+        fn init_size(&mut self){
+            self.size.insert(1, AsmType{
+                short: "db", 
+                long: "byte",
+                registre: "al"
+            });
+            self.size.insert(2, AsmType{
+                short: "dw", 
+                long: "word",
+                registre: "ax"
+            });
+            self.size.insert(4, AsmType{
+                short: "dd", 
+                long: "dword",
+                registre: "eax"
+            });
+            self.size.insert(8, AsmType{
+                short: "dq", 
+                long: "qword",
+                registre: "rax"
+            });
         }
 
         pub fn jump_out(&mut self){
@@ -156,18 +153,6 @@ pub mod hammer{
             self.type_list.insert( name.clone(), Type{name: name, id: self.type_list.len() as i32, size: size});   
         }
 
-        pub fn is_valid_name(&self, name: &str) -> bool{
-            for letter in name.chars(){
-                if !self.authorized_char_for_variable.contains(letter){
-                    return false;
-                }
-            }
-            true
-        }
-
-        pub fn is_operator(&self, x: String) -> bool{
-            self.operators.contains(&x)
-        }
 
         pub fn type_exists(&self, name: &str) -> bool{
             self.type_list.contains_key(name)
@@ -189,7 +174,7 @@ pub mod hammer{
             if !self.type_exists(&type_var){
                 return Err(format!("{} is not a valid type.", type_var));
             }
-            if !self.is_valid_name(&name){
+            if !self.tools.is_valid_name(&name){
                 return Err(format!("{} is not a valid name for a variable.", name));
             }
             let addr = self.defined_var_list.len() as i32;
@@ -261,7 +246,7 @@ pub mod hammer{
 
     }
 
-    pub fn compile_txt(input: String) -> Result<String, String>{
+    pub fn compile_txt(input: String) -> Result<(), String>{
         let mut hammer: Hammer = Hammer::new();
         let mut vec = split(&input, ";");
         let mut line_number = begin_loop(&mut vec)?;
@@ -440,6 +425,7 @@ pub mod hammer{
     }
 
     fn build_aff_vec(hammer: &Hammer, string_exp: String, line_number: usize) -> Result<Vec::<(i32, i8)>, String>{
+        
         if string_exp == String::from(""){
             return Err(format!("Line {}: Syntax error.", line_number));
         }
@@ -447,7 +433,7 @@ pub mod hammer{
         let mut current_element = String::new(); 
         for chara in string_exp.chars(){
             if chara != ' '{
-                if hammer.is_operator(String::from(chara)){
+                if hammer.tools.is_operator(String::from(chara)){
                     add_element_in_aff_exp(hammer, &current_element, &mut exp, line_number)?;
                     exp.push((chara as i32, 2));
                     current_element = String::new();
@@ -469,7 +455,7 @@ pub mod hammer{
                 exp.push((number as i32, 0));
             }
             _ => {
-                if hammer.is_valid_name(&current_element){
+                if hammer.tools.is_valid_name(&current_element){
                     if hammer.var_exists(&current_element){
                         exp.push((*hammer.defined_var_list[current_element].val(), 1));
                     }else{  
@@ -515,7 +501,72 @@ pub mod hammer{
     }
 
 
-    fn get_assembly_txt(hammer: Hammer) -> Result<String, String>{
-        Ok(format!("{:?} {:?}", hammer.inst_list[1].aff.as_ref().unwrap().exp, hammer.defined_var_list.keys()))
+    fn get_assembly_txt(mut hammer: Hammer) -> Result<(), String>{
+        let mut macro_file = TextFile::new(String::from("asm/macros.asm"))?;
+        let mut data_file = TextFile::new(String::from("asm/data.asm"))?;
+        let mut script_file = TextFile::new(String::from("asm/script.asm"))?;
+        reset_asm_file(&mut macro_file, &mut script_file, &mut data_file)?;
+        data_file.push(&init_asm(&mut hammer)?);
+        script_file.push(&text_asm(&mut hammer)?);
+        Ok(())
+    }
+
+    fn text_asm(hammer: &mut Hammer) -> Result<String, String>{
+        let mut result = String::new();
+        for inst in hammer.inst_list.iter(){
+            match &inst.aff{
+                Some(aff) => {
+                    let var_def = &hammer.addr_list[&aff.addr];
+                    match aff.exp[0].1 {
+                        0 => {
+                            result.push_str(&format!("mov {}[{}], {}\n", hammer.size[&var_def.type_var.size].long, var_def.name, aff.exp[0].0));
+                        }
+                        1 =>{
+                            let var2_def = &hammer.addr_list[&aff.exp[0].0];
+                            let size_def = &hammer.size[&var2_def.type_var.size];
+                            result.push_str(&format!("mov {}, {}[{}]\n", size_def.registre, size_def.long, var2_def.name));
+                            result.push_str(&format!("mov {}[{}], {}\n", size_def.long, var_def.name, size_def.registre));
+                        }
+                        _ => panic!("Operateur en première position d'une affectation")
+                    }
+                }
+                _ =>{
+                    let macro_call: &MacroCall = inst.macro_call.as_ref().unwrap();
+                    let mut macro_call_s = String::from(format!("{} ", macro_call.macro_name));
+                    for arg in &macro_call.args{
+                        match arg.1{
+                            0 => {
+                                macro_call_s.push_str(&format!("{}", arg.0));
+                            }
+                            _ =>{
+                                let var_def = &hammer.addr_list[&arg.0];
+                                macro_call_s.push_str(&format!("[{}]", var_def.name));
+                            }
+                        }
+                    }
+                    result.push_str(&macro_call_s);
+                    result.push_str("\n");
+                }
+            }
+        }
+        Ok(result)
+    }
+    
+    fn init_asm(hammer: &mut Hammer) -> Result<String, String>{
+        let mut result = String::new();
+        for (_addr, def) in hammer.addr_list.iter(){
+            result.push_str(&format!("{}: {} 0\n", def.name, hammer.size[&def.type_var.size].short));
+        }
+        Ok(result)
+    }
+
+    fn reset_asm_file(macro_file: &mut TextFile, script_file: &mut TextFile, data_file: &mut TextFile) -> Result<(), String>{
+        let mut base_macro_file: TextFile = TextFile::new(String::from("asm/base_files/base_macros.asm"))?;
+        let mut base_data_file = TextFile::new(String::from("asm/base_files/base_data.asm"))?;
+        let mut base_script_file = TextFile::new(String::from("asm/base_files/base_script.asm"))?;
+        macro_file.reset(&base_macro_file.get_text());
+        script_file.reset(&base_script_file.get_text());
+        data_file.reset(&base_data_file.get_text());
+        Ok(())
     }
 }

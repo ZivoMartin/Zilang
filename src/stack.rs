@@ -22,4 +22,11 @@ impl<T> Stack<T>{
         self.vec.last().unwrap()
     }
 
+    pub fn is_empty(&self) -> bool{
+        return self.vec.len() == 0;
+    }
+
+    pub fn size(&self) -> usize{
+        self.vec.len()
+    }
 } 
