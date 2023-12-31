@@ -272,4 +272,8 @@ pub mod tools{
         }
         true
     }
+
+    pub fn is_value(string: &str) -> bool{
+        return is_float(string);
+    }
 }

@@ -2,7 +2,7 @@
 pub mod hammer{
     use std::collections::HashMap;
     use crate::stack::Stack;
-    use crate::tools::tools::{Tools, split, count_occur};
+    use crate::tools::tools::{Tools, split, is_value, count_occur};
 
     struct Type {
         name: String,
@@ -171,23 +171,7 @@ pub mod hammer{
                     }
                 }
             );
-            self.func_list.insert(
-                String::from("AFFECT"), 
-                Function{
-                    name: String::from("AFFECT"), 
-                    type_return: self.type_list["VOID"].clone(), 
-                    args: vec!{
-                        VariableDefinition{
-                            name: String::from("first"),
-                            type_var: self.type_list["GEN*"].clone()
-                        },
-                        VariableDefinition{
-                            name: String::from("value"),
-                            type_var: self.type_list["GEN"].clone()
-                        }
-                    }
-                }
-            );
+           
         }
 
         fn init_dispo_type(&mut self){
@@ -301,7 +285,19 @@ pub mod hammer{
             Ok(())
         }
 
-
+        pub fn try_to_affect(&mut self, addr: i32, new_val_def: VariableDefinition, string_value: String, line_number: usize) -> Result<bool, String>{
+            let var_def = self.addr_list[&addr].clone();
+            if var_def.type_var.name != new_val_def.type_var.name{
+                return Err(format!("Line {}: {} and {} doesn't have the same type.", line_number, var_def.name, new_val_def.name));
+            }
+            let value: i64 = string_value.parse::<i64>().unwrap();
+            match var_def.type_var.id{
+                0 => {self.memory.base_type.0.get_mut(&addr).unwrap().value = value as i32}
+                1 => {self.memory.base_type.1.get_mut(&addr).unwrap().value = value as i32}
+                _ => panic!("Impossible type")
+            } 
+            Ok(true)
+        }
 
     }
 
@@ -385,20 +381,23 @@ pub mod hammer{
             }
             let mut line = split(&vec[line_number.1], " ");
             line_number.0 += clean_line(&mut line);
+            println!("{}", hammer.memory.base_type.0.get_mut(&3).unwrap().value);
             if line.len() != 0{
-                line = handle_affectation(hammer, line, line_number.0)?;
-                let func_name = line.remove(0);
-                if hammer.func_exists(&func_name){
-
-                    hammer.is_valid_parameter(&hammer.func_list[&func_name], line, line_number.0)?;
+                if !handle_affectation(hammer, &line, line_number.0)? {
+                    // let func_name = line.remove(0);
+                    // if hammer.func_exists(&func_name){
+                    //     hammer.is_valid_parameter(&hammer.func_list[&func_name], line, line_number.0)?;
+                    // }
+                    // line_number.1 += 1;
                 }
-                line_number.1 += 1;
             } 
+            println!("{}", hammer.memory.base_type.0.get_mut(&3).unwrap().value);
+            line_number.1 += 1;
         }
         Ok(())        
     }
 
-    fn handle_affectation(hammer: &mut Hammer, line: Vec::<String>, line_number: usize) -> Result<Vec::<String>, String> {
+    fn handle_affectation(hammer: &mut Hammer, line: &Vec::<String>, line_number: usize) -> Result<bool, String> {
         let string_line = line.join(" ");
         if string_line.contains("="){
             let split = split(&string_line, "=");
@@ -406,19 +405,36 @@ pub mod hammer{
                 return Err(format!("Line {}: Invalid syntax.", line_number));
             }
             let var1 = setup_var(split[0].clone());
-            let var2 = setup_var(split[1].clone());
-            if hammer.is_valid_name(&var1){
-                if hammer.is_valid_name(&var2){
-                    return Ok(vec!{String::from("AFFECT"), String::from("&")+&var1, var2});
+            let mut var2 = setup_var(split[1].clone());
+            if hammer.var_exists(&var1){
+                let addr = hammer.defined_var_list[&var1].val();
+                let var_def: VariableDefinition;
+                if !is_value(&var2){
+                    if hammer.var_exists(&var2){
+                        let var_addr = hammer.defined_var_list[&var2].val();
+                        var_def = hammer.addr_list[&var_addr].clone();
+                        match var_def.type_var.id{
+                            0 => {var2 = format!("{}", hammer.memory.base_type.0[&var_addr].value)}
+                            1 => {var2 = format!("{}", hammer.memory.base_type.1[&var_addr].value)}
+                            _ => panic!("Impossible type")
+                        }
+                    }else{
+                        return Err(format!("Line {}: The variable {} doesn't exists.", line_number, var2));
+                    }
                 }else{
-                    return Err(format!("Line {}: {} is not a valid name for a variable", line_number, var2));
+                    var_def = VariableDefinition{
+                        name: String::from("tmp"), 
+                        type_var: hammer.addr_list[&addr].type_var.clone()
+                    };
+                    
                 }
+                hammer.try_to_affect(*addr, var_def, var2, line_number)
             }else{
-                return Err(format!("Line {}: {} is not a valid name for a variable", line_number, var1));
+                return Err(format!("Line {}: The variable {} doesn't exists.", line_number, var1));
             }
             
         }else{
-            Ok(line)
+            Ok(false)
         }
     }
 
