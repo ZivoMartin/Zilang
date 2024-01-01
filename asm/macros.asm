@@ -1,9 +1,8 @@
+section .data
+    _chiffres: db '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
+    _newline: db 10
 
-section .data:
-    chiffres: db '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
-    newline: db 10
-    next: db 44, 32
-
+global _start
 section .text
 
 %macro print_char 1
@@ -36,13 +35,13 @@ section .text
         pop rbx        
         cmp r10, 0  
         je end_loop_display_number
-        mov rsi, chiffres
+        mov rsi, _chiffres
         add rsi, rbx 
         print_char rsi
         dec r10
         jmp display
     end_loop_display_number:
-        print_char newline 
+        print_char _newline 
         
 %endmacro
 
@@ -53,3 +52,4 @@ section .text
     syscall
 
 %endmacro   
+

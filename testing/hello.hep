@@ -8,7 +8,8 @@ INT c;
 INT SUCCESS;
 
 TEXT;
-
 SUCCESS = 0;
-DISPLAY SUCCESS;
-EXIT SUCCESS;
+c = b;
+a = c + b * 3;
+!display_number(a);
+!exit(SUCCESS);

@@ -2,7 +2,7 @@
 pub mod hammer{
     use std::collections::HashMap;
     use crate::stack::Stack;
-    use crate::tools::tools::{Tools, split, is_value, count_occur};
+    use crate::tools::tools::{Tools, split, count_occur};
 
     struct Type {
         name: String,
@@ -36,27 +36,11 @@ pub mod hammer{
 
     }
 
-    struct Variable<T>{
-        addr: i32,
-        value: T
+    struct Macro{
+        name: String,
+        nb_arg: usize,
     }
 
-    impl<T: Copy> Variable<T>{
-
-        pub fn new(addr: i32, value: T) -> Variable<T>{
-            Variable{
-                addr: addr,
-                value: value
-            }
-        }
-
-        pub fn clone(&self) -> Variable<T>{
-            Variable{
-                addr: self.addr,
-                value: self.value,
-            }
-        }
-    }
 
     struct Function {
         name: String,
@@ -83,23 +67,23 @@ pub mod hammer{
         }
     }
 
-    struct Instruction {
-        function: Function,
-        args: Vec::<i64>
+    
+    struct Affectation{
+        addr: i32,
+        exp: Vec::<(i32, i8)>,
     }
 
-    struct Memory {
-        base_type: (HashMap<i32, Variable<i32>>, HashMap<i32, Variable<i32>>),
+    struct MacroCall{
+        macro_name: String,
+        args: Vec::<(i32, i8)>
+    }
+
+    struct Instruction {
+        macro_call: Option<MacroCall>,
+        aff: Option<Affectation>,
     }
     
-    impl Memory {
-        pub fn new() -> Memory {
-            Memory {
-                base_type: (HashMap::new(), HashMap::new()),
-            }
-        }
-    }
-    
+
 
     struct Hammer<'a>{
         tools: Tools,
@@ -107,10 +91,11 @@ pub mod hammer{
         defined_var_list: HashMap::<String, Stack::<i32>>,
         addr_list: HashMap::<i32, VariableDefinition>,
         func_list: HashMap::<String, Function>,
+        macro_list: HashMap::<String, Macro>,
         inst_list: Vec::<Instruction>,
-        memory: Memory,
         jumps_stack: Stack<Vec::<i32>>,
-        authorized_char_for_variable: &'a str
+        authorized_char_for_variable: &'a str,
+        operators: &'a str 
     }
 
     impl<'a> Hammer<'a>{
@@ -121,13 +106,15 @@ pub mod hammer{
                 defined_var_list: HashMap::<String, Stack::<i32>>::new(),
                 addr_list: HashMap::<i32, VariableDefinition>::new(),
                 func_list: HashMap::<String, Function>::new(),
+                macro_list: HashMap::<String, Macro>::new(),
                 inst_list: Vec::new(),
-                memory: Memory::new(),
                 jumps_stack: Stack::new(),
-                authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_"
+                authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_",
+                operators: "+-*"
             };
             res.init_dispo_type();
             res.init_dispo_func();
+            res.init_dispo_macro();
             return res
         }
 
@@ -136,42 +123,27 @@ pub mod hammer{
             for addr in variable_to_destroy{
                 let def = self.addr_list.remove(&addr).unwrap();
                 self.defined_var_list.get_mut(&def.name).unwrap().pop();
-                match def.type_var.id {
-                    0 => {self.memory.base_type.0.remove(&addr);},
-                    1 => {self.memory.base_type.1.remove(&addr);},
-                    _ => panic!("Impossible jump")
-                }
             }
         }
 
         fn init_dispo_func(&mut self){
-            self.func_list.insert(
-                String::from("DISPLAY"), 
-                Function{
-                    name: String::from("DISPLAY"), 
-                    type_return: self.type_list["VOID"].clone(), 
-                    args: vec!{
-                        VariableDefinition{
-                            name: String::from("x"),
-                            type_var: self.type_list["INT"].clone(),
-                        }
-                    }
+        }
+
+        fn init_dispo_macro(&mut self){
+            self.macro_list.insert(
+                String::from("display_number"), 
+                Macro{
+                    name: String::from("display_number"), 
+                    nb_arg: 1, 
                 }
             );
-            self.func_list.insert(
-                String::from("EXIT"), 
-                Function{
-                    name: String::from("EXIT"), 
-                    type_return: self.type_list["VOID"].clone(), 
-                    args: vec!{
-                        VariableDefinition{
-                            name: String::from("code"),
-                            type_var: self.type_list["INT"].clone(),
-                        }
-                    }
+            self.macro_list.insert(
+                String::from("exit"), 
+                Macro{
+                    name: String::from("exit"), 
+                    nb_arg: 1
                 }
             );
-           
         }
 
         fn init_dispo_type(&mut self){
@@ -193,7 +165,9 @@ pub mod hammer{
             true
         }
 
-
+        pub fn is_operator(&self, x: String) -> bool{
+            self.operators.contains(&x)
+        }
 
         pub fn type_exists(&self, name: &str) -> bool{
             self.type_list.contains_key(name)
@@ -205,6 +179,10 @@ pub mod hammer{
 
         pub fn func_exists(&self, name: &str) -> bool{
             self.func_list.contains_key(name)
+        }
+
+        pub fn macro_exists(&self, name: &str) -> bool{
+            self.macro_list.contains_key(name)
         }
 
         pub fn define_new_var(&mut self, name: String, type_var: String) -> Result<(), String>{
@@ -235,10 +213,6 @@ pub mod hammer{
                 }
             );
 
-            match &type_var as &str{
-                "INT" => {self.memory.base_type.0.insert(addr, Variable::new(addr, 0));}
-                _ => return Err(String::from("Impossible error"))
-            }
             Ok(())
         }
 
@@ -283,20 +257,6 @@ pub mod hammer{
                 }
             }
             Ok(())
-        }
-
-        pub fn try_to_affect(&mut self, addr: i32, new_val_def: VariableDefinition, string_value: String, line_number: usize) -> Result<bool, String>{
-            let var_def = self.addr_list[&addr].clone();
-            if var_def.type_var.name != new_val_def.type_var.name{
-                return Err(format!("Line {}: {} and {} doesn't have the same type.", line_number, var_def.name, new_val_def.name));
-            }
-            let value: i64 = string_value.parse::<i64>().unwrap();
-            match var_def.type_var.id{
-                0 => {self.memory.base_type.0.get_mut(&addr).unwrap().value = value as i32}
-                1 => {self.memory.base_type.1.get_mut(&addr).unwrap().value = value as i32}
-                _ => panic!("Impossible type")
-            } 
-            Ok(true)
         }
 
     }
@@ -376,28 +336,79 @@ pub mod hammer{
     fn instruct_loop(hammer: &mut Hammer, mut line_number: (usize, usize), vec: &mut Vec::<String>) -> Result<(), String>{
         line_number.1 += 1;
         loop{
-            if line_number.1 == vec.len(){
+            if line_number.1 == vec.len() -1{
                 break;
             }
-            let mut line = split(&vec[line_number.1], " ");
-            line_number.0 += clean_line(&mut line);
-            println!("{}", hammer.memory.base_type.0.get_mut(&3).unwrap().value);
-            if line.len() != 0{
-                if !handle_affectation(hammer, &line, line_number.0)? {
-                    // let func_name = line.remove(0);
-                    // if hammer.func_exists(&func_name){
-                    //     hammer.is_valid_parameter(&hammer.func_list[&func_name], line, line_number.0)?;
-                    // }
-                    // line_number.1 += 1;
+            let mut line_split = split(&vec[line_number.1], " ");
+            line_number.0 += clean_line(&mut line_split);
+            if line_split.len() != 0{
+                if !handle_affectation(hammer, &line_split, line_number.0)? {
+                    let mut line = line_split.join(" ");
+                    if line.pop() != Some(')'){
+                        return Err(format!("Line {}: Syntax error.", line_number.0));   
+                    }
+                    let mut split_par = line.split("(");
+                    let mut name = String::from(split_par.next().unwrap());
+                    
+                    if name.chars().next().unwrap() == '!'{
+                        name.remove(0);
+                        name = setup_var(name);
+                        if !hammer.macro_exists(&name){
+                            return Err(format!("Line {}: The macro {} doesn't exists.", line_number.0, name));
+                        }
+                        line = match split_par.next() {
+                            Some(rest_of_line)=> String::from(rest_of_line),
+                            _ => return Err(format!("Line {}: Parenthesis missing.", line_number.0))
+                        };
+                        let mut args = Vec::<(i32, i8)>::new();
+                        line = line.replace(" ", "");
+                        for arg in line.split(","){
+                            if arg == ""{
+                                break;
+                            }
+                            match str::parse::<i32>(&arg){
+                                Ok(number) =>{args.push((number, 0))}
+                                Err(_e) => {
+                                    if hammer.var_exists(arg){
+                                        args.push((*hammer.defined_var_list[arg].val(), 1));
+                                    }else{
+                                        return Err(format!("Line {}: bad argument found, {}", line_number.0, arg));
+                                    }
+                                }
+                            }
+                        }
+                        let nb_arg_expected = hammer.macro_list[&name].nb_arg;
+                        if args.len() != nb_arg_expected{
+                            return Err(format!("Line {}: Found {} arguments when {} was expected", line_number.0, args.len(), nb_arg_expected));
+                        }
+                        hammer.inst_list.push({
+                            Instruction{
+                                macro_call: Some(MacroCall{
+                                    macro_name: name,
+                                    args: args 
+                                }),
+                                aff: None
+                            }
+                        });
+                        
+                    }else{
+                        name = setup_var(name);
+                        println!("Its a function: {name}",)
+                    }
+                    let func_name = line_split.remove(0);
+                    if hammer.func_exists(&func_name){
+                        hammer.is_valid_parameter(&hammer.func_list[&func_name], line_split, line_number.0)?;
+                    }
                 }
             } 
-            println!("{}", hammer.memory.base_type.0.get_mut(&3).unwrap().value);
             line_number.1 += 1;
         }
         Ok(())        
     }
 
+
     fn handle_affectation(hammer: &mut Hammer, line: &Vec::<String>, line_number: usize) -> Result<bool, String> {
+        println!("{}: {:?}", line_number, line);
         let string_line = line.join(" ");
         if string_line.contains("="){
             let split = split(&string_line, "=");
@@ -405,30 +416,20 @@ pub mod hammer{
                 return Err(format!("Line {}: Invalid syntax.", line_number));
             }
             let var1 = setup_var(split[0].clone());
-            let mut var2 = setup_var(split[1].clone());
+            let var2 = setup_var(split[1].clone());
             if hammer.var_exists(&var1){
                 let addr = hammer.defined_var_list[&var1].val();
-                let var_def: VariableDefinition;
-                if !is_value(&var2){
-                    if hammer.var_exists(&var2){
-                        let var_addr = hammer.defined_var_list[&var2].val();
-                        var_def = hammer.addr_list[&var_addr].clone();
-                        match var_def.type_var.id{
-                            0 => {var2 = format!("{}", hammer.memory.base_type.0[&var_addr].value)}
-                            1 => {var2 = format!("{}", hammer.memory.base_type.1[&var_addr].value)}
-                            _ => panic!("Impossible type")
-                        }
-                    }else{
-                        return Err(format!("Line {}: The variable {} doesn't exists.", line_number, var2));
+                let exp = build_aff_vec(hammer, var2, line_number)?;
+                hammer.inst_list.push(
+                    Instruction{
+                        macro_call: None,
+                        aff: Some(Affectation{
+                            addr: *addr,
+                            exp: exp      
+                    })
                     }
-                }else{
-                    var_def = VariableDefinition{
-                        name: String::from("tmp"), 
-                        type_var: hammer.addr_list[&addr].type_var.clone()
-                    };
-                    
-                }
-                hammer.try_to_affect(*addr, var_def, var2, line_number)
+                );
+                Ok(true)
             }else{
                 return Err(format!("Line {}: The variable {} doesn't exists.", line_number, var1));
             }
@@ -437,6 +438,52 @@ pub mod hammer{
             Ok(false)
         }
     }
+
+    fn build_aff_vec(hammer: &Hammer, string_exp: String, line_number: usize) -> Result<Vec::<(i32, i8)>, String>{
+        if string_exp == String::from(""){
+            return Err(format!("Line {}: Syntax error.", line_number));
+        }
+        let mut exp = Vec::<(i32, i8)>::new();
+        let mut current_element = String::new(); 
+        for chara in string_exp.chars(){
+            if chara != ' '{
+                if hammer.is_operator(String::from(chara)){
+                    add_element_in_aff_exp(hammer, &current_element, &mut exp, line_number)?;
+                    exp.push((chara as i32, 2));
+                    current_element = String::new();
+                }else{
+                    current_element.push(chara);
+                }
+            }
+        }
+        add_element_in_aff_exp(hammer, &current_element, &mut exp, line_number)?;
+        Ok(exp)
+    }
+
+    fn add_element_in_aff_exp(hammer: &Hammer, current_element: &str, exp: &mut Vec::<(i32, i8)>, line_number: usize) -> Result<(), String>{
+        if current_element == String::from(""){
+            return Err(format!("Line {}: Syntax error.", line_number));
+        }
+        match str::parse::<i32>(&current_element){
+            Ok(number) => {
+                exp.push((number as i32, 0));
+            }
+            _ => {
+                if hammer.is_valid_name(&current_element){
+                    if hammer.var_exists(&current_element){
+                        exp.push((*hammer.defined_var_list[current_element].val(), 1));
+                    }else{  
+                        return Err(format!("Line {}: Variable {} doesn't exists.", line_number, current_element));
+                    }
+                }else{
+                    return Err(format!("Line {}: Syntax erro.", line_number));
+                }
+                
+            }
+        }
+        Ok(())
+    }
+
 
     fn setup_var(mut var: String) -> String{
         while var.len() != 0 && var.chars().nth(0).unwrap() == ' '{
@@ -469,6 +516,6 @@ pub mod hammer{
 
 
     fn get_assembly_txt(hammer: Hammer) -> Result<String, String>{
-        Ok(format!("{:?} {:?}", hammer.func_list.keys(), hammer.defined_var_list.keys()))
+        Ok(format!("{:?} {:?}", hammer.inst_list[1].aff.as_ref().unwrap().exp, hammer.defined_var_list.keys()))
     }
 }
