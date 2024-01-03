@@ -95,7 +95,7 @@ pub mod tools{
     pub struct Tools{
         authorized_char_for_variable: &'static str,
         operators: &'static str,
-        operator_priority: HashMap<&'static str, u8>
+        operator_priority: HashMap<String, u8>
     }
 
     impl Tools{
@@ -117,7 +117,7 @@ pub mod tools{
             true
         }
 
-        pub fn is_operator(&self, x: String) -> bool{
+        pub fn is_operator(&self, x: &str) -> bool{
             self.operators.contains(&x)
         }
 
@@ -125,35 +125,26 @@ pub mod tools{
             let mut result = Vec::<String>::new();
             let mut stack = Stack::<String>::new();
 
-            for elt in exp.iter(){
-                if self.is_operator(String::from(elt)){
-                    while !stack.is_empty() && *stack.val() != String::from("(") && self.get_priority(elt) < self.get_priority(stack.val()){
+            for e_elt in exp.iter(){
+                let elt = String::from(e_elt);
+                if self.is_operator(&elt){
+                    while !stack.is_empty() && *stack.val() != String::from("(") && self.operator_priority[&elt] < self.operator_priority[&elt]{
                         result.push(stack.pop());
                     }
-                    stack.push(String::from(elt));
+                    stack.push(elt);
                 }else if elt == ")"{
                     while stack.val() != "(" {
                         result.push(stack.pop());
                     }
                     stack.pop();
                 }else{
-                    result.push(String::from(elt));
+                    result.push(elt);
                 }
             }
             while stack.size() != 0 {
                 result.push(stack.pop());
             }
             result
-        }
-
-        fn get_priority(&self, operator: &str) -> u8{
-            if operator == "+" || operator == "-"{
-                return 1;
-            }else if operator == "("{
-                return 3;
-            }else{
-                return 2;
-            }
         }
     
 
@@ -175,14 +166,14 @@ pub mod tools{
         return count;
     }
 
-    fn build_operator_priority() -> HashMap<&'static str, u8>{
-        let mut res = HashMap::<&'static str, u8>::new();
-        res.insert("+", 1);
-        res.insert("-", 1);
-        res.insert("*", 2);
-        res.insert("/", 2);
-        res.insert("(", 3);
-        res.insert(")", 2);
+    fn build_operator_priority() -> HashMap<String, u8>{
+        let mut res = HashMap::<String, u8>::new();
+        res.insert(String::from("+"), 1);
+        res.insert(String::from("-"), 1);
+        res.insert(String::from("*"), 2);
+        res.insert(String::from("/"), 2);
+        res.insert(String::from("("), 3);
+        res.insert(String::from(")"), 2);
         res
     }
   

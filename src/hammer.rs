@@ -45,7 +45,7 @@ pub mod hammer{
     
     struct Affectation{
         addr: i32,
-        exp: Vec::<(i32, i8)>,
+        exp: Vec::<(i32, u8)>,
     }
 
     struct MacroCall{
@@ -243,6 +243,11 @@ pub mod hammer{
             }
             Ok(())
         }
+        
+        pub fn get_size_def(&self, addr: i32) -> &AsmType{
+            &self.size[&self.addr_list[&addr].type_var.size]
+        }
+
 
     }
 
@@ -424,29 +429,34 @@ pub mod hammer{
         }
     }
 
-    fn build_aff_vec(hammer: &Hammer, string_exp: String, line_number: usize) -> Result<Vec::<(i32, i8)>, String>{
-        
+    fn build_aff_vec(hammer: &Hammer, string_exp: String, line_number: usize) -> Result<Vec::<(i32, u8)>, String>{
         if string_exp == String::from(""){
             return Err(format!("Line {}: Syntax error.", line_number));
         }
-        let mut exp = Vec::<(i32, i8)>::new();
+        let mut exp = Vec::<String>::new();
         let mut current_element = String::new(); 
         for chara in string_exp.chars(){
             if chara != ' '{
-                if hammer.tools.is_operator(String::from(chara)){
-                    add_element_in_aff_exp(hammer, &current_element, &mut exp, line_number)?;
-                    exp.push((chara as i32, 2));
+                if hammer.tools.is_operator(&String::from(chara)){
+                    exp.push(current_element);
+                    exp.push(String::from(chara));
                     current_element = String::new();
                 }else{
                     current_element.push(chara);
                 }
             }
         }
-        add_element_in_aff_exp(hammer, &current_element, &mut exp, line_number)?;
-        Ok(exp)
+        exp.push(current_element);
+        exp = hammer.tools.convert_in_postfix_exp(exp);
+        println!("{:?}", exp);
+        let mut res = Vec::<(i32, u8)>::new();
+        for elt in exp.iter(){
+            add_element_in_aff_exp(hammer, &elt, &mut res, line_number)?;
+        }
+        Ok(res)
     }
 
-    fn add_element_in_aff_exp(hammer: &Hammer, current_element: &str, exp: &mut Vec::<(i32, i8)>, line_number: usize) -> Result<(), String>{
+    fn add_element_in_aff_exp(hammer: &Hammer, current_element: &str, exp: &mut Vec::<(i32, u8)>, line_number: usize) -> Result<(), String>{
         if current_element == String::from(""){
             return Err(format!("Line {}: Syntax error.", line_number));
         }
@@ -461,10 +471,11 @@ pub mod hammer{
                     }else{  
                         return Err(format!("Line {}: Variable {} doesn't exists.", line_number, current_element));
                     }
+                }else if hammer.tools.is_operator(&current_element){
+                    exp.push((current_element.chars().next().unwrap() as i32, 2))
                 }else{
-                    return Err(format!("Line {}: Syntax erro.", line_number));
+                    return Err(format!("Line {}: Syntax error.", line_number));
                 }
-                
             }
         }
         Ok(())
@@ -516,19 +527,10 @@ pub mod hammer{
         for inst in hammer.inst_list.iter(){
             match &inst.aff{
                 Some(aff) => {
+                    result = evaluate_exp(hammer, &aff.exp, result);
                     let var_def = &hammer.addr_list[&aff.addr];
-                    match aff.exp[0].1 {
-                        0 => {
-                            result.push_str(&format!("mov {}[{}], {}\n", hammer.size[&var_def.type_var.size].long, var_def.name, aff.exp[0].0));
-                        }
-                        1 =>{
-                            let var2_def = &hammer.addr_list[&aff.exp[0].0];
-                            let size_def = &hammer.size[&var2_def.type_var.size];
-                            result.push_str(&format!("mov {}, {}[{}]\n", size_def.registre, size_def.long, var2_def.name));
-                            result.push_str(&format!("mov {}[{}], {}\n", size_def.long, var_def.name, size_def.registre));
-                        }
-                        _ => panic!("Operateur en première position d'une affectation")
-                    }
+                    let size_def = hammer.get_size_def(aff.addr);
+                    result.push_str(&format!("mov {}[{}], {}\n", size_def.long, var_def.name, size_def.registre));
                 }
                 _ =>{
                     let macro_call: &MacroCall = inst.macro_call.as_ref().unwrap();
@@ -552,6 +554,26 @@ pub mod hammer{
         Ok(result)
     }
     
+    fn evaluate_exp(hammer: &Hammer, exp: &Vec<(i32, u8)>, mut res: String) -> String{
+        for elt in exp{
+            if elt.1 == 2{
+                res.push_str("pull r10\npull r11\ncall _operation\n");
+            }else{
+                match elt.1{
+                    1 => {
+                        let size_def = hammer.get_size_def(elt.1 as i32);
+                        res.push_str(&format!("movzx rax, {}[{}]\npush rax\n", size_def.long, hammer.addr_list[&(elt.1 as i32)].name));
+                    }
+                    _ =>{
+                        res.push_str(&format!("mov rax, {}\npush rax\n", elt.0));
+                    }
+                }       
+            }
+        }
+        res.push_str("pull rax\n");
+        res
+    }
+
     fn init_asm(hammer: &mut Hammer) -> Result<String, String>{
         let mut result = String::new();
         for (_addr, def) in hammer.addr_list.iter(){
