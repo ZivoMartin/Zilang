@@ -1,0 +1,26 @@
+Les tableaux !! Va falloir réflechir.. Unepeu la flm. Bon par ou on commence ? Qu'est qu'un tableau ? Une tableau est 
+un ensemble de variable du même type, i.e une suite stupide de definition de variable côte à côte ? Solution 1:
+
+Quand l'utilisateur definis un tableau de 13 elements on lui ment et on definit simplement 13 variables. Dans ces cas la les variables
+sont-elles sensées etre du même type ? Pas necessairement. Le seul soucis viens au moment ou on convertit tout ca en asm,
+solution 1, déclarer betement les variable un a une avec la forme nomtableau + caractère privé + index ?
+Mmmh c'est moche mais ça fonctionne, commence ça se fait que les compilateurs ne permettent pas des types différents dans les tableaux? 
+Je dois plus réflechir... Quel serai les autres problèmes de cette méthode ? Beaucoup de text mais c'est pas suffisant comme raison
+car le jeu en vaut la chandelle.......  AHH si l'utilisateur veut faire un tableau de 20 000 elements ça devient compliqué
+et chargé en text.. J'aime pas trop de toute manière cette méthode et c'est bizarre de pouvoir faire un tableau qui possède plusieurs
+variable du même type.. Ah mais je viens de comprende, ce à quoi je suis entrein de penser a un nom c'est un tupple !!!
+C'est pour cela qu'il est nécessaire de déclarer le type de chaque élément, le compilateur alloue le bon nombre de variable.
+OKKK donc cette solution n'est pas rentable, il faut utiliser les tableaux natifs.. Ok bon j'ai une autre idée 
+
+
+Deux idées me viennent en tête, la première, garder en mémoire dans la vardef une size, pratique il suffit au moment de l'init de
+declarer size 0. La deuxieme generer l'init dynamiquement lors de la loop_init, l'avantage est de ne pas avoir à se trimballer la size
+de chaque variable.. Mais bon cela me restreint dans la creation de variable temporaire (je suppose).
+
+
+IDEE DE FOU
+Pourquoi ne pas gerer les variables temporaires dans un énorme espace mémoire definie en asm et entretenu par le script asm ?
+Ce serai vachement pratique et permettrait de ne pas se soucier de devoir definir les variables dans la section data !!!
+A retenir absolument
+
+Je pense que je vais pencher pour la deuxième solution qui est de definir les variables dynamiquement.

@@ -28,6 +28,7 @@ pub mod hammer{
 
     struct VariableDefinition{
         name: String,
+        decal: i32,
         type_var: Type,
     }
     
@@ -154,8 +155,34 @@ pub mod hammer{
         }
 
 
-        pub fn type_exists(&self, name: &str) -> bool{
-            self.type_list.contains_key(name)
+        pub fn is_valid_type(&self, name: String) -> Result<(String, i32), String>{
+            if name.len() > 3{
+                let mut rev = name.chars().rev();
+                let end = (rev.next().unwrap(), rev.next().unwrap(), rev.next().unwrap());
+                if end.0 == ']' && end.2 == '[' {
+                    match str::parse::<i32>(&String::from(end.1)){
+                        Ok(number) => return self.type_exists(number, rev.rev().collect::<String>()),
+                        _ => return Err(format!("Error: {} found when a number was await.", end.1))
+                    }
+                    
+                }else if end.1 == '[' && end.0 == ']' {
+                    return Err(String::from("You have to specify the size of your array."));
+                }
+                else{
+                    self.type_exists(1, name)
+                }
+            }else{
+                self.type_exists(1, name)
+            }
+            
+        }
+
+        fn type_exists(&self, size: i32, name: String) -> Result<(String, i32), String>{
+            if self.type_list.contains_key(&name){
+                Ok((name, size))
+            }else{
+                Err(format!("{} is not a valid type.", name))
+            }
         }
 
         pub fn var_exists(&self, name: &str) -> bool{
@@ -170,10 +197,18 @@ pub mod hammer{
             self.macro_list.contains_key(name)
         }
 
-        pub fn define_new_var(&mut self, name: String, type_var: String) -> Result<(), String>{
-            if !self.type_exists(&type_var){
-                return Err(format!("{} is not a valid type.", type_var));
-            }
+        pub fn get_addr(&self, name: &str) -> i32{
+            *self.defined_var_list[name].val()
+        }
+
+        pub fn get_var_def_by_name(&self, name: &str) -> &VariableDefinition{
+            return &self.addr_list[&self.get_addr(name)]
+        }
+
+        pub fn define_new_var(&mut self, name: String, mut type_var: String, data_file: Option<&mut TextFile>) -> Result<(), String>{
+            let result_type_analyse = self.is_valid_type(type_var)?;
+            type_var = result_type_analyse.0;
+            let size_value = result_type_analyse.1;
             if !self.tools.is_valid_name(&name){
                 return Err(format!("{} is not a valid name for a variable.", name));
             }
@@ -187,17 +222,34 @@ pub mod hammer{
                     new_stack
                 );    
             }else{
-                self.defined_var_list.get_mut(&name).unwrap().push(addr);
+                match data_file{
+                    Some(_file) => return Err(format!("There is already a gloable variable with the name {}", name)),
+                    _ => self.defined_var_list.get_mut(&name).unwrap().push(addr)
+                }
             }
+
+            let var_def: VariableDefinition = VariableDefinition{
+                name: name.clone(),
+                decal: 0,
+                type_var: self.type_list[&type_var].clone()
+            };
             
+            match data_file{
+                Some(file) =>{
+                    file.push(&format!("{}: {}", name, self.size[&var_def.type_var.size].short));
+                    for _ in 0..size_value{
+                        file.push(" 0,")
+                    }
+                }
+                _ => {}
+            }
+
             self.addr_list.insert(
                 addr,
-                VariableDefinition{
-                    name: name.clone(),
-                    type_var: self.type_list[&type_var].clone()
-                }
+                var_def
             );
 
+            
             Ok(())
         }
 
@@ -215,7 +267,7 @@ pub mod hammer{
                     return Err(format!("Line {}: No variable named {}", line_number, param[i]));
                 }
                 let await_type = func.args[i].type_var.name.clone();
-                let var_addr = self.defined_var_list[&param[i]].val();
+                let var_addr = self.get_addr(&param[i]);
                 let mut param_type = self.addr_list[&var_addr].type_var.name.clone();
                 if await_type != param_type{
                     if await_type == "GEN"{
@@ -248,11 +300,17 @@ pub mod hammer{
             &self.size[&self.addr_list[&addr].type_var.size]
         }
 
+        fn get_extract_string(&self, addr: i32) -> String{
+            let size_def: &AsmType = self.get_size_def(addr);
+            let var_def: &VariableDefinition = &self.addr_list[&addr];
+            return String::from(format!("{}[{} + {}*{}]", size_def.long, var_def.name, var_def.decal, var_def.type_var.size))
+        }
 
     }
 
     pub fn compile_txt(input: String) -> Result<(), String>{
         let mut hammer: Hammer = Hammer::new();
+        reset_asm_file()?;
         let mut vec = split(&input, ";");
         let mut line_number = begin_loop(&mut vec)?;
         if line_number.1 == vec.len() {
@@ -295,6 +353,7 @@ pub mod hammer{
 
     fn init_loop(hammer: &mut Hammer, mut line_number: (usize, usize), vec: &mut Vec::<String>)-> Result<(usize, usize), String>{
         line_number.1 += 1;
+        let mut data_file = TextFile::new(String::from("asm/data.asm"))?;
         loop{
             if line_number.1 == vec.len(){
                 break;
@@ -303,7 +362,7 @@ pub mod hammer{
             line_number.0 += clean_line(&mut line);
             match line.len(){
                 2 => {
-                    hammer.define_new_var(line[1].clone(), line[0].clone())?;
+                    hammer.define_new_var(line[1].clone(), line[0].clone(), Some(&mut data_file))?;
                 }
                 1 =>{
                     if line[0] == "TEXT"{
@@ -360,7 +419,7 @@ pub mod hammer{
                                 Ok(number) =>{args.push((number, 0))}
                                 Err(_e) => {
                                     if hammer.var_exists(arg){
-                                        args.push((*hammer.defined_var_list[arg].val(), 1));
+                                        args.push((hammer.get_addr(arg), 1));
                                     }else{
                                         return Err(format!("Line {}: bad argument found, {}", line_number.0, arg));
                                     }
@@ -406,13 +465,13 @@ pub mod hammer{
             let var1 = setup_var(split[0].clone());
             let var2 = setup_var(split[1].clone());
             if hammer.var_exists(&var1){
-                let addr = hammer.defined_var_list[&var1].val();
+                let addr = hammer.get_addr(&var1);
                 let exp = build_aff_vec(hammer, var2, line_number)?;
                 hammer.inst_list.push(
                     Instruction{
                         macro_call: None,
                         aff: Some(Affectation{
-                            addr: *addr,
+                            addr: addr,
                             exp: exp      
                     })
                     }
@@ -466,7 +525,7 @@ pub mod hammer{
             _ => {
                 if hammer.tools.is_valid_name(&current_element){
                     if hammer.var_exists(&current_element){
-                        exp.push((*hammer.defined_var_list[current_element].val(), 1));
+                        exp.push((hammer.get_addr(current_element), 1));
                     }else{  
                         return Err(format!("Line {}: Variable {} doesn't exists.", line_number, current_element));
                     }
@@ -512,11 +571,8 @@ pub mod hammer{
 
 
     fn get_assembly_txt(mut hammer: Hammer) -> Result<(), String>{
-        let mut macro_file = TextFile::new(String::from("asm/macros.asm"))?;
-        let mut data_file = TextFile::new(String::from("asm/data.asm"))?;
+        let mut _macro_file = TextFile::new(String::from("asm/macros.asm"))?;
         let mut script_file = TextFile::new(String::from("asm/script.asm"))?;
-        reset_asm_file(&mut macro_file, &mut script_file, &mut data_file)?;
-        data_file.push(&init_asm(&mut hammer)?);
         script_file.push(&text_asm(&mut hammer)?);
         Ok(())
     }
@@ -527,9 +583,7 @@ pub mod hammer{
             match &inst.aff{
                 Some(aff) => {
                     result = evaluate_exp(hammer, &aff.exp, result);
-                    let var_def = &hammer.addr_list[&aff.addr];
-                    let size_def = hammer.get_size_def(aff.addr);
-                    result.push_str(&format!("mov {}[{}], {}\n", size_def.long, var_def.name, size_def.registre));
+                    result.push_str(&format!("mov {}, {}\n", hammer.get_extract_string(aff.addr), hammer.get_size_def(aff.addr).registre));
                 }
                 _ =>{
                     let macro_call: &MacroCall = inst.macro_call.as_ref().unwrap();
@@ -553,6 +607,8 @@ pub mod hammer{
         Ok(result)
     }
     
+    
+
     fn evaluate_exp(hammer: &Hammer, exp: &Vec<(i32, u8)>, mut res: String) -> String{
         for elt in exp{
             if elt.1 == 2{
@@ -561,7 +617,7 @@ pub mod hammer{
                 match elt.1{
                     1 => {
                         let size_def = hammer.get_size_def(elt.1 as i32);
-                        res.push_str(&format!("xor rax, rax\nmov {}, {}[{}]\npush rax\n", size_def.registre, size_def.long, hammer.addr_list[&(elt.0 as i32)].name));
+                        res.push_str(&format!("xor rax, rax\nmov {}, {}\npush rax\n", size_def.registre, hammer.get_extract_string(elt.0 as i32)));
                     }
                     _ =>{
                         res.push_str(&format!("mov rax, {}\npush rax\n", elt.0));
@@ -574,18 +630,16 @@ pub mod hammer{
         res
     }
 
-    fn init_asm(hammer: &mut Hammer) -> Result<String, String>{
-        let mut result = String::new();
-        for (_addr, def) in hammer.addr_list.iter(){
-            result.push_str(&format!("{}: {} 0\n", def.name, hammer.size[&def.type_var.size].short));
-        }
-        Ok(result)
-    }
 
-    fn reset_asm_file(macro_file: &mut TextFile, script_file: &mut TextFile, data_file: &mut TextFile) -> Result<(), String>{
+    fn reset_asm_file() -> Result<(), String>{
+        let mut macro_file = TextFile::new(String::from("asm/macros.asm"))?;
+        let mut data_file = TextFile::new(String::from("asm/data.asm"))?;
+        let mut script_file = TextFile::new(String::from("asm/script.asm"))?;
+
         let mut base_macro_file: TextFile = TextFile::new(String::from("asm/base_files/base_macros.asm"))?;
         let mut base_data_file = TextFile::new(String::from("asm/base_files/base_data.asm"))?;
         let mut base_script_file = TextFile::new(String::from("asm/base_files/base_script.asm"))?;
+
         macro_file.reset(&base_macro_file.get_text());
         script_file.reset(&base_script_file.get_text());
         data_file.reset(&base_data_file.get_text());
