@@ -557,12 +557,12 @@ pub mod hammer{
     fn evaluate_exp(hammer: &Hammer, exp: &Vec<(i32, u8)>, mut res: String) -> String{
         for elt in exp{
             if elt.1 == 2{
-                res.push_str("pull r10\npull r11\ncall _operation\n");
+                res.push_str(&format!("pop r10\npop r11\nmov r12, {}\ncall _operation\npush rax\n", elt.0));
             }else{
                 match elt.1{
                     1 => {
                         let size_def = hammer.get_size_def(elt.1 as i32);
-                        res.push_str(&format!("movzx rax, {}[{}]\npush rax\n", size_def.long, hammer.addr_list[&(elt.1 as i32)].name));
+                        res.push_str(&format!("xor rax, rax\nmov {}, {}[{}]\npush rax\n", size_def.registre, size_def.long, hammer.addr_list[&(elt.0 as i32)].name));
                     }
                     _ =>{
                         res.push_str(&format!("mov rax, {}\npush rax\n", elt.0));
@@ -570,7 +570,7 @@ pub mod hammer{
                 }       
             }
         }
-        res.push_str("pull rax\n");
+        res.push_str("pop rax\n");
         res
     }
 

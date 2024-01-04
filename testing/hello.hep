@@ -9,7 +9,8 @@ INT SUCCESS;
 
 TEXT;
 SUCCESS = 0;
-c = b;
+c = 23;
+b = 7;
 a = c + b * 3;
 !display_number(a);
 !exit(SUCCESS);

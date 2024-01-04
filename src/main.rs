@@ -4,6 +4,7 @@ use tools::tools::{file_exists, TextFile};
 mod tools;
 mod hammer;
 mod stack;
+use std::process::Command;
 
 fn main() -> Result<(), String> {
     let mut args: Vec<String> = env::args().collect();
@@ -23,11 +24,31 @@ fn main() -> Result<(), String> {
 }
 
 
-fn compile(input: &str, _output: &str) -> Result<(), String>{
+fn compile(input: &str, output: &str) -> Result<(), String>{
     if !file_exists(&input){
         return Err(format!("File {} don't exist.", input));
     }
     let mut input_file = TextFile::new(String::from(input))?; 
-    compile_txt(String::from(input_file.get_text()))
+    compile_txt(String::from(input_file.get_text()))?;
+    compile_asm_to_executable("asm/script.asm", output);
+    Ok(())
 }
 
+fn compile_asm_to_executable(file_path: &str, output: &str) {
+
+    let mut output_object = String::from(output);
+    output_object.push_str(".o");
+
+    Command::new("nasm")
+        .arg("-f")
+        .arg("elf64")
+        .arg("-o")
+        .arg(&output_object)
+        .arg(file_path);
+
+
+    Command::new("ld")
+        .arg(&output_object)
+        .arg("-o")
+        .arg(output);
+}
