@@ -19,7 +19,9 @@ impl<T> Stack<T>{
     }
 
     pub fn val(&self) -> &T{
-        self.vec.last().unwrap()
+        self.vec.last().unwrap_or_else(||{
+            panic!("The stack is empty.");
+        })
     }
 
     pub fn is_empty(&self) -> bool{

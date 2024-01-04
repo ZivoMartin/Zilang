@@ -118,7 +118,7 @@ pub mod tools{
         }
 
         pub fn is_operator(&self, x: &str) -> bool{
-            self.operators.contains(&x)
+            self.operators.contains(&x) && x != ""
         }
 
         pub fn convert_in_postfix_exp(&self, exp: Vec::<String>) -> Vec::<String>{
@@ -127,7 +127,8 @@ pub mod tools{
 
             for e_elt in exp.iter(){
                 let elt = String::from(e_elt);
-                if self.is_operator(&elt){
+                if self.is_operator(&elt) || elt == "("{
+                    println!("1: {}", elt);
                     while !stack.is_empty() && *stack.val() != String::from("(") && self.operator_priority[&elt] < self.operator_priority[&elt]{
                         result.push(stack.pop());
                     }
@@ -176,6 +177,9 @@ pub mod tools{
         res.insert(String::from(")"), 2);
         res
     }
-  
+    
+    pub fn is_par(elt: char) -> bool{
+        return elt == '(' || elt == ')'
+    }
 
 }

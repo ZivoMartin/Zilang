@@ -4,7 +4,7 @@ use tools::tools::{file_exists, TextFile};
 mod tools;
 mod hammer;
 mod stack;
-use std::process::Command;
+use std::process::{Command, exit};
 
 fn main() -> Result<(), String> {
     let mut args: Vec<String> = env::args().collect();
@@ -44,11 +44,19 @@ fn compile_asm_to_executable(file_path: &str, output: &str) {
         .arg("elf64")
         .arg("-o")
         .arg(&output_object)
-        .arg(file_path);
+        .arg(file_path)
+        .status().unwrap_or_else(|e| {
+            eprintln!("ERROR: Could not call nasm: {e}");
+            exit(1);
+        });
 
 
     Command::new("ld")
         .arg(&output_object)
         .arg("-o")
-        .arg(output);
+        .arg(output)
+        .status().unwrap_or_else(|e| {
+            eprintln!("ERROR: Could not call ld: {e}");
+            exit(1);
+        });
 }

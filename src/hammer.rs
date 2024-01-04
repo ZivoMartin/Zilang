@@ -2,7 +2,7 @@
 pub mod hammer{
     use std::collections::HashMap;
     use crate::stack::Stack;
-    use crate::tools::tools::{Tools, TextFile, split, count_occur};
+    use crate::tools::tools::{Tools, TextFile, split, count_occur, is_par};
 
     struct Type {
         name: String,
@@ -382,8 +382,7 @@ pub mod hammer{
                         });
                         
                     }else{
-                        name = setup_var(name);
-                        println!("Its a function: {name}",)
+                        //name = setup_var(name);
                     }
                     let func_name = line_split.remove(0);
                     if hammer.func_exists(&func_name){
@@ -398,7 +397,6 @@ pub mod hammer{
 
 
     fn handle_affectation(hammer: &mut Hammer, line: &Vec::<String>, line_number: usize) -> Result<bool, String> {
-        println!("{}: {:?}", line_number, line);
         let string_line = line.join(" ");
         if string_line.contains("="){
             let split = split(&string_line, "=");
@@ -437,8 +435,10 @@ pub mod hammer{
         let mut current_element = String::new(); 
         for chara in string_exp.chars(){
             if chara != ' '{
-                if hammer.tools.is_operator(&String::from(chara)){
-                    exp.push(current_element);
+                if hammer.tools.is_operator(&String::from(chara)) || is_par(chara){
+                    if current_element != ""{
+                        exp.push(current_element);
+                    }
                     exp.push(String::from(chara));
                     current_element = String::new();
                 }else{
@@ -448,7 +448,6 @@ pub mod hammer{
         }
         exp.push(current_element);
         exp = hammer.tools.convert_in_postfix_exp(exp);
-        println!("{:?}", exp);
         let mut res = Vec::<(i32, u8)>::new();
         for elt in exp.iter(){
             add_element_in_aff_exp(hammer, &elt, &mut res, line_number)?;
@@ -571,6 +570,7 @@ pub mod hammer{
             }
         }
         res.push_str("pop rax\n");
+        res = res.replace("push rax\npop rax\n", "");
         res
     }
 

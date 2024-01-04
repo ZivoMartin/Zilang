@@ -1,44 +1,33 @@
 %include "asm/macros.asm"
-%include "asm/data.asm"
-
-
-
 
 global _start
-
-
-section .data
-    multip: db '*'
-    soustr: db '-'
-    addi: db '+'
-    divis: db '/'
 
 
 section .text
 
 _operation:
-    cmp r12b, byte[addi]
-    je _addi
-    cmp r12b, byte[soustr]
-    je _soustr
-    cmp r12b, byte[multip]
-    je _multip
-    cmp r12b, byte[divis]
-    je _divis
+    cmp r12b, byte[_addi]
+    je _addi_op
+    cmp r12b, byte[_soustr]
+    je _soustr_op
+    cmp r12b, byte[_multip]
+    je _multip_op
+    cmp r12b, byte[_divis]
+    je _divis_op
 
-    _addi:
+    _addi_op:
         add r10, r11
         mov rax, r10
         ret
-    _soustr:
+    _soustr_op:
         sub r10, r11
         mov rax, r10
         ret
-    _multip:
+    _multip_op:
         mov rax, r10
         mul r11
         ret
-    _divis:
+    _divis_op:
         xor rcx, rcx
         mov rax, r10
         idiv r11
