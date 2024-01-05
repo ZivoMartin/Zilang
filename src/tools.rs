@@ -128,7 +128,7 @@ pub mod tools{
             for e_elt in exp.iter(){
                 let elt = String::from(e_elt);
                 if self.is_operator(&elt) || elt == "("{
-                    while !stack.is_empty() && *stack.val() != String::from("(") && self.operator_priority[&elt] < self.operator_priority[&elt]{
+                    while !stack.is_empty() && *stack.val() != String::from("(") && self.operator_priority[&elt] <= self.operator_priority[&elt]{
                         result.push(stack.pop());
                     }
                     stack.push(elt);
@@ -150,7 +150,8 @@ pub mod tools{
 
     }
 
-    
+
+
 
     pub fn split(string: &str, splitter: &str) -> Vec::<String>{
         string.split(splitter).map(String::from).collect()

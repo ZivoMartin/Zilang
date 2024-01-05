@@ -15,8 +15,3 @@ b = 7;
 a = (c + b) * 3;
 !display_number(a);
 !exit(SUCCESS);
-
-
-
-
-
