@@ -1,0 +1,9 @@
+MAIN;
+
+TEXT;
+
+INT a;
+a = 30;
+
+INT* b;
+b = &a

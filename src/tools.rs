@@ -95,7 +95,8 @@ pub mod tools{
     pub struct Tools{
         authorized_char_for_variable: &'static str,
         operators: &'static str,
-        operator_priority: HashMap<String, u8>
+        operator_priority: HashMap<String, u8>,
+        separators: &'static str
     }
 
     impl Tools{
@@ -104,7 +105,8 @@ pub mod tools{
             Tools{
                 authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_",
                 operators: "+-*/",
-                operator_priority: build_operator_priority()
+                operator_priority: build_operator_priority(),
+                separators: "(){}[],."
             }
         }
 
@@ -147,6 +149,10 @@ pub mod tools{
             result
         }
     
+        
+        pub fn is_separator(&self, chara: char) -> bool{
+            self.separators.contains(chara)
+        }
 
     }
 
@@ -180,6 +186,13 @@ pub mod tools{
     
     pub fn is_par(elt: char) -> bool{
         return elt == '(' || elt == ')'
+    }
+
+    pub fn from_char_to_number(mut chara: String) -> Option<i8> {
+        if chara.len() != 3 || chara.pop().unwrap() != '\'' || chara.remove(0) != '\''{
+            return None
+        }
+        return Some(chara.chars().next().unwrap() as i8)
     }
 
 }

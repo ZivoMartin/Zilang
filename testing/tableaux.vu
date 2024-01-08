@@ -1,25 +1,17 @@
 MAIN;
 
-INIT;
-
-INT[4] t1;
-INT[2] t2;
 
 TEXT;
 
-t1[0] = 1;
-t1[1] = 2;
-t1[2] = 3;
-t1[3] = 4;
+INT[8] t;
 
-t2[0] = t1[3] * 4;
-t2[1] = t1[2] * 2 + t1[2] +t2[0];
+t:0 = 0;    #Ce tableau n'est pas un pointeur ! ici on a simplement 8 INT à côté dans la mémoire, donc t == 0 est vrai. t est un INT
+t:1 = 1;    #L'operateur ':' permet de se décaler d'un certain nombre de case par rapport à l'adresse de t, si on veut passer
+t:2 = 2;    #t en paramètre d'une fonction alors il faut bien passer son adresse, t deviendra alors une réference et t:i
+            #sera accessible avec t[i] comme en C (car t ne sera plus un INT mais un INT*). Cela permet de facilité certaine choses.
+!dn(t);
+!dn(t[0]);
+!dn
 
 
-
-!display_number(t1[0]);
-!display_number(t1[1]);
-!display_number(t1[2]);
-!display_number(t2[0]);
-!display_number(t2[1]);     
 !exit(0);

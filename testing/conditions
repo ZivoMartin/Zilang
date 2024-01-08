@@ -1,0 +1,26 @@
+MAIN
+
+INIT;
+
+INT a;
+
+TEXT;
+
+a = 30;
+
+IF a == 30 {
+    !display_number(1);
+}
+
+IF a != 30 {
+    !display_number(2);
+}
+
+IF a == 20 {
+    !display_number(1);
+}
+
+IF a == 30 {
+    !display_number(1);
+}
+

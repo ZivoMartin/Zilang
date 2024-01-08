@@ -12,7 +12,7 @@ section .text
 
 %endmacro
 
-%macro display_number 1
+%macro dn 1
     mov rax, %1
     xor r10, r10    
     %%_local_label_stock_loop:

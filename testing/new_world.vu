@@ -1,0 +1,12 @@
+MAIN;
+
+TEXT;
+
+CHAR a;
+INT b;
+
+b = 356;
+a = 3;
+
+!dn(b);
+!exit(0);
