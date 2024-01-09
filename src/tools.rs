@@ -188,7 +188,7 @@ pub mod tools{
         return elt == '(' || elt == ')'
     }
 
-    pub fn from_char_to_number(mut chara: String) -> Option<i8> {
+    pub fn from_char_to_number(mut chara: &String) -> Option<i8> {
         if chara.len() != 3 || chara.pop().unwrap() != '\'' || chara.remove(0) != '\''{
             return None
         }
