@@ -7,12 +7,10 @@ INT b;
 CHAR c;
 INT SUCCESS;
 
-c = '2';
+
 SUCCESS = 0;
-b = 7;
-a = (c + b) * 3;
-
-
+a = 10%11;
 
 !dn(a);
+
 !exit(SUCCESS);

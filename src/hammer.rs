@@ -123,8 +123,9 @@ pub mod hammer{
         inst_list: Vec::<Instruction>,
         jumps_stack: Stack<(Vec::<i32>, i32)>,
         size: HashMap<i32, AsmType>,
-        stack_index: u32
+        stack_index: u32,
     }
+
 
     impl Hammer{
         pub fn new()->Hammer{
@@ -647,7 +648,6 @@ pub mod hammer{
                             }
                             _ =>{
                                 let size_def = hammer.get_size_def(arg.0.val);
-                                println!("{}", arg.0.nb_stars);
                                 if arg.0.nb_stars == -1 {
                                     macro_call_s.push_str(&format!("mov rax, {}", arg.0.val));
                                 }else{
@@ -670,7 +670,7 @@ pub mod hammer{
     fn evaluate_exp(hammer: &Hammer, exp: &Vec<(Adress, u8)>, mut res: String) -> String{
         for elt in exp{
             if elt.1 == 2{
-                res.push_str(&format!("pop r10\npop r11\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val));
+                res.push_str(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val));
             }else{
                 if elt.1 == 1{
                     if elt.0.nb_stars == -1 {

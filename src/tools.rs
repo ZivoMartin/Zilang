@@ -104,7 +104,7 @@ pub mod tools{
         pub fn new() -> Tools{
             Tools{
                 authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_",
-                operators: "+-*/",
+                operators: "+-*/%",
                 operator_priority: build_operator_priority(),
                 separators: "(){}[],."
             }

@@ -14,6 +14,8 @@ _operation:
     je _multip_op
     cmp r12b, byte[_divis]
     je _divis_op
+    cmp r12b, byte[_modulo]
+    je _modulo_op
 
     _addi_op:
         add r10, r11
@@ -32,6 +34,13 @@ _operation:
         mov rax, r10
         idiv r11
         ret
+
+    _modulo_op:
+        xor rcx, rcx
+        mov rax, r10
+        idiv r11
+        mov rax, rdx
+        ret 
 
 _start:
 
