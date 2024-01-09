@@ -2,12 +2,13 @@
 pub mod hammer{
     use std::collections::HashMap;
     use crate::stack::Stack;
-    use crate::tools::tools::{Tools, TextFile, split, count_occur, from_char_to_number};
+    use crate::tools::tools::*;
     use std::str;
     struct Type {
         name: String,
         id: i32,
-        size: i32
+        size: i32,
+        stars: u32
     }
 
     impl Type{
@@ -15,9 +16,18 @@ pub mod hammer{
             Type{
                 name: self.name.clone(),
                 id: self.id,
-                size: self.size
+                size: self.size,
+                stars: self.stars
             }
         } 
+    }
+
+    enum Interp {
+        NUMBER,
+        VARIABLE,
+        CHARACTER,
+        POINTER,
+        ADDRESS
     }
 
     struct AsmType{
@@ -66,7 +76,16 @@ pub mod hammer{
     
     struct Adress {
         val: i32,
-        decal: i32
+        decal: i32,
+        nb_stars: i32
+    }
+    
+    impl Adress {
+
+        pub fn new(val: i32) -> Adress{
+            Adress{val: val, decal: 0, nb_stars: 0}
+        }
+
     }
 
     struct Hammer{
@@ -164,20 +183,23 @@ pub mod hammer{
             self.new_type(String::from("INT"), 4);
             self.new_type(String::from("INT*"), 4);
             self.new_type(String::from("CHAR"), 1);
-            self.new_type(String::from("PTR"), 4);
+            self.new_type(String::from("GEN"), 4);
             self.new_type(String::from("VOID"), 0);
         } 
 
         fn new_type(&mut self, name: String, size: i32){
-            self.type_list.insert( name.clone(), Type{name: name, id: self.type_list.len() as i32, size: size});   
+            self.type_list.insert( name.clone(), Type{name: name, id: self.type_list.len() as i32, size: size, stars: 0});   
         }
 
 
       
         
-        fn type_exists(&self, name: &str) -> Result<&Type, String>{
-            if self.type_list.contains_key(name){
-                Ok(&self.type_list[name])
+        fn type_exists(&self, mut name: String) -> Result<Type, String>{
+            let nb_stars = extract_end_char(&mut name, '*');
+            if self.type_list.contains_key(&name){
+                let mut result = self.type_list[&name].clone();
+                result.stars = nb_stars;
+                return Ok(result)
             }else{
                 Err(format!("{} is not a valid type.", name))
             }
@@ -204,7 +226,7 @@ pub mod hammer{
         }
 
         pub fn define_new_var(&mut self, name: String, type_var: Type){
-            let addr = self.insert_var_in_memory(&name, &type_var);
+            let addr = self.insert_var_in_memory(&name, type_var);
 
             if !self.var_exists(&name){
                 let mut new_stack = Stack::<i32>::new();
@@ -218,7 +240,7 @@ pub mod hammer{
             }
         }
 
-        fn insert_var_in_memory(&mut self, name: &str, type_var: &Type) -> i32 {
+        fn insert_var_in_memory(&mut self, name: &str, type_var: Type) -> i32 {
             let var_def: VariableDefinition = VariableDefinition{
                 name: String::from(name),
                 type_var: type_var.clone()
@@ -347,8 +369,7 @@ pub mod hammer{
             let mut line_split = split(&vec[line_number.1], " ");
             line_number.0 += clean_line(&mut line_split);
             if line_split.len() != 0{
-            
-                match hammer.type_exists(&line_split[0]) {
+                match hammer.type_exists(line_split[0].clone()) {
                     Ok(type_var) => {
                         if line_split.len() != 2{
                             return Err(format!("Line {}: Nothing found when a variable name was attempt.", line_number.0))
@@ -388,7 +409,7 @@ pub mod hammer{
         }
         let mut split_par = line.split("(");
         let mut name = String::from(split_par.next().unwrap());
-        name = setup_var(name);
+        name = name.trim().to_string();
         if !hammer.macro_exists(&name){
             return Err(format!("Line {}: The macro {} doesn't exists.", line_number, name));
         }
@@ -402,20 +423,15 @@ pub mod hammer{
             if arg == ""{
                 break;
             }
-            match str::parse::<i32>(&arg){
-                Ok(number) =>{args.push((Adress{val: number, decal: 0}, 0))}
-                Err(_e) => {
-                    let var_extraction = recup_name_and_size(String::from(arg), line_number)?;
-                    if hammer.var_exists(&var_extraction.name){
-                        args.push((Adress{val: hammer.get_addr(&var_extraction.name), decal: var_extraction.size}, 1)); 
-                    }else{
-                        match from_char_to_number(arg.to_string()){
-                            Some(val) => args.push((Adress{val: val as i32, decal: 0}, 0)),
-                            _ => return Err(format!("Line {}: bad argument found, {}", line_number, arg)) 
-                        }
-                        
-                    }
-                }
+            let mut element = String::from(arg);
+            let mut content = Vec::<i32>::new();
+            let interpretation = get_element_interpretation(hammer, &mut element, &mut content, line_number)?;
+            match interpretation {
+                Interp::NUMBER => args.push((Adress::new(content[0]), 0)),
+                Interp::VARIABLE => args.push((Adress{val: hammer.get_addr(&element), decal: content[0], nb_stars: 0}, 1)),
+                Interp::CHARACTER => args.push((Adress{val: content[0], decal: 0, nb_stars: 0}, 0)),
+                Interp::POINTER => args.push((Adress{val: hammer.get_addr(&element), decal: content[0], nb_stars: content[1]}, 1)),
+                Interp::ADDRESS => todo!("Rajouter le cas dans la fonction get_element_interpertation"),
             }
         }
         let nb_arg_expected = hammer.macro_list[&name].nb_arg;
@@ -442,8 +458,8 @@ pub mod hammer{
         if split.len() != 2{
             return Err(format!("Line {}: Invalid syntax.", line_number));
         }
-        let var1 = recup_name_and_size(setup_var(split[0].clone()), line_number)?;
-        let var2 = setup_var(split[1].clone());
+        let var1 = recup_name_and_size(split[0].clone().trim().to_string(), line_number)?;
+        let var2 = split[1].clone().trim().to_string();
         if hammer.var_exists(&var1.name){
             let addr = hammer.get_addr(&var1.name);
             let exp = build_aff_vec(hammer, var2, line_number)?;
@@ -451,7 +467,7 @@ pub mod hammer{
                 Instruction{
                     macro_call: None,
                     aff: Some(Affectation{
-                        addr: Adress{val: addr, decal: var1.size},
+                        addr: Adress{val: addr, decal: var1.size, nb_stars: todo!()},
                         exp: exp      
                 })
                 }
@@ -484,58 +500,108 @@ pub mod hammer{
         if current_element != ""{
             exp.push(current_element);
         }
-        println!("{exp:?}");
         exp = hammer.tools.convert_in_postfix_exp(exp);
         let mut res = Vec::<(Adress, u8)>::new();
         for elt in exp.iter(){
-            add_element_in_aff_exp(hammer, &elt, &mut res, line_number)?;
+            add_element_in_aff_exp(hammer, elt.clone(), &mut res, line_number)?;
         }
         Ok(res)
     }
 
-    fn add_element_in_aff_exp(hammer: &Hammer, current_element: &str, exp: &mut Vec::<(Adress, u8)>, line_number: usize) -> Result<(), String>{
+    fn add_element_in_aff_exp(hammer: &Hammer, mut current_element: String, exp: &mut Vec::<(Adress, u8)>, line_number: usize) -> Result<(), String>{
         if current_element == ""{
             return Err(format!("Line {}: Syntax error.", line_number));
         }
-        match current_element.parse::<i32>(){
-            Ok(number) => {
-                exp.push((Adress{val: number as i32, decal: 0}, 0));
-            }
-            _ => {
-                if hammer.tools.is_operator(&current_element){
-                    exp.push((Adress{val: current_element.chars().next().unwrap() as i32, decal: 0}, 2))
-                }else{
-                    let var_extraction = recup_name_and_size(String::from(current_element), line_number)?;
-                    if hammer.tools.is_valid_name(&var_extraction.name){
-                        if hammer.var_exists(&var_extraction.name){
-                            exp.push((Adress{val: hammer.get_addr(&var_extraction.name), decal: var_extraction.size}, 1));
-                        }else{  
-                            return Err(format!("Line {}: Variable {} doesn't exists.", line_number, current_element));
-                        }
-                    }else {
-                        match from_char_to_number(current_element.to_string()){
-                            Some(val) => exp.push((Adress{val: val as i32, decal: 0}, 0)),  
-                            _ => return Err(format!("Line {}: Syntax error.", line_number)) 
-                        }
-                        
-                    }
-                }
-            }
+        let mut content = Vec::<i32>::new();
+        let interpretation = get_element_interpretation(hammer, &mut current_element, &mut content, line_number)?;
+        match interpretation {
+            Interp::NUMBER => exp.push((Adress::new(content[0]), 0)),
+            Interp::VARIABLE => exp.push((Adress{val: hammer.get_addr(&current_element), decal: content[0], nb_stars: 0}, 1)),
+            Interp::CHARACTER => exp.push((Adress::new(content[0]), 0)),
+            Interp::POINTER => todo!(),
+            Interp::ADDRESS => exp.push((Adress{val: hammer.get_addr(&current_element), decal: content[0], nb_stars: content[1]}, 0)),
+            _ => panic!("Impossible error")
         }
+        // match current_element.parse::<i32>(){ //Number ?
+        //     Ok(number) => {
+        //         exp.push((Adress{val: number as i32, decal: 0}, 0));
+        //     }
+        //     _ => {
+        //         if hammer.tools.is_operator(&current_element){ //Operator ?
+        //             exp.push((Adress{val: current_element.chars().next().unwrap() as i32, decal: 0}, 2))
+        //         }else{
+        //             let mut var_extraction = recup_name_and_size(String::from(current_element), line_number)?;
+        //             if hammer.tools.is_valid_name(&var_extraction.name){ //Variable ?
+        //                 if hammer.var_exists(&var_extraction.name){
+        //                     exp.push((Adress{val: hammer.get_addr(&var_extraction.name), decal: var_extraction.size}, 1));
+        //                 }else{  
+        //                     return Err(format!("Line {}: Variable {} doesn't exists.", line_number, current_element));
+        //                 }
+        //             }else {
+        //                 match from_char_to_number(current_element.to_string()){ // Character ?
+        //                     Some(val) => exp.push((Adress{val: val as i32, decal: 0}, 0)),  
+        //                     _ => {
+
+        //                         if var_extraction.name.starts_with("&") { // Adress ?
+        //                             var_extraction.name.remove(0);
+        //                             if hammer.var_exists(&var_extraction.name) {
+        //                                 exp.push((Adress{val: hammer.get_addr(&var_extraction.name), decal: var_extraction.size}, 0));
+        //                             }else {
+        //                                 return Err(format!("Line {}: Variable {} doesn't exists.", line_number, current_element));
+        //                             }
+                                   
+        //                         } else {
+        //                             return Err(format!("Line {}: Syntax error.", line_number));
+        //                         }
+        //                     }
+        //                 }
+                        
+        //             }
+        //         }
+        //     }
+        //}
         Ok(())
     }
 
 
-    fn setup_var(mut var: String) -> String{
-        while var.len() != 0 && var.chars().nth(0).unwrap() == ' '{
-            var.remove(0);
+    fn get_element_interpretation(hammer: &Hammer, element: &mut String, content: &mut Vec::<i32>, line_number: usize) -> Result<Interp, String>{
+        match element.parse::<i32>(){
+            Ok(number) => {
+                content[0] = number;
+                return Ok(Interp::NUMBER)
+            }
+            Err(_e) => {
+                let var_extraction = recup_name_and_size(element.clone(), line_number)?;
+                *element = var_extraction.name;
+                let size = var_extraction.size;
+                if hammer.var_exists(&element){
+                    content[0] = size;
+                    return Ok(Interp::VARIABLE);
+                }else{
+                    match from_char_to_number(element.clone()){
+                        Some(val) => {
+                            content[0] = val as i32;
+                            return Ok(Interp::CHARACTER)
+                        }
+                        _ => {
+                            if element.starts_with("*") {
+                                let nb_stars = extract_start_char(element, '*');
+                                if hammer.var_exists(&element){
+                                    content[0] = size;
+                                    content[1] = nb_stars as i32;
+                                    return Ok(Interp::POINTER)
+                                }else{
+                                    return Err(format!("Line {}: Variable {} don't exists.", line_number, element))
+                                }
+                            }else {
+                                return Err(format!("Line {}: bad argument found, {}. Macro can only handle numbers.", line_number, element))
+                            }
+                        }
+                    }
+                    
+                }
+            }
         }
-        let mut s = var.len();
-        while var.len() != 0 && var.chars().rev().nth(0).unwrap() == ' '{
-            var.remove(s-1);
-            s -= 1;
-        }
-        return var;
     }
 
     fn clean_line(line: &mut Vec::<String>) -> usize{
@@ -652,82 +718,3 @@ pub mod hammer{
     }
     
 }
-
-
-
-// fn instruct_loop(hammer: &mut Hammer, mut line_number: (usize, usize), vec: &mut Vec::<String>) -> Result<(), String>{
-//     line_number.1 += 1;
-//     loop{
-//         if line_number.1 == vec.len() -1{
-//             break;
-//         }
-//         let mut line_split = split(&vec[line_number.1], " ");
-//         line_number.0 += clean_line(&mut line_split);
-//         if line_split.len() != 0{
-//             if !handle_affectation(hammer, &line_split, line_number.0)? {
-//                 let mut line = line_split.join(" ");
-//                 if line.pop() != Some(')'){
-//                     return Err(format!("Line {}: Syntax error.", line_number.0));   
-//                 }
-//                 let mut split_par = line.split("(");
-//                 let mut name = String::from(split_par.next().unwrap());
-                
-//                 if name.chars().next().unwrap() == '!'{
-//                     name.remove(0);
-//                     name = setup_var(name);
-//                     if !hammer.macro_exists(&name){
-//                         return Err(format!("Line {}: The macro {} doesn't exists.", line_number.0, name));
-//                     }
-//                     line = match split_par.next() {
-//                         Some(rest_of_line)=> String::from(rest_of_line),
-//                         _ => return Err(format!("Line {}: Parenthesis missing.", line_number.0))
-//                     };
-//                     let mut args = Vec::<(Adress, i8)>::new();
-//                     line = line.replace(" ", "");
-//                     for arg in line.split(","){
-//                         if arg == ""{
-//                             break;
-//                         }
-//                         match str::parse::<i32>(&arg){
-//                             Ok(number) =>{args.push((Adress{val: number, decal: 0}, 0))}
-//                             Err(_e) => {
-//                                 let var_extraction = recup_name_and_size(String::from(arg), line_number.0)?;
-//                                 if hammer.var_exists(&var_extraction.name){
-//                                     args.push((Adress{val: hammer.get_addr(&var_extraction.name), decal: var_extraction.size}, 1)); 
-//                                 }else{
-//                                     match from_char_to_number(arg.to_string()){
-//                                         Some(val) => args.push((Adress{val: val as i32, decal: 0}, 0)),
-//                                         _ => return Err(format!("Line {}: bad argument found, {}", line_number.0, arg)) 
-//                                     }
-                                    
-//                                 }
-//                             }
-//                         }
-//                     }
-//                     let nb_arg_expected = hammer.macro_list[&name].nb_arg;
-//                     if args.len() != nb_arg_expected{
-//                         return Err(format!("Line {}: Found {} arguments when {} was expected", line_number.0, args.len(), nb_arg_expected));
-//                     }
-//                     hammer.inst_list.push({
-//                         Instruction{
-//                             macro_call: Some(MacroCall{
-//                                 macro_name: name,
-//                                 args: args 
-//                             }),
-//                             aff: None
-//                         }
-//                     });
-                    
-//                 }else{
-//                     //name = setup_var(name);
-//                 }
-//                 let func_name = line_split.remove(0);
-//                 if hammer.func_exists(&func_name){
-//                     hammer.is_valid_parameter(&hammer.func_list[&func_name], line_split, line_number.0)?;
-//                 }
-//             }
-//         } 
-//         line_number.1 += 1;
-//     }
-//     Ok(())        
-// }

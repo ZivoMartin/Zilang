@@ -6,4 +6,10 @@ INT a;
 a = 30;
 
 INT* b;
-b = &a
+CHAR c;
+
+b = &c;
+
+!dn(b);
+
+!exit(0);
