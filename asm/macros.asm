@@ -1,8 +1,5 @@
-section .data
-    _chiffres: db '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
-    _newline: db 10
+%include "asm/data.asm"
 
-global _start
 section .text
 
 %macro print_char 1
@@ -15,40 +12,39 @@ section .text
 
 %endmacro
 
-
-
-%macro display 1
-
+%macro dn 1
     mov rax, %1
     xor r10, r10    
-    stock:
+    %%_local_label_stock_loop:
         inc r10
         xor rdx, rdx          
         mov rcx, 10         
         idiv rcx
         push rdx
         cmp rax, 0
-        jne stock
+        jne %%_local_label_stock_loop
+
     mov rax, 1  
     mov rdx, 1
-    display:
+    %%_local_label_display:
         pop rbx        
         cmp r10, 0  
-        je end_loop_display_number
+        je %%_local_label_end_loop_display_number
         mov rsi, _chiffres
         add rsi, rbx 
         print_char rsi
         dec r10
-        jmp display
-    end_loop_display_number:
+        jmp %%_local_label_display
+
+    %%_local_label_end_loop_display_number:
         print_char _newline 
-        
 %endmacro
 
-%macro exit 0
+
+%macro exit 1
 
     mov rax, 60
-    xor rdx, rdx
+    mov rdi, %1
     syscall
 
 %endmacro   

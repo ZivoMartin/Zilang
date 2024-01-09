@@ -189,7 +189,7 @@ pub mod tools{
     }
 
     pub fn from_char_to_number(chara: &String) -> Option<i8> {
-        if chara.len() != 3 || chara.ends_with('\'') || chara.ends_with('\''){
+        if chara.len() != 3 || !chara.ends_with('\'') || !chara.ends_with('\''){
             return None
         }
         return Some(chara.chars().nth(1).unwrap() as i8)

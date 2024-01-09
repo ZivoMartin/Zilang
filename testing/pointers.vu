@@ -3,12 +3,12 @@ MAIN;
 TEXT;
 
 INT a;
-a = 30;
+a = '2';
+
+INT c;
 
 INT* b;
-CHAR c;
-
-b = &c;
+b = &a;
 
 !dn(b);
 
