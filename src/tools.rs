@@ -188,11 +188,11 @@ pub mod tools{
         return elt == '(' || elt == ')'
     }
 
-    pub fn from_char_to_number(mut chara: &String) -> Option<i8> {
-        if chara.len() != 3 || chara.pop().unwrap() != '\'' || chara.remove(0) != '\''{
+    pub fn from_char_to_number(chara: &String) -> Option<i8> {
+        if chara.len() != 3 || chara.ends_with('\'') || chara.ends_with('\''){
             return None
         }
-        return Some(chara.chars().next().unwrap() as i8)
+        return Some(chara.chars().nth(1).unwrap() as i8)
     }
 
     pub fn extract_end_char(s: &mut String, chara: char) -> u32 {

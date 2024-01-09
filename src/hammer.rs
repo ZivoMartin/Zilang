@@ -376,7 +376,7 @@ pub mod hammer{
                             return Err(format!("Line {}: Nothing found when a variable name was attempt.", line_number.0))
                         }
                         hammer.is_valid_name(&line_split[1])?;
-                        hammer.define_new_var(line_split[1], type_var);
+                        hammer.define_new_var(line_split[1].clone(), type_var);
 
                     }   
 
@@ -460,8 +460,9 @@ pub mod hammer{
             return Err(format!("Line {}: Invalid syntax.", line_number));
         }
         let mut var1 = split[0].trim().to_string();
-        let nb_stars = get_prof_pointer(hammer, &var1, false, line_number)?;
-        let size_var1 = recup_name_and_size(&mut var1, line_number)?;
+        let nb_stars = get_prof_pointer(hammer, &mut var1, false, line_number)?;
+        //let size_var1 = recup_name_and_size(&mut var1, line_number)?;
+        let size_var1 = 0;
         let var2 = split[1].trim().to_string();
         let addr = hammer.get_addr(&var1);
         let exp = build_aff_vec(hammer, var2, line_number)?;
@@ -478,7 +479,7 @@ pub mod hammer{
        
     }
 
-    fn get_prof_pointer(hammer: &Hammer, var: &String, can_be_ref: bool, line_number: usize) -> Result<i32, String>{
+    fn get_prof_pointer(hammer: &Hammer, var: &mut String, can_be_ref: bool, line_number: usize) -> Result<i32, String>{
         let mut count: i32 = 0;
         while var.len() != 0 && (var.starts_with("*") || var.starts_with("&")){
             count += 1;
@@ -594,7 +595,8 @@ pub mod hammer{
                 return Ok(Interp::NUMBER)
             }
             Err(_e) => {
-                let size = recup_name_and_size(&mut element, line_number)?;
+                //let size = recup_name_and_size(&mut element, line_number)?;
+                let size = 0;
                 if hammer.var_exists(&element){
                     content[0] = size;
                     return Ok(Interp::VARIABLE);
@@ -720,16 +722,15 @@ pub mod hammer{
     }
 
     fn recup_name_and_size(element: &mut String, line_number: usize) -> Result<i32, String>{
-        let split: Vec::<&str> = element.split("[").collect();
+        let mut split: Vec::<String> = element.split("[").map(String::from).collect();
         if split.len() == 1{
             return Ok(0);
         }else if split.len() == 2 {
-            *element = String::from(split[0]);
-            let mut right = String::from(split[1]);
-            if right.pop().unwrap() == ']'{
-                match &right.parse::<i32>(){
+            *element = split[0].clone();
+            if split[1].pop().unwrap() == ']'{
+                match &split[1].parse::<i32>(){
                     Ok(size) => return Ok(*size),
-                    _ => Err(format!("Line {}: '{}' found where a number was await.", line_number, right))
+                    _ => Err(format!("Line {}: '{}' found where a number was await.", line_number, split[1]))
                 }
             }else{
                 Err(format!("Line {}: '[' never close.", line_number))        
