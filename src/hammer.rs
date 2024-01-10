@@ -689,7 +689,10 @@ pub mod hammer{
                     }else if elt.0.nb_stars == 0{
                         res.push_str(&format!("xor rax, rax\n{} rax, {}\npush rax\n", hammer.get_size_def(elt.0.val).mov, hammer.get_extract_string(&elt.0)));
                     }else{
-                        res.push_str(&format!("xor rax, rax\n{} rax, {}\npush rax\n", hammer.get_size_def(elt.0.val).mov, hammer.get_extract_string(&elt.0)));
+                        res.push_str(&format!("xor rax, rax\nmovsx rax, {}\n_deref {}\n", hammer.get_extract_string(&elt.0), elt.0.nb_stars));
+                        let size_def = hammer.get_size_def(elt.0.val);
+                        res.push_str(&format!("{} rax, {}[_stack + rax + {}*{}]\npush rax\n", size_def.mov, size_def.long, elt.0.decal, hammer.addr_list[&elt.0.val].type_var.size));
+
                     }
                 }else{
                     res.push_str(&format!("mov rax, {}\npush rax\n", elt.0.val));

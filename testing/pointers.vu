@@ -18,4 +18,4 @@ result = $$$a;
 
 !dn(result); 
 
-!exit(0); # exit après avoir affiché la valeur 4 (l'adresse de b)s
+!exit(0); 

@@ -7,11 +7,12 @@ section .text
     xor r10, r10
     mov r11, %1
     dec r11
+    stop:
     %%_deref_loop:
         cmp r10, r11
-        jne %%_deref_end_loop
+        je %%_deref_end_loop
         inc r10
-        movsx rax, dword[stack+rax]
+        movsx rax, dword[_stack+rax]
         jmp %%_deref_loop 
     %%_deref_end_loop:    
 %endmacro
