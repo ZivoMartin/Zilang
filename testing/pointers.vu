@@ -2,14 +2,20 @@ MAIN;
 
 TEXT;
 
-INT a;
-a = '2';
+INT*** a;
+INT** b;
+INT* c;
+INT d;
 
-INT c;
+d = 30;
+c = &d;
+b = &c;
+a = &b;
 
-INT* b;
-b = &a;
+INT result;
 
-!dn(b);
+result = $$$a;
 
-!exit(0);
+!dn(result); 
+
+!exit(0); # exit après avoir affiché la valeur 4 (l'adresse de b)s

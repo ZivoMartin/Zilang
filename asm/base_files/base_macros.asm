@@ -2,6 +2,20 @@
 
 section .text
 
+%macro _deref 1
+    xor r11, r11
+    xor r10, r10
+    mov r11, %1
+    dec r11
+    %%_deref_loop:
+        cmp r10, r11
+        jne %%_deref_end_loop
+        inc r10
+        movsx rax, dword[stack+rax]
+        jmp %%_deref_loop 
+    %%_deref_end_loop:    
+%endmacro
+
 %macro print_char 1
     
     mov rax, 1

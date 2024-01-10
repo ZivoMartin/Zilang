@@ -5,6 +5,8 @@ pub mod hammer{
     use crate::tools::tools::*;
     use std::str;
 
+    static POINTER: &str = "$";
+
     static mut LINE_NUMBER: (usize, usize) = (1, 0);
 
     fn get_ln() -> usize {
@@ -489,7 +491,7 @@ pub mod hammer{
             assert_prof(&hammer.get_var_def_by_name(&var1), nb_stars as u32)?;
             let var2 = split[1].trim().to_string();
             let addr = hammer.get_addr(&var1);
-            let exp = build_aff_vec(hammer, var2)?;
+            let exp = build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars)?;
             hammer.inst_list.push(
                 Instruction{
                     macro_call: None,
@@ -515,20 +517,25 @@ pub mod hammer{
 
     fn get_prof_pointer(var: &mut String, can_be_ref: bool) -> Result<i32, String>{
         let mut count: i32 = 0;
-        while var.len() != 0 && (var.starts_with("*") || var.starts_with("&")){
-            count += 1;
+        while var.len() != 0 && (var.starts_with(POINTER) || var.starts_with("&")){
+            if var.starts_with(POINTER) {
+                count += 1;
+            }else{
+                if count == -1{
+                    return Err(format!("Line {}: You tried to get the adress of an invalid thing.", get_ln()));
+                }
+                count -= 1;
+            }
             var.remove(0);
         }
-        if count < -1 {
-            return Err(format!("Line {}: to many reference symbole here.", get_ln()));
-        }else if count == -1 && !can_be_ref {
-            return Err(format!("Line {}: You can't make a reference here.", get_ln()));
+        if count == -1 && !can_be_ref {
+            return Err(format!("Line {}: You can't put a reference here.", get_ln()));
         }
         Ok(count)
     }
 
 
-    fn build_aff_vec(hammer: &Hammer, string_exp: String) -> Result<Vec::<(Adress, u8)>, String>{
+    fn build_aff_vec(hammer: &Hammer, string_exp: String, nb_stars_await: u32) -> Result<Vec::<(Adress, u8)>, String>{
         if string_exp == String::from(""){
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
@@ -553,12 +560,12 @@ pub mod hammer{
         exp = hammer.tools.convert_in_postfix_exp(exp);
         let mut res = Vec::<(Adress, u8)>::new();
         for elt in exp.iter(){
-            add_element_in_aff_exp(hammer, elt.to_string(), &mut res)?;
+            add_element_in_aff_exp(hammer, elt.to_string(), &mut res, nb_stars_await)?;
         }
         Ok(res)
     }
 
-    fn add_element_in_aff_exp(hammer: &Hammer, mut current_element: String, exp: &mut Vec::<(Adress, u8)>) -> Result<(), String>{
+    fn add_element_in_aff_exp(hammer: &Hammer, mut current_element: String, exp: &mut Vec::<(Adress, u8)>, nb_stars_await: u32) -> Result<(), String>{
         if current_element == ""{
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
@@ -569,7 +576,12 @@ pub mod hammer{
             let interpretation = get_element_interpretation(hammer, &mut current_element, &mut content)?;
             match interpretation {
                 Interp::NUMBER => exp.push((Adress::new(content[0]), 0)),
-                Interp::VARIABLE => exp.push((Adress{val: hammer.get_addr(&current_element), decal: content[0], nb_stars: content[1]}, 1)),
+                Interp::VARIABLE => {
+                    if (hammer.get_var_def_by_name(&current_element).type_var.stars + (content[1] == -1) as u32 - (((content[1] != -1) as i32)*content[1]) as u32) != nb_stars_await{
+                        return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
+                    }
+                    exp.push((Adress{val: hammer.get_addr(&current_element), decal: content[0], nb_stars: content[1]}, 1));
+                }
                 Interp::CHARACTER => exp.push((Adress::new(content[0]), 0)),
             }
         }        
@@ -665,7 +677,6 @@ pub mod hammer{
         Ok(result)
     }
     
-    
 
     fn evaluate_exp(hammer: &Hammer, exp: &Vec<(Adress, u8)>, mut res: String) -> String{
         for elt in exp{
@@ -674,11 +685,12 @@ pub mod hammer{
             }else{
                 if elt.1 == 1{
                     if elt.0.nb_stars == -1 {
-                        res.push_str(&format!("xor rax, rax\nmov rax, {}\npush rax\n", &elt.0.val));
+                        res.push_str(&format!("mov rax, {}\npush rax\n", &elt.0.val));
+                    }else if elt.0.nb_stars == 0{
+                        res.push_str(&format!("xor rax, rax\n{} rax, {}\npush rax\n", hammer.get_size_def(elt.0.val).mov, hammer.get_extract_string(&elt.0)));
                     }else{
                         res.push_str(&format!("xor rax, rax\n{} rax, {}\npush rax\n", hammer.get_size_def(elt.0.val).mov, hammer.get_extract_string(&elt.0)));
                     }
-                    
                 }else{
                     res.push_str(&format!("mov rax, {}\npush rax\n", elt.0.val));
                 }       
