@@ -536,6 +536,7 @@ pub mod hammer{
 
 
     fn build_aff_vec(hammer: &Hammer, string_exp: String, nb_stars_await: u32) -> Result<Vec::<(Adress, u8)>, String>{
+        println!("{string_exp}");
         if string_exp == String::from(""){
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
@@ -557,7 +558,9 @@ pub mod hammer{
         if current_element != ""{
             exp.push(current_element);
         }
+        println!("{exp:?}");
         exp = hammer.tools.convert_in_postfix_exp(exp);
+        println!("{exp:?}");
         let mut res = Vec::<(Adress, u8)>::new();
         for elt in exp.iter(){
             add_element_in_aff_exp(hammer, elt.to_string(), &mut res, nb_stars_await)?;

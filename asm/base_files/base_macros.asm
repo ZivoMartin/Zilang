@@ -7,7 +7,6 @@ section .text
     xor r10, r10
     mov r11, %1
     dec r11
-    stop:
     %%_deref_loop:
         cmp r10, r11
         je %%_deref_end_loop
@@ -28,8 +27,11 @@ section .text
 %endmacro
 
 %macro dn 1
+    starts_dis:
     mov rax, %1
     xor r10, r10    
+    cmp rax, 0
+    jl %%_neg
     %%_local_label_stock_loop:
         inc r10
         xor rdx, rdx          
@@ -51,8 +53,17 @@ section .text
         dec r10
         jmp %%_local_label_display
 
+    %%_neg:
+        neg rax
+        push rax
+        print_char _soustr
+        pop rax
+        jmp %%_local_label_stock_loop
+
     %%_local_label_end_loop_display_number:
         print_char _newline 
+    
+    
 %endmacro
 
 
