@@ -101,6 +101,7 @@ pub mod hammer{
         aff: Option<Affectation>,
     }
     
+    #[derive(Debug)]
     struct Adress {
         val: i32,
         decal: i32,
@@ -393,17 +394,21 @@ pub mod hammer{
             if get_in() == vec.len() -1{
                 break;
             }
+            vec[get_in()] = vec[get_in()].replace("=", " = ");
             let mut line_split = split(&vec[get_in()], " ");
             inc_ln(clean_line(&mut line_split));
             if line_split.len() != 0{
                 match hammer.type_exists(&mut line_split[0]) {
                     Ok(type_var) => {
-                        if line_split.len() != 2{
-                            return Err(format!("Line {}: Nothing found when a variable name was attempt.", get_ln()))
+                        if line_split.len() < 2{
+                            return Err(format!("Line {}: You should initialise a variable.", get_ln()))
                         }
                         hammer.is_valid_name(&line_split[1])?;
                         hammer.define_new_var(line_split[1].clone(), type_var);
-
+                        if vec[get_in()].contains("="){
+                            line_split.remove(0);
+                            handle_affectation(hammer, line_split.join(" "))?;
+                        }
                     }   
 
                     _ => {
@@ -534,37 +539,68 @@ pub mod hammer{
         Ok(count)
     }
 
+    fn new_operator_separator(current_element: &mut String, exp: &mut Vec<String>, chara: char, neg_count: &mut u32){
+        if current_element != ""{
+            if *neg_count % 2 == 0 {
+                exp.push(current_element.to_string());
+            }else{
+                exp.push(String::from("-") + &current_element.to_string());
+            }
+            
+        }
+        exp.push(String::from(chara));
+        *current_element = String::new();
+        *neg_count = 0;
+    }
+
 
     fn build_aff_vec(hammer: &Hammer, string_exp: String, nb_stars_await: u32) -> Result<Vec::<(Adress, u8)>, String>{
-        println!("{string_exp}");
         if string_exp == String::from(""){
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
         let mut exp = Vec::<String>::new();
         let mut current_element = String::new(); 
+        let mut cant_be_op = true;
+        let mut neg_count: u32 = 0;
         for chara in string_exp.chars(){
             if chara != ' '{
-                if hammer.tools.is_operator(&String::from(chara)) || hammer.tools.is_separator(chara){
-                    if current_element != ""{
-                        exp.push(current_element);
+                let is_op = hammer.tools.is_operator(&String::from(chara)); 
+                if is_op || hammer.tools.is_separator(chara){
+                    if is_op {
+                        if cant_be_op{
+                            match chara {
+                                '-' => {
+                                    neg_count += 1;
+                                }
+                                _ => return Err(format!("Line {}: There is a bad operator in your expression.", get_ln()))
+                            }   
+                        }else{
+                            new_operator_separator(&mut current_element, &mut exp, chara, &mut neg_count);    
+                            cant_be_op = true;
+                        }
+                    }else {
+                        new_operator_separator(&mut current_element, &mut exp, chara, &mut neg_count);
+                        cant_be_op = true;
                     }
-                    exp.push(String::from(chara));
-                    current_element = String::new();
                 }else{
+                    cant_be_op = false;
                     current_element.push(chara);
                 }
             }
         }
         if current_element != ""{
-            exp.push(current_element);
+            if neg_count % 2 == 0 {
+                exp.push(current_element);
+            }else{
+                exp.push(String::from("-") + &current_element);
+            }
         }
-        println!("{exp:?}");
         exp = hammer.tools.convert_in_postfix_exp(exp);
-        println!("{exp:?}");
         let mut res = Vec::<(Adress, u8)>::new();
         for elt in exp.iter(){
             add_element_in_aff_exp(hammer, elt.to_string(), &mut res, nb_stars_await)?;
         }
+        println!("{res:?}");
         Ok(res)
     }
 
