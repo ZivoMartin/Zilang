@@ -126,7 +126,6 @@ pub mod tools{
         pub fn convert_in_postfix_exp(&self, exp: Vec::<String>) -> Vec::<String>{
             let mut result = Vec::<String>::new();
             let mut stack = Stack::<String>::new();
-
             for e_elt in exp.iter(){
                 let elt = String::from(e_elt);
                 if self.is_operator(&elt) || elt == "("{
@@ -146,6 +145,8 @@ pub mod tools{
             while stack.size() != 0 {
                 result.push(stack.pop());
             }
+            println!("{exp:?}");
+            println!("{result:?}");
             result
         }
     

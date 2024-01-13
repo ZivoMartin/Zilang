@@ -600,7 +600,6 @@ pub mod hammer{
         for elt in exp.iter(){
             add_element_in_aff_exp(hammer, elt.to_string(), &mut res, nb_stars_await)?;
         }
-        println!("{res:?}");
         Ok(res)
     }
 
