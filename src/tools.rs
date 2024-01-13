@@ -1,4 +1,3 @@
-
 #[allow(dead_code)]
 pub mod tools{
     use std::fs;
@@ -185,9 +184,6 @@ pub mod tools{
         res
     }
     
-    pub fn is_par(elt: char) -> bool{
-        return elt == '(' || elt == ')'
-    }
 
     pub fn from_char_to_number(chara: &String) -> Option<i8> {
         if chara.len() != 3 || !chara.ends_with('\'') || !chara.ends_with('\''){

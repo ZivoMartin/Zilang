@@ -69,11 +69,6 @@ pub mod hammer{
         type_var: Type,
     }
     
-    struct Extraction{
-        name: String,
-        size:i32
-    }
-
     struct Macro{
         name: String,
         nb_arg: usize,
