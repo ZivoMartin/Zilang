@@ -27,7 +27,6 @@ section .text
 %endmacro
 
 %macro dn 1
-    starts_dis:
     mov rax, %1
     xor r10, r10    
     cmp rax, 0
