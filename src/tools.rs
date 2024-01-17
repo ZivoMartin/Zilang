@@ -144,8 +144,6 @@ pub mod tools{
             while stack.size() != 0 {
                 result.push(stack.pop());
             }
-            println!("{exp:?}");
-            println!("{result:?}");
             result
         }
     
