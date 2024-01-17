@@ -75,11 +75,6 @@ pub mod hammer{
     }
 
 
-    struct Function {
-        name: String,
-        type_return: Type,
-        args: Vec::<VariableDefinition>
-    }
     
     struct Affectation{
         addr: Adress,
@@ -116,9 +111,7 @@ pub mod hammer{
         type_list: HashMap::<String, Type>,
         defined_var_list: HashMap::<String, Stack::<i32>>,
         addr_list: HashMap::<i32, VariableDefinition>,
-        func_list: HashMap::<String, Function>,
         macro_list: HashMap::<String, Macro>,
-        inst_list: Vec::<Instruction>,
         jumps_stack: Stack<(Vec::<i32>, i32)>,
         size: HashMap<i32, AsmType>,
         stack_index: u32,
@@ -132,9 +125,7 @@ pub mod hammer{
                 type_list: HashMap::<String, Type>::new(),
                 defined_var_list: HashMap::<String, Stack::<i32>>::new(),
                 addr_list: HashMap::<i32, VariableDefinition>::new(),
-                func_list: HashMap::<String, Function>::new(),
                 macro_list: HashMap::<String, Macro>::new(),
-                inst_list: Vec::new(),
                 jumps_stack: Stack::new(),
                 size: HashMap::<i32, AsmType>::new(),
                 stack_index : 0
@@ -237,10 +228,6 @@ pub mod hammer{
             self.defined_var_list.contains_key(name)
         }
 
-        pub fn func_exists(&self, name: &str) -> bool{
-            self.func_list.contains_key(name)
-        }
-
         pub fn macro_exists(&self, name: &str) -> bool{
             self.macro_list.contains_key(name)
         }
@@ -282,50 +269,6 @@ pub mod hammer{
                 var_def
             );
             addr
-        }
-
-
-        pub fn is_valid_parameter(&self, func: &Function, param: Vec::<String>) -> Result<(), String>{
-            if func.args.len() != param.len(){
-                if func.args.len() > param.len(){
-                    return Err(format!("Line {}: Not enough parameter for the function {}.", get_ln(), func.name));
-                }else{
-                    return Err(format!("Line {}: To many parameters for the function {}.", get_ln(), func.name));
-                }
-            }
-            let mut gen_type = String::new();
-            for i in 0..param.len(){
-                if !self.var_exists(&param[i]){
-                    return Err(format!("Line {}: No variable named {}", get_ln(), param[i]));
-                }
-                let await_type = func.args[i].type_var.name.clone();
-                let var_addr = self.get_addr(&param[i]);
-                let mut param_type = self.addr_list[&var_addr].type_var.name.clone();
-                if await_type != param_type{
-                    if await_type == "GEN"{
-                        if gen_type == String::from(""){
-                            gen_type = param_type;
-                        }else if gen_type != param_type{
-                            return Err(format!("Line {}: The variable {} has the type {} when {} was await", get_ln(), param[i], param_type, gen_type));
-                        }
-                    }else if await_type == "GEN*"{
-                        if !param_type.ends_with("*"){
-                            return Err(format!("Line {}: The variable {} has the type {} when a generic pointer was await", get_ln(), param[i], param_type));
-                        }else if gen_type == String::from(""){
-                            gen_type = param_type;
-                            gen_type.pop();
-                        }else{
-                            param_type.pop();
-                            if param_type != gen_type{
-                                return Err(format!("Line {}: The variable {} has the type {} when {} was await", get_ln(), param[i], param_type, gen_type));
-                            }
-                        }
-                    }else{
-                        return Err(format!("Line {}: The variable {} has the type {} when {} was await", get_ln(), param[i], param_type, await_type));
-                    }
-                }
-            }
-            Ok(())
         }
         
         pub fn get_size_def(&self, addr: i32) -> &AsmType{
@@ -404,6 +347,7 @@ pub mod hammer{
             let mut line_split = split(&inst, " ");
             inc_ln(clean_line(&mut line_split));
             inst = line_split.join(" ");
+            inst = inst.trim().to_string();
             if inst.starts_with("}") {
                 inst.remove(0);
                 vec[get_in()] = inst;

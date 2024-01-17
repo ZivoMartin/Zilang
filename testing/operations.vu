@@ -2,15 +2,12 @@ MAIN;
 
 TEXT;
 
-INT a;
-INT b;
-CHAR c;
-INT SUCCESS;
+INT a = 5;
 
-
-SUCCESS = 0;
-a = 10%11;
+{
+    INT a = 3;
+    !dn(a);
+}
 
 !dn(a);
-
-!exit(SUCCESS);
+!exit(0);
