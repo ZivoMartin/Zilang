@@ -6,7 +6,7 @@ pub mod hammer{
     use std::str;
 
     static POINTER: &str = "$";
-
+    static MAX_STARS: u32 = 10000; 
     static mut LINE_NUMBER: (usize, usize) = (1, 0);
 
     fn get_ln() -> usize {
@@ -57,10 +57,22 @@ pub mod hammer{
         CHARACTER
     }
 
+    enum InstructionType {
+        Affectation,
+        MacroCall,
+        Condition
+    }
+
+    struct Instruction {
+        macro_call: Option<MacroCall>,
+        aff: Option<Affectation>,
+        cond: Option<Vec::<(Adress, u8)>>
+    }
+
     struct AsmType{
         long: &'static str,
         short: &'static str,
-        registre: &'static str,
+        register: &'static str,
         mov: &'static str
     }
 
@@ -74,7 +86,6 @@ pub mod hammer{
         nb_arg: usize,
     }
 
-
     
     struct Affectation{
         addr: Adress,
@@ -86,10 +97,7 @@ pub mod hammer{
         args: Vec::<(Adress, i8)>
     }
 
-    struct Instruction {
-        macro_call: Option<MacroCall>,
-        aff: Option<Affectation>,
-    }
+    
     
     #[derive(Debug)]
     struct Adress {
@@ -115,6 +123,7 @@ pub mod hammer{
         jumps_stack: Stack<(Vec::<i32>, i32)>,
         size: HashMap<i32, AsmType>,
         stack_index: u32,
+        txt_result: String
     }
 
 
@@ -128,7 +137,8 @@ pub mod hammer{
                 macro_list: HashMap::<String, Macro>::new(),
                 jumps_stack: Stack::new(),
                 size: HashMap::<i32, AsmType>::new(),
-                stack_index : 0
+                stack_index : 0,
+                txt_result: String::new()
             };
             res.init_size();
             res.init_dispo_type();
@@ -141,25 +151,25 @@ pub mod hammer{
             self.size.insert(1, AsmType{
                 short: "db", 
                 long: "byte",
-                registre: "al",
+                register: "al",
                 mov: "movzx"
             });
             self.size.insert(2, AsmType{
                 short: "dw", 
                 long: "word",
-                registre: "ax",
+                register: "ax",
                 mov: "movsx"
             });
             self.size.insert(4, AsmType{
                 short: "dd", 
                 long: "dword",
-                registre: "eax",
+                register: "eax",
                 mov: "movsx"
             });
             self.size.insert(8, AsmType{
                 short: "dq", 
                 long: "qword",
-                registre: "rax",
+                register: "rax",
                 mov: "mov"
             });
         }
@@ -300,9 +310,9 @@ pub mod hammer{
         if get_in() == vec.len() {
             return Err(format!("You can't compile without text"));
         } 
-        let txt = instruct_loop(&mut hammer, &mut vec)?;
+        instruct_loop(&mut hammer, &mut vec)?;
         let mut script_file = TextFile::new(String::from("asm/script.asm"))?;
-        script_file.push(&txt);
+        script_file.push(&hammer.txt_result);
         Ok(())
     }
 
@@ -332,11 +342,10 @@ pub mod hammer{
     }
 
     
-    fn instruct_loop(hammer: &mut Hammer, vec: &mut Vec::<String>) -> Result<String, String>{
+    fn instruct_loop(hammer: &mut Hammer, vec: &mut Vec::<String>) -> Result<(), String>{
         inc_in(1);
         hammer.jumps_stack.push((Vec::new(), 0));
 
-        let mut result = String::new();
         loop{
             if get_in() == vec.len() -1{
                 break;
@@ -361,24 +370,33 @@ pub mod hammer{
                 hammer.jumps_stack.push((Vec::new(), hammer.jumps_stack.val().1));
                 continue;
             }else{
-                handle_instruction(hammer, inst, line_split, &mut result)?;
+                handle_instruction(hammer, inst, line_split)?;
                 inc_in(1);
             }
             
         }
-        Ok(result)      
+        Ok(())
     }
    
-    fn annalyse_inst_behind_bracket(_hammer: &Hammer, inst: &str) -> Result<(), String> {
+    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: &str) -> Result<(), String> {
         if inst == "" {
             return Ok(())
+        }else if inst.starts_with("if"){
+            text_asm(
+                hammer, 
+                Instruction{
+                    aff: None,
+                    macro_call: None,
+                    cond: Some(build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?)
+                }, 
+                InstructionType::Condition
+            )
         }else{
             return Err(format!("Line {}: Not implemented yet.", get_ln()))
         }
     }
 
-    fn handle_instruction(hammer: &mut Hammer, mut inst: String, mut line_split: Vec::<String>, result: &mut String) -> Result<(), String> {
-        let the_inst: Instruction;
+    fn handle_instruction(hammer: &mut Hammer, mut inst: String, mut line_split: Vec::<String>) -> Result<(), String> {
         if line_split.len() != 0{
             match hammer.type_exists(&mut line_split[0]) {
                 Ok(type_var) => {
@@ -389,8 +407,7 @@ pub mod hammer{
                     hammer.define_new_var(line_split[1].clone(), type_var);
                     if inst.contains("="){
                         line_split.remove(0);
-                        the_inst = handle_affectation(hammer, line_split.join(" "))?;
-                        result.push_str(&text_asm(hammer, the_inst)?);
+                        handle_affectation(hammer, line_split.join(" "))?;
                     }
                 }   
 
@@ -398,23 +415,22 @@ pub mod hammer{
 
                     if inst.contains("=")
                     {
-                        the_inst = handle_affectation(hammer, inst)?;
+                        handle_affectation(hammer, inst)?;
                     }else if inst.starts_with("!")
                     {
                         inst.remove(0);
-                        the_inst = handle_macros_call(hammer, inst)?;
+                        handle_macros_call(hammer, inst)?;
                     }else 
                     {
                         return Err(format!("Line {}: Not implemented yet.", get_ln()));
                     }
-                    result.push_str(&text_asm(hammer, the_inst)?);
                 }
             }
         } 
         Ok(())
     }
 
-    fn handle_macros_call(hammer: &mut Hammer, mut line: String) -> Result<Instruction, String>{
+    fn handle_macros_call(hammer: &mut Hammer, mut line: String) -> Result<(), String>{
         if line.pop() != Some(')'){
             return Err(format!("Line {}: Syntax error.", get_ln()));   
         }
@@ -447,19 +463,23 @@ pub mod hammer{
         if args.len() != nb_arg_expected{
             return Err(format!("Line {}: Found {} arguments when {} was expected", get_ln(), args.len(), nb_arg_expected));
         }
-       
-        Ok(Instruction{
-            macro_call: Some(MacroCall{
-                macro_name: name,
-                args: args 
-            }),
-            aff: None
-        })       
+        text_asm(
+            hammer, 
+            Instruction{
+                macro_call: Some(MacroCall{
+                    macro_name: name,
+                    args: args 
+                }),
+                aff: None,
+                cond: None
+            },
+            InstructionType::MacroCall)?;
+        Ok(())
     }
 
 
 
-    fn handle_affectation(hammer: &mut Hammer, line: String) -> Result<Instruction, String> {
+    fn handle_affectation(hammer: &mut Hammer, line: String) -> Result<(), String> {
 
         let mut split = split(&line, "=");
         if split.len() < 2{
@@ -473,15 +493,18 @@ pub mod hammer{
             assert_prof(&hammer.get_var_def_by_name(&var1), nb_stars as u32)?;
             let var2 = split.join("=").replace(" = ", "=");
             let addr = hammer.get_addr(&var1);
-            let exp = build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars)?;
-            Ok(
+
+            text_asm(
+                hammer, 
                 Instruction{
-                    macro_call: None,
+                    macro_call: None, 
+                    cond: None,
                     aff: Some(Affectation{
                         addr: Adress{val: addr, decal: size_var1, nb_stars: nb_stars},
-                        exp: exp      
-                })
-                }
+                        exp: build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars)?
+                    })
+                }, 
+                InstructionType::Affectation
             )
         }else {
             return Err(format!("Line {}: The variable {} doesn't exists.", get_ln(), var1));
@@ -544,7 +567,6 @@ pub mod hammer{
         let mut current_element = String::new(); 
         let mut cant_be_op = true;
         let mut neg_count: u32 = 0;
-        println!("{exp:?}");
         for i in 0..exp.len(){
             let word = exp[i].trim().to_string();
             if word != "" {
@@ -603,7 +625,7 @@ pub mod hammer{
             match interpretation {
                 Interp::NUMBER => exp.push((Adress::new(content[0]), 0)),
                 Interp::VARIABLE => {
-                    if (hammer.get_var_def_by_name(&current_element).type_var.stars + (content[1] == -1) as u32 - (((content[1] != -1) as i32)*content[1]) as u32) != nb_stars_await{
+                    if nb_stars_await == MAX_STARS+1 || (hammer.get_var_def_by_name(&current_element).type_var.stars + (content[1] == -1) as u32 - (((content[1] != -1) as i32)*content[1]) as u32) != nb_stars_await{
                         return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
                     }
                     exp.push((Adress{val: hammer.get_addr(&current_element), decal: content[0], nb_stars: content[1]}, 1));
@@ -622,7 +644,6 @@ pub mod hammer{
                 return Ok(Interp::NUMBER)
             }
             Err(_e) => {
-                //let size = recup_name_and_size(&mut element, LINE_NUMBER)?;
                 let size = 0;
                 let nb_stars = get_prof_pointer(element, true)?;
                 if hammer.var_exists(&element){
@@ -662,14 +683,14 @@ pub mod hammer{
 
 
 
-    fn text_asm(hammer: &mut Hammer, inst: Instruction) -> Result<String, String>{
-        let mut result = String::new();
-        match &inst.aff{
-            Some(aff) => {
-                result = evaluate_exp(hammer, &aff.exp, result);
-                result.push_str(&format!("mov {}, {}\n", hammer.get_extract_string(&aff.addr), hammer.get_size_def(aff.addr.val).registre));
-            }
-            _ =>{
+    fn text_asm(hammer: &mut Hammer, inst: Instruction, inst_type: InstructionType) -> Result<(), String>{
+        match inst_type{
+            InstructionType::Affectation =>{
+                let aff = inst.aff.unwrap();
+                evaluate_exp(hammer, &aff.exp);
+                hammer.txt_result.push_str(&format!("mov {}, {}\n", hammer.get_extract_string(&aff.addr), hammer.get_size_def(aff.addr.val).register));
+            }    
+            InstructionType::MacroCall =>{
                 let macro_call: &MacroCall = inst.macro_call.as_ref().unwrap();
                 let mut macro_call_s = String::new();
                 for arg in &macro_call.args{
@@ -688,38 +709,40 @@ pub mod hammer{
                     }
                 }
                 macro_call_s.push_str(&format!("\n{} rax\n", macro_call.macro_name));
-                result.push_str(&macro_call_s);
-                result.push_str("\n");
+                hammer.txt_result.push_str(&macro_call_s);
+                hammer.txt_result.push_str("\n");
+            }
+            InstructionType::Condition => {
+                evaluate_exp(hammer, &inst.cond.unwrap());
             }
         }
-        Ok(result)
+        Ok(())
     }
     
 
-    fn evaluate_exp(hammer: &Hammer, exp: &Vec<(Adress, u8)>, mut res: String) -> String{
+    fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<(Adress, u8)>) {
         for elt in exp{
             if elt.1 == 2{
-                res.push_str(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val));
+                hammer.txt_result.push_str(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val));
             }else{
                 if elt.1 == 1{
                     if elt.0.nb_stars == -1 {
-                        res.push_str(&format!("mov rax, {}\npush rax\n", &elt.0.val));
+                        hammer.txt_result.push_str(&format!("mov rax, {}\npush rax\n", &elt.0.val));
                     }else if elt.0.nb_stars == 0{
-                        res.push_str(&format!("xor rax, rax\n{} rax, {}\npush rax\n", hammer.get_size_def(elt.0.val).mov, hammer.get_extract_string(&elt.0)));
+                        hammer.txt_result.push_str(&format!("xor rax, rax\n{} rax, {}\npush rax\n", hammer.get_size_def(elt.0.val).mov, hammer.get_extract_string(&elt.0)));
                     }else{
-                        res.push_str(&format!("xor rax, rax\nmovsx rax, {}\n_deref {}\n", hammer.get_extract_string(&elt.0), elt.0.nb_stars));
+                        hammer.txt_result.push_str(&format!("xor rax, rax\nmovsx rax, {}\n_deref {}\n", hammer.get_extract_string(&elt.0), elt.0.nb_stars));
                         let size_def = hammer.get_size_def(elt.0.val);
-                        res.push_str(&format!("{} rax, {}[_stack + rax + {}*{}]\npush rax\n", size_def.mov, size_def.long, elt.0.decal, hammer.addr_list[&elt.0.val].type_var.size));
+                        hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax + {}*{}]\npush rax\n", size_def.mov, size_def.long, elt.0.decal, hammer.addr_list[&elt.0.val].type_var.size));
 
                     }
                 }else{
-                    res.push_str(&format!("mov rax, {}\npush rax\n", elt.0.val));
+                    hammer.txt_result.push_str(&format!("mov rax, {}\npush rax\n", elt.0.val));
                 }       
             }
         }
-        res.push_str("pop rax\n");
-        res = res.replace("push rax\npop rax\n", "");
-        res
+        hammer.txt_result.push_str("pop rax\n");
+        hammer.txt_result = hammer.txt_result.replace("push rax\npop rax\n", "");
     }
 
 
