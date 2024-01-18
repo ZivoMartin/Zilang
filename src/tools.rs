@@ -93,7 +93,7 @@ pub mod tools{
 
     pub struct Tools{
         authorized_char_for_variable: &'static str,
-        operators: &'static str,
+        operators: Vec<&'static str>,
         operator_priority: HashMap<String, u8>,
         separators: &'static str
     }
@@ -103,7 +103,7 @@ pub mod tools{
         pub fn new() -> Tools{
             Tools{
                 authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_",
-                operators: "+-*/%",
+                operators: vec!{"+", "-", "*", "/", "%", "||", "&&", "==", "!=", "<", ">", "<=", ">="},
                 operator_priority: build_operator_priority(),
                 separators: "(){}[],."
             }
@@ -127,8 +127,8 @@ pub mod tools{
             let mut stack = Stack::<String>::new();
             for e_elt in exp.iter(){
                 let elt = String::from(e_elt);
-                if self.is_operator(&elt) || elt == "("{
-                    while !stack.is_empty() && *stack.val() != String::from("(") && self.operator_priority[&elt] <= self.operator_priority[&elt]{
+                if self.is_operator(&elt){
+                    while !stack.is_empty() && stack.val() != "(" && self.operator_priority[stack.val()] > self.operator_priority[&elt]{
                         result.push(stack.pop());
                     }
                     stack.push(elt);
@@ -137,6 +137,8 @@ pub mod tools{
                         result.push(stack.pop());
                     }
                     stack.pop();
+                }else if elt == "("{
+                    stack.push(elt);
                 }else{
                     result.push(elt);
                 }
@@ -144,6 +146,7 @@ pub mod tools{
             while stack.size() != 0 {
                 result.push(stack.pop());
             }
+            println!("{result:?}");
             result
         }
     
@@ -173,12 +176,20 @@ pub mod tools{
 
     fn build_operator_priority() -> HashMap<String, u8>{
         let mut res = HashMap::<String, u8>::new();
-        res.insert(String::from("+"), 1);
-        res.insert(String::from("-"), 1);
-        res.insert(String::from("*"), 2);
-        res.insert(String::from("/"), 2);
-        res.insert(String::from("("), 3);
-        res.insert(String::from(")"), 2);
+        res.insert(String::from("+"), 3);
+        res.insert(String::from("-"), 3);
+        res.insert(String::from("*"), 4);
+        res.insert(String::from("/"), 4);
+        res.insert(String::from("("), 5);
+        res.insert(String::from(")"), 4);
+        res.insert(String::from("<"), 2);
+        res.insert(String::from("<="), 2);
+        res.insert(String::from(">"), 2);
+        res.insert(String::from(">="), 2);
+        res.insert(String::from("=="), 2);
+        res.insert(String::from("!="), 2);
+        res.insert(String::from("||"), 1);
+        res.insert(String::from("&&"), 1);
         res
     }
     

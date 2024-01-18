@@ -1,26 +1,7 @@
-MAIN
-
-INIT;
-
-INT a;
+MAIN;
 
 TEXT;
 
-a = 30;
+INT a = 2*a==1;
 
-IF a == 30 {
-    !display_number(1);
-}
-
-IF a != 30 {
-    !display_number(2);
-}
-
-IF a == 20 {
-    !display_number(1);
-}
-
-IF a == 30 {
-    !display_number(1);
-}
-
+!exit(0);

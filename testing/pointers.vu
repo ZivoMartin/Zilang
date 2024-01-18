@@ -2,20 +2,19 @@ MAIN;
 
 TEXT;
 
-INT*** a;
-INT** b;
-INT* c;
-INT d;
 
-d = 30;
-c = &d;
-b = &c;
-a = &b;
 
-INT result;
+INT a = 30;
+INT* b = &a;
+INT** c = &b;
+INT*** d = &c;
 
-result = $$$a;
 
-!dn(result); 
+INT result = $$$d;
+
+INT demo = 2 + -- a;
+
+
+!dn(demo); 
 
 !exit(0); 

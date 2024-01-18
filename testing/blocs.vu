@@ -1,0 +1,13 @@
+MAIN;
+
+TEXT;
+
+INT a = 5;
+
+{
+    INT a = 3;
+    !dn(a);
+}
+
+!dn(a);
+!exit(0);

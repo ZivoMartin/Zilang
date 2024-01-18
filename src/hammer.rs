@@ -555,7 +555,7 @@ pub mod hammer{
                         }
                     }else {
                         new_operator_separator(&mut current_element, &mut exp, chara, &mut neg_count);
-                        cant_be_op = true;
+                        cant_be_op = false;
                     }
                 }else{
                     cant_be_op = false;
