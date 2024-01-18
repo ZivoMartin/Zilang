@@ -95,20 +95,28 @@ pub mod tools{
         authorized_char_for_variable: &'static str,
         operators: Vec<&'static str>,
         operator_priority: HashMap<String, u8>,
-        separators: &'static str
+        separators: &'static str,
+        operator_ascii_val: HashMap<&'static str, i32>
     }
 
     impl Tools{
 
         pub fn new() -> Tools{
-            Tools{
+            let mut res = Tools{
                 authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_",
                 operators: vec!{"+", "-", "*", "/", "%", "||", "&&", "==", "!=", "<", ">", "<=", ">="},
                 operator_priority: build_operator_priority(),
-                separators: "(){}[],."
-            }
+                separators: "(){}[],.",
+                operator_ascii_val: HashMap::<&'static str, i32>::new()
+            };
+            res.init_ascii_map();
+            res
         }
 
+        pub fn get_op_iter(&self) -> std::slice::Iter<'_, &str> {
+            self.operators.iter()
+        }
+        
         pub fn is_valid_name(&self, name: &str) -> bool{
             for letter in name.chars(){
                 if !self.authorized_char_for_variable.contains(letter){
@@ -146,13 +154,30 @@ pub mod tools{
             while stack.size() != 0 {
                 result.push(stack.pop());
             }
-            println!("{result:?}");
             result
         }
     
         
-        pub fn is_separator(&self, chara: char) -> bool{
-            self.separators.contains(chara)
+        pub fn is_separator(&self, s: &String) -> bool{
+            s.len() == 1 && self.separators.contains(s)
+        }   
+
+        fn init_ascii_map(&mut self) {
+            for op in self.operators.iter(){
+                if op.len() == 1 {
+                    self.operator_ascii_val.insert(&op, op.chars().nth(0).unwrap() as i32);
+                }
+            }
+            self.operator_ascii_val.insert("==", '=' as i32);
+            self.operator_ascii_val.insert("||", '|' as i32);
+            self.operator_ascii_val.insert("&&", '&' as i32);
+            self.operator_ascii_val.insert("!=", '=' as i32 +3);
+            self.operator_ascii_val.insert("<=", '<' as i32 -1);
+            self.operator_ascii_val.insert(">=", '>' as i32 +1);
+        }
+
+        pub fn ascii_val(&self, op: &str) -> i32 {
+            return self.operator_ascii_val[op]
         }
 
     }

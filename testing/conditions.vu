@@ -2,6 +2,8 @@ MAIN;
 
 TEXT;
 
-INT a = 2*a==1;
+INT a = (1 || 0) && (1 && 1==1);
+
+!dn(a);
 
 !exit(0);
