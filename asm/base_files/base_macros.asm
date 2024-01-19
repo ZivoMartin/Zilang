@@ -40,12 +40,10 @@ section .text
         cmp rax, 0
         jne %%_local_label_stock_loop
 
-    mov rax, 1  
-    mov rdx, 1
     %%_local_label_display:
-        pop rbx        
         cmp r10, 0  
         je %%_local_label_end_loop_display_number
+        pop rbx        
         mov rsi, _chiffres
         add rsi, rbx 
         print_char rsi

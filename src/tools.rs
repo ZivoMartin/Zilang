@@ -203,6 +203,7 @@ pub mod tools{
         let mut res = HashMap::<String, u8>::new();
         res.insert(String::from("+"), 3);
         res.insert(String::from("-"), 3);
+        res.insert(String::from("%"), 4);
         res.insert(String::from("*"), 4);
         res.insert(String::from("/"), 4);
         res.insert(String::from("("), 5);

@@ -415,7 +415,11 @@ pub mod hammer{
                 InstructionType::Condition
             )?;
             end_txt = format!("end_condition_{}:\n", hammer.blocs_index);
-            hammer.blocs_index += 1
+            hammer.blocs_index += 1;
+        }else if inst == "loop" {
+            hammer.txt_result.push_str(&format!("_loop_{}:\n", hammer.blocs_index));
+            end_txt = format!("jmp _loop_{}\n", hammer.blocs_index);
+            hammer.blocs_index += 1;
         }else if inst != ""{
             return Err(format!("Line {}: Not implemented yet.", get_ln()))
         }
@@ -589,6 +593,11 @@ pub mod hammer{
         }
         string_exp = string_exp.replace("(", &format!("_(_"));
         string_exp = string_exp.replace(")", &format!("_)_"));
+        while string_exp.contains("__") {
+            string_exp = string_exp.replace("__", "_");
+        }
+        string_exp = string_exp.replace("<_=", "<=_");
+        string_exp = string_exp.replace(">_=", ">=_");
         let exp: Vec::<String>  = string_exp.split("_").map(String::from).collect();
         let mut exp_res = Vec::<String>::new();
         let mut current_element = String::new(); 
@@ -652,7 +661,7 @@ pub mod hammer{
             match interpretation {
                 Interp::NUMBER => exp.push((Adress::new(content[0]), 0)),
                 Interp::VARIABLE => {
-                    if nb_stars_await == MAX_STARS+1 || (hammer.get_var_def_by_name(&current_element).type_var.stars + (content[1] == -1) as u32 - (((content[1] != -1) as i32)*content[1]) as u32) != nb_stars_await{
+                    if nb_stars_await != MAX_STARS+1 && (hammer.get_var_def_by_name(&current_element).type_var.stars + (content[1] == -1) as u32 - (((content[1] != -1) as i32)*content[1]) as u32) != nb_stars_await{
                         return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
                     }
                     exp.push((Adress{val: hammer.get_addr(&current_element), decal: content[0], nb_stars: content[1]}, 1));

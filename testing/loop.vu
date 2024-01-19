@@ -1,0 +1,14 @@
+MAIN;
+
+TEXT;
+
+int i = 0;
+
+loop {
+    if i%10 == 0 {
+        !dn(i);
+    }
+    i = i +1;
+}
+
+!exit(0);

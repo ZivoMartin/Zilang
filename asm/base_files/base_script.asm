@@ -56,7 +56,7 @@ _operation:
     _modulo_op:
         mov rax, r10
         idiv r11
-        mov rax, rdx
+        mov rax, rdi
         ret 
     
     _inf_op:
