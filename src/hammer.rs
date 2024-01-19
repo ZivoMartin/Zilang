@@ -97,7 +97,23 @@ pub mod hammer{
         args: Vec::<(Adress, i8)>
     }
 
-    
+    struct Jump{
+        vars: Vec::<i32>, 
+        stack_index: i32,
+        end_txt: String
+    }
+
+    impl Jump {
+
+        fn new(stack_index: i32, end_txt: String) -> Self {
+            Jump{
+                vars: Vec::new(),
+                stack_index: stack_index,
+                end_txt: end_txt
+            }
+        }
+
+    }
     
     #[derive(Debug)]
     struct Adress {
@@ -120,10 +136,11 @@ pub mod hammer{
         defined_var_list: HashMap::<String, Stack::<i32>>,
         addr_list: HashMap::<i32, VariableDefinition>,
         macro_list: HashMap::<String, Macro>,
-        jumps_stack: Stack<(Vec::<i32>, i32)>,
+        jumps_stack: Stack<Jump>,
         size: HashMap<i32, AsmType>,
         stack_index: u32,
-        txt_result: String
+        txt_result: String,
+        blocs_index: u32
     }
 
 
@@ -138,11 +155,11 @@ pub mod hammer{
                 jumps_stack: Stack::new(),
                 size: HashMap::<i32, AsmType>::new(),
                 stack_index : 0,
-                txt_result: String::new()
+                txt_result: String::new(),
+                blocs_index: 0
             };
             res.init_size();
             res.init_dispo_type();
-            res.init_dispo_func();
             res.init_dispo_macro();
             return res
         }
@@ -176,8 +193,8 @@ pub mod hammer{
 
         pub fn jump_out(&mut self){
             let top_stack = self.jumps_stack.pop();
-            self.stack_index = top_stack.1 as u32;
-            let variable_to_destroy: Vec::<i32> = top_stack.0; 
+            self.stack_index = top_stack.stack_index as u32;
+            let variable_to_destroy: Vec::<i32> = top_stack.vars; 
             for addr in variable_to_destroy{
                 let def = self.addr_list.remove(&addr).unwrap();
                 let var_stack: &mut Stack<_> = self.defined_var_list.get_mut(&def.name).unwrap(); 
@@ -186,10 +203,9 @@ pub mod hammer{
                     self.defined_var_list.remove(&def.name);
                 }
             }
+            self.txt_result.push_str(&top_stack.end_txt);
         }
 
-        fn init_dispo_func(&mut self){
-        }
 
         fn init_dispo_macro(&mut self){
             self.macro_list.insert(
@@ -209,11 +225,8 @@ pub mod hammer{
         }
 
         fn init_dispo_type(&mut self){
-            self.new_type(String::from("INT"), 4);
-            self.new_type(String::from("INT*"), 4);
-            self.new_type(String::from("CHAR"), 1);
-            self.new_type(String::from("GEN"), 4);
-            self.new_type(String::from("VOID"), 0);
+            self.new_type(String::from("int"), 4);
+            self.new_type(String::from("char"), 1);
         } 
 
         fn new_type(&mut self, name: String, size: i32){
@@ -252,7 +265,7 @@ pub mod hammer{
 
         pub fn define_new_var(&mut self, name: String, type_var: Type){
             let addr = self.insert_var_in_memory(&name, type_var);
-            self.jumps_stack.val_mut().0.push(addr);
+            self.jumps_stack.val_mut().vars.push(addr);
             if !self.var_exists(&name){
                 let mut new_stack = Stack::<i32>::new();
                 new_stack.push(addr);
@@ -344,7 +357,7 @@ pub mod hammer{
     
     fn instruct_loop(hammer: &mut Hammer, vec: &mut Vec::<String>) -> Result<(), String>{
         inc_in(1);
-        hammer.jumps_stack.push((Vec::new(), 0));
+        hammer.jumps_stack.push(Jump::new(0, String::new()));
 
         loop{
             if get_in() == vec.len() -1{
@@ -352,7 +365,6 @@ pub mod hammer{
             }
 
             let mut inst = vec[get_in()].clone();
-            inst = inst.replace("=", " = ");
             let mut line_split = split(&inst, " ");
             inc_ln(clean_line(&mut line_split));
             inst = line_split.join(" ");
@@ -364,12 +376,12 @@ pub mod hammer{
                 continue;
             } else if inst.contains("{") {
                 let mut split_inst: Vec::<&str> = inst.split("{").collect();
-                annalyse_inst_behind_bracket(hammer, &split_inst[0])?;
+                annalyse_inst_behind_bracket(hammer, split_inst[0].trim().to_string())?;
                 split_inst.remove(0);
                 vec[get_in()] = split_inst.join("{");
-                hammer.jumps_stack.push((Vec::new(), hammer.jumps_stack.val().1));
                 continue;
             }else{
+                setup_inst(&mut inst);
                 handle_instruction(hammer, inst, line_split)?;
                 inc_in(1);
             }
@@ -378,10 +390,21 @@ pub mod hammer{
         Ok(())
     }
    
-    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: &str) -> Result<(), String> {
-        if inst == "" {
-            return Ok(())
-        }else if inst.starts_with("if"){
+    fn setup_inst(inst: &mut String){
+        let mut i: usize = 0;
+        for chara in inst.clone().chars() {
+            if chara == '=' {
+                inst.insert(i+1, ' ');
+                inst.insert(i, ' ');
+                break;
+            }
+            i += 1;
+        }
+    }
+
+    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: String) -> Result<(), String> {
+        let mut end_txt = String::new();
+        if inst.starts_with("if"){
             text_asm(
                 hammer, 
                 Instruction{
@@ -390,10 +413,14 @@ pub mod hammer{
                     cond: Some(build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?)
                 }, 
                 InstructionType::Condition
-            )
-        }else{
+            )?;
+            end_txt = format!("end_condition_{}:\n", hammer.blocs_index);
+            hammer.blocs_index += 1
+        }else if inst != ""{
             return Err(format!("Line {}: Not implemented yet.", get_ln()))
         }
+        hammer.jumps_stack.push(Jump::new(hammer.jumps_stack.val().stack_index, end_txt));
+        Ok(())
     }
 
     fn handle_instruction(hammer: &mut Hammer, mut inst: String, mut line_split: Vec::<String>) -> Result<(), String> {
@@ -714,6 +741,7 @@ pub mod hammer{
             }
             InstructionType::Condition => {
                 evaluate_exp(hammer, &inst.cond.unwrap());
+                hammer.txt_result.push_str(&format!("cmp rax, 0\nje end_condition_{}\n", hammer.blocs_index));
             }
         }
         Ok(())
