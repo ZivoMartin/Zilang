@@ -57,17 +57,6 @@ pub mod hammer{
         CHARACTER
     }
 
-    enum InstructionType {
-        Affectation,
-        MacroCall,
-        Condition
-    }
-
-    struct Instruction {
-        macro_call: Option<MacroCall>,
-        aff: Option<Affectation>,
-        cond: Option<Vec::<(Adress, u8)>>
-    }
 
     struct AsmType{
         long: &'static str,
@@ -81,16 +70,6 @@ pub mod hammer{
         type_var: Type,
     }
     
-    struct Macro{
-        name: String,
-        nb_arg: usize,
-    }
-
-    
-    struct Affectation{
-        addr: Adress,
-        exp: Vec::<(Adress, u8)>,
-    }
 
     struct MacroCall{
         macro_name: String,
@@ -135,12 +114,14 @@ pub mod hammer{
         type_list: HashMap::<String, Type>,
         defined_var_list: HashMap::<String, Stack::<i32>>,
         addr_list: HashMap::<i32, VariableDefinition>,
-        macro_list: HashMap::<String, Macro>,
+        macro_list: HashMap::<String, u32>,
+        keyword_list: HashMap::<String, fn(&mut Hammer, &String) -> Result<(), String>>,
         jumps_stack: Stack<Jump>,
         size: HashMap<i32, AsmType>,
         stack_index: u32,
         txt_result: String,
-        blocs_index: u32
+        blocs_index: u32,
+        loop_index_stack: Stack<u32>
     }
 
 
@@ -151,16 +132,19 @@ pub mod hammer{
                 type_list: HashMap::<String, Type>::new(),
                 defined_var_list: HashMap::<String, Stack::<i32>>::new(),
                 addr_list: HashMap::<i32, VariableDefinition>::new(),
-                macro_list: HashMap::<String, Macro>::new(),
+                macro_list: HashMap::<String, u32>::new(),
+                keyword_list: HashMap::<String, fn(&mut Hammer, &String) -> Result<(), String>>::new(),
                 jumps_stack: Stack::new(),
                 size: HashMap::<i32, AsmType>::new(),
                 stack_index : 0,
                 txt_result: String::new(),
-                blocs_index: 0
+                blocs_index: 0,
+                loop_index_stack: Stack::new()
             };
             res.init_size();
             res.init_dispo_type();
             res.init_dispo_macro();
+            res.init_dispo_keyword();
             return res
         }
 
@@ -191,8 +175,15 @@ pub mod hammer{
             });
         }
 
+        pub fn init_dispo_keyword(&mut self) {
+            self.keyword_list.insert(String::from("break"), break_keyword);
+        }
+
         pub fn jump_out(&mut self){
             let top_stack = self.jumps_stack.pop();
+            if !self.loop_index_stack.is_empty() && *self.loop_index_stack.val() == top_stack.stack_index as u32{
+                self.loop_index_stack.pop();
+            }
             self.stack_index = top_stack.stack_index as u32;
             let variable_to_destroy: Vec::<i32> = top_stack.vars; 
             for addr in variable_to_destroy{
@@ -210,17 +201,11 @@ pub mod hammer{
         fn init_dispo_macro(&mut self){
             self.macro_list.insert(
                 String::from("dn"), 
-                Macro{
-                    name: String::from("dn"), 
-                    nb_arg: 1, 
-                }
+                1
             );
             self.macro_list.insert(
                 String::from("exit"), 
-                Macro{
-                    name: String::from("exit"), 
-                    nb_arg: 1
-                }
+                1
             );
         }
 
@@ -253,6 +238,16 @@ pub mod hammer{
 
         pub fn macro_exists(&self, name: &str) -> bool{
             self.macro_list.contains_key(name)
+        }
+
+
+        pub fn keyword_exists(&self, name: &str) -> bool {
+            println!("{name}");
+            self.macro_list.contains_key(name)
+        }
+
+        pub fn call_keyword(&mut self, name: &str, rest_of_line: &String) -> Result<(), String> {
+            self.keyword_list[name](self, rest_of_line)
         }
 
         pub fn get_addr(&self, name: &str) -> i32{
@@ -312,6 +307,7 @@ pub mod hammer{
             }
             Ok(())
         }
+
 
     }
 
@@ -405,20 +401,14 @@ pub mod hammer{
     fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: String) -> Result<(), String> {
         let mut end_txt = String::new();
         if inst.starts_with("if"){
-            text_asm(
-                hammer, 
-                Instruction{
-                    aff: None,
-                    macro_call: None,
-                    cond: Some(build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?)
-                }, 
-                InstructionType::Condition
-            )?;
+            evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?);
+            hammer.txt_result.push_str(&format!("cmp rax, 0\nje end_condition_{}\n", hammer.blocs_index));
             end_txt = format!("end_condition_{}:\n", hammer.blocs_index);
             hammer.blocs_index += 1;
         }else if inst == "loop" {
             hammer.txt_result.push_str(&format!("_loop_{}:\n", hammer.blocs_index));
-            end_txt = format!("jmp _loop_{}\n", hammer.blocs_index);
+            end_txt = format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index);
+            hammer.loop_index_stack.push(hammer.blocs_index);
             hammer.blocs_index += 1;
         }else if inst != ""{
             return Err(format!("Line {}: Not implemented yet.", get_ln()))
@@ -444,15 +434,14 @@ pub mod hammer{
 
                 _ => {
 
-                    if inst.contains("=")
-                    {
+                    if inst.contains("="){
                         handle_affectation(hammer, inst)?;
-                    }else if inst.starts_with("!")
-                    {
+                    }else if inst.starts_with("!"){
                         inst.remove(0);
-                        handle_macros_call(hammer, inst)?;
-                    }else 
-                    {
+                        handle_macros_call(hammer, inst)?; 
+                    }else if hammer.keyword_exists(&line_split[0]){
+                        hammer.call_keyword(&line_split.remove(0), &line_split.join(" "))?;
+                    }else{
                         return Err(format!("Line {}: Not implemented yet.", get_ln()));
                     }
                 }
@@ -490,21 +479,14 @@ pub mod hammer{
                 Interp::CHARACTER => args.push((Adress{val: content[0], decal: 0, nb_stars: 0}, 0)),
             }
         }
-        let nb_arg_expected = hammer.macro_list[&name].nb_arg;
-        if args.len() != nb_arg_expected{
+        let nb_arg_expected = hammer.macro_list[&name];
+        if args.len() != nb_arg_expected as usize{
             return Err(format!("Line {}: Found {} arguments when {} was expected", get_ln(), args.len(), nb_arg_expected));
         }
-        text_asm(
-            hammer, 
-            Instruction{
-                macro_call: Some(MacroCall{
-                    macro_name: name,
-                    args: args 
-                }),
-                aff: None,
-                cond: None
-            },
-            InstructionType::MacroCall)?;
+        insert_macro_call_in_txt(hammer, MacroCall{
+            macro_name: name,
+            args: args 
+        });
         Ok(())
     }
 
@@ -524,19 +506,13 @@ pub mod hammer{
             assert_prof(&hammer.get_var_def_by_name(&var1), nb_stars as u32)?;
             let var2 = split.join("=").replace(" = ", "=");
             let addr = hammer.get_addr(&var1);
-
-            text_asm(
-                hammer, 
-                Instruction{
-                    macro_call: None, 
-                    cond: None,
-                    aff: Some(Affectation{
-                        addr: Adress{val: addr, decal: size_var1, nb_stars: nb_stars},
-                        exp: build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars)?
-                    })
-                }, 
-                InstructionType::Affectation
-            )
+            let struct_addr = Adress{val: addr, decal: size_var1, nb_stars: nb_stars};
+            evaluate_exp(hammer,&build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars)?);
+            hammer.txt_result.push_str(&format!("mov {}, {}\n", 
+                hammer.get_extract_string(&struct_addr), 
+                hammer.get_size_def(struct_addr.val).register)
+            );
+            Ok(())
         }else {
             return Err(format!("Line {}: The variable {} doesn't exists.", get_ln(), var1));
         }
@@ -717,45 +693,28 @@ pub mod hammer{
         return res;
     }
 
-
-
-    fn text_asm(hammer: &mut Hammer, inst: Instruction, inst_type: InstructionType) -> Result<(), String>{
-        match inst_type{
-            InstructionType::Affectation =>{
-                let aff = inst.aff.unwrap();
-                evaluate_exp(hammer, &aff.exp);
-                hammer.txt_result.push_str(&format!("mov {}, {}\n", hammer.get_extract_string(&aff.addr), hammer.get_size_def(aff.addr.val).register));
-            }    
-            InstructionType::MacroCall =>{
-                let macro_call: &MacroCall = inst.macro_call.as_ref().unwrap();
-                let mut macro_call_s = String::new();
-                for arg in &macro_call.args{
-                    match arg.1{
-                        0 => {
-                            macro_call_s.push_str(&format!("mov rax, {}", arg.0.val));
-                        }
-                        _ =>{
-                            let size_def = hammer.get_size_def(arg.0.val);
-                            if arg.0.nb_stars == -1 {
-                                macro_call_s.push_str(&format!("mov rax, {}", arg.0.val));
-                            }else{
-                                macro_call_s.push_str(&format!("{} rax, {}", size_def.mov, hammer.get_extract_string(&arg.0)));
-                            }            
-                        }
-                    }
+    
+    fn insert_macro_call_in_txt(hammer: &mut Hammer, macro_call: MacroCall) {
+        let mut macro_call_s = String::new();
+        for arg in &macro_call.args{
+            match arg.1{
+                0 => {
+                    macro_call_s.push_str(&format!("mov rax, {}", arg.0.val));
                 }
-                macro_call_s.push_str(&format!("\n{} rax\n", macro_call.macro_name));
-                hammer.txt_result.push_str(&macro_call_s);
-                hammer.txt_result.push_str("\n");
-            }
-            InstructionType::Condition => {
-                evaluate_exp(hammer, &inst.cond.unwrap());
-                hammer.txt_result.push_str(&format!("cmp rax, 0\nje end_condition_{}\n", hammer.blocs_index));
+                _ =>{
+                    let size_def = hammer.get_size_def(arg.0.val);
+                    if arg.0.nb_stars == -1 {
+                        macro_call_s.push_str(&format!("mov rax, {}", arg.0.val));
+                    }else{
+                        macro_call_s.push_str(&format!("{} rax, {}", size_def.mov, hammer.get_extract_string(&arg.0)));
+                    }            
+                }
             }
         }
-        Ok(())
+        macro_call_s.push_str(&format!("\n{} rax\n", macro_call.macro_name));
+        hammer.txt_result.push_str(&macro_call_s);
+        hammer.txt_result.push_str("\n");
     }
-    
 
     fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<(Adress, u8)>) {
         for elt in exp{
@@ -817,4 +776,10 @@ pub mod hammer{
         }
     }
     
+    fn break_keyword(hammer: &mut Hammer, _rest_of_line: &String) -> Result<(), String>{
+        hammer.txt_result.push_str(&format!("jmp _end_loop_{}\n", hammer.loop_index_stack.val()));
+        hammer.jump_out();
+        Ok(())
+    }
+
 }

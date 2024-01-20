@@ -5,9 +5,10 @@ TEXT;
 int i = 0;
 
 loop {
-    if i%10 == 0 {
-        !dn(i);
+    if i == 101 {
+        break;
     }
+    !dn(i);
     i = i +1;
 }
 
