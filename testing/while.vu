@@ -1,0 +1,12 @@
+MAIN;
+
+TEXT;
+
+int i = 0;
+
+while i<=10{
+    !dn(i);
+    i = i + 1;
+}
+
+!exit(0);

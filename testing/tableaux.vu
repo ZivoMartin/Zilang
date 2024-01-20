@@ -3,14 +3,8 @@ MAIN;
 
 TEXT;
 
-INT[8] t;
-
-t[1] = 7;
+int t[2][3][2];
 
 
-!dn(t);
-!dn(t[0]);
-
-                                                                                                                                                                                              
 
 !exit(0);

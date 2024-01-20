@@ -6,6 +6,7 @@ pub mod hammer{
     use std::str;
 
     static POINTER: &str = "$";
+    static POINTER_SIZE: u32 = 4;
     static MAX_STARS: u32 = 10000; 
     static mut LINE_NUMBER: (usize, usize) = (1, 0);
 
@@ -79,16 +80,18 @@ pub mod hammer{
     struct Jump{
         vars: Vec::<i32>, 
         stack_index: i32,
-        end_txt: String
+        end_txt: String,
+        bloc_index: u32
     }
 
     impl Jump {
 
-        fn new(stack_index: i32, end_txt: String) -> Self {
+        fn new(stack_index: i32, end_txt: String, bloc_index: u32) -> Self {
             Jump{
                 vars: Vec::new(),
                 stack_index: stack_index,
-                end_txt: end_txt
+                end_txt: end_txt,
+                bloc_index: bloc_index
             }
         }
 
@@ -117,11 +120,12 @@ pub mod hammer{
         macro_list: HashMap::<String, u32>,
         keyword_list: HashMap::<String, fn(&mut Hammer, &String) -> Result<(), String>>,
         jumps_stack: Stack<Jump>,
-        size: HashMap<i32, AsmType>,
+        size: HashMap<u32, AsmType>,
         stack_index: u32,
         txt_result: String,
         blocs_index: u32,
-        loop_index_stack: Stack<u32>
+        loop_index_stack: Stack<u32>,
+        cond_index_stack: Stack<u32>
     }
 
 
@@ -135,11 +139,12 @@ pub mod hammer{
                 macro_list: HashMap::<String, u32>::new(),
                 keyword_list: HashMap::<String, fn(&mut Hammer, &String) -> Result<(), String>>::new(),
                 jumps_stack: Stack::new(),
-                size: HashMap::<i32, AsmType>::new(),
+                size: HashMap::<u32, AsmType>::new(),
                 stack_index : 0,
                 txt_result: String::new(),
-                blocs_index: 0,
-                loop_index_stack: Stack::new()
+                blocs_index: 1,
+                loop_index_stack: Stack::new(),
+                cond_index_stack: Stack::new()
             };
             res.init_size();
             res.init_dispo_type();
@@ -177,11 +182,12 @@ pub mod hammer{
 
         pub fn init_dispo_keyword(&mut self) {
             self.keyword_list.insert(String::from("break"), break_keyword);
+            self.keyword_list.insert(String::from("continue"), continue_keyword);
         }
 
         pub fn jump_out(&mut self){
             let top_stack = self.jumps_stack.pop();
-            if !self.loop_index_stack.is_empty() && *self.loop_index_stack.val() == top_stack.stack_index as u32{
+            if !self.loop_index_stack.is_empty() && *self.loop_index_stack.val() == top_stack.bloc_index as u32{
                 self.loop_index_stack.pop();
             }
             self.stack_index = top_stack.stack_index as u32;
@@ -242,8 +248,7 @@ pub mod hammer{
 
 
         pub fn keyword_exists(&self, name: &str) -> bool {
-            println!("{name}");
-            self.macro_list.contains_key(name)
+            self.keyword_list.contains_key(name)
         }
 
         pub fn call_keyword(&mut self, name: &str, rest_of_line: &String) -> Result<(), String> {
@@ -290,7 +295,7 @@ pub mod hammer{
         }
         
         pub fn get_size_def(&self, addr: i32) -> &AsmType{
-            &self.size[&self.addr_list[&addr].type_var.size]
+            &self.size[&(self.addr_list[&addr].type_var.size as u32)]
         }
 
         fn get_extract_string(&self, addr: &Adress) -> String{
@@ -353,7 +358,7 @@ pub mod hammer{
     
     fn instruct_loop(hammer: &mut Hammer, vec: &mut Vec::<String>) -> Result<(), String>{
         inc_in(1);
-        hammer.jumps_stack.push(Jump::new(0, String::new()));
+        hammer.jumps_stack.push(Jump::new(0, String::new(), 0));
 
         loop{
             if get_in() == vec.len() -1{
@@ -378,6 +383,7 @@ pub mod hammer{
                 continue;
             }else{
                 setup_inst(&mut inst);
+                line_split = split(&inst, " ");
                 handle_instruction(hammer, inst, line_split)?;
                 inc_in(1);
             }
@@ -398,34 +404,85 @@ pub mod hammer{
         }
     }
 
-    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: String) -> Result<(), String> {
+    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, mut inst: String) -> Result<(), String> {
         let mut end_txt = String::new();
         if inst.starts_with("if"){
             evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?);
-            hammer.txt_result.push_str(&format!("cmp rax, 0\nje end_condition_{}\n", hammer.blocs_index));
-            end_txt = format!("end_condition_{}:\n", hammer.blocs_index);
-            hammer.blocs_index += 1;
+            hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
+            end_txt = format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index);
+            hammer.cond_index_stack.push(hammer.blocs_index);
+        }else if inst.starts_with("else"){
+            let cond_index = *hammer.cond_index_stack.val();
+            hammer.txt_result = hammer.txt_result.replace(&format!("_real_end_condition_{}:\n", cond_index), "" );
+            if inst.len() != 4 {
+                inst = String::from(&inst[5..inst.len()]).trim().to_string();
+                end_txt = format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", cond_index, hammer.blocs_index, cond_index);
+                evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?);
+                hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
+            }else{
+                end_txt = format!("_real_end_condition_{}:\n", cond_index);
+                hammer.cond_index_stack.pop();
+            }
         }else if inst == "loop" {
             hammer.txt_result.push_str(&format!("_loop_{}:\n", hammer.blocs_index));
             end_txt = format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index);
             hammer.loop_index_stack.push(hammer.blocs_index);
-            hammer.blocs_index += 1;
+        }else if inst.starts_with("while") {
+            hammer.txt_result.push_str(&format!("_loop_{}:\n", hammer.blocs_index));
+            end_txt = format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index);
+            hammer.loop_index_stack.push(hammer.blocs_index);
+            evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[5..inst.len()]), MAX_STARS+1)?);
+            hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index));
         }else if inst != ""{
             return Err(format!("Line {}: Not implemented yet.", get_ln()))
         }
-        hammer.jumps_stack.push(Jump::new(hammer.jumps_stack.val().stack_index, end_txt));
+        hammer.jumps_stack.push(Jump::new(hammer.jumps_stack.val().stack_index, end_txt, hammer.blocs_index));
+        hammer.blocs_index += 1;
+        Ok(())
+    }
+
+    fn handle_tab_type(hammer: &mut Hammer, var: &mut Vec<&str>, type_var: &mut Type) -> Result<(), String> {
+        let mut previous_data: (u32, u32) = (1, hammer.stack_index);
+        for i in 1..var.len() {
+            if var[i] == "" || var[i].chars().last().unwrap() != ']'{
+                return Err(format!("Line {}: You forgot to close with '['", get_ln()))
+            }
+            println!("{}", hammer.stack_index);
+            let stack_index = hammer.stack_index;
+            match str::parse::<u32>(&var[i][0..var[i].len()-1]) {
+                Ok(tab_size) => {
+                    type_var.stars += 1;
+                    let size: u32;
+                    if i != var[i].len()-1 {
+                        size = POINTER_SIZE;
+                    }else{
+                        size = type_var.size as u32;
+                    }
+                    for j in 0..previous_data.0{
+                        hammer.txt_result.push_str(&format!("mov {}[_stack + {} + {}*{}], {}\n", hammer.size[&size].long, previous_data.1, size, j, hammer.stack_index));
+                        hammer.stack_index += size*tab_size;
+                    }
+                    previous_data.0 = tab_size*size;
+                },
+                Err(_) => return Err(format!("Line {}: You didn't write a correct number between the brackets", get_ln()))
+            }
+            previous_data.1 = stack_index;
+        }
+        println!("{}", hammer.stack_index);
         Ok(())
     }
 
     fn handle_instruction(hammer: &mut Hammer, mut inst: String, mut line_split: Vec::<String>) -> Result<(), String> {
         if line_split.len() != 0{
             match hammer.type_exists(&mut line_split[0]) {
-                Ok(type_var) => {
+                Ok(mut type_var) => {
                     if line_split.len() < 2{
                         return Err(format!("Line {}: You should initialise a variable.", get_ln()))
                     }
-                    hammer.is_valid_name(&line_split[1])?;
-                    hammer.define_new_var(line_split[1].clone(), type_var);
+                    let mut split_var: Vec::<&str> = line_split[1].split("[").collect();
+                    hammer.is_valid_name(split_var[0])?;
+                    handle_tab_type(hammer, &mut split_var, &mut type_var)?;
+                    hammer.define_new_var(String::from(split_var[0]), type_var);
                     if inst.contains("="){
                         line_split.remove(0);
                         handle_affectation(hammer, line_split.join(" "))?;
@@ -713,7 +770,6 @@ pub mod hammer{
         }
         macro_call_s.push_str(&format!("\n{} rax\n", macro_call.macro_name));
         hammer.txt_result.push_str(&macro_call_s);
-        hammer.txt_result.push_str("\n");
     }
 
     fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<(Adress, u8)>) {
@@ -778,7 +834,11 @@ pub mod hammer{
     
     fn break_keyword(hammer: &mut Hammer, _rest_of_line: &String) -> Result<(), String>{
         hammer.txt_result.push_str(&format!("jmp _end_loop_{}\n", hammer.loop_index_stack.val()));
-        hammer.jump_out();
+        Ok(())
+    }
+
+    fn continue_keyword(hammer: &mut Hammer, _rest_of_line: &String) -> Result<(), String> {
+        hammer.txt_result.push_str(&format!("jmp _loop_{}\n", hammer.loop_index_stack.val()));
         Ok(())
     }
 

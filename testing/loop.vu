@@ -5,8 +5,11 @@ TEXT;
 int i = 0;
 
 loop {
-    if i == 101 {
+    if i == 10 {
         break;
+    }else if i == 5 {
+        i = i + 1;
+        continue;
     }
     !dn(i);
     i = i +1;
