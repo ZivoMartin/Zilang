@@ -100,14 +100,14 @@ pub mod hammer{
     #[derive(Debug)]
     struct Adress {
         val: i32,
-        decal: i32,
-        nb_stars: i32
+        nb_stars: i32,
+        squares: Option<Vec::<Vec<(Adress, u8)>>>
     }
     
     impl Adress {
 
         pub fn new(val: i32) -> Adress{
-            Adress{val: val, decal: 0, nb_stars: 0}
+            Adress{val: val, squares: None, nb_stars: 0}
         }
 
     }
@@ -299,9 +299,7 @@ pub mod hammer{
         }
 
         fn get_extract_string(&self, addr: &Adress) -> String{
-            let size_def: &AsmType = self.get_size_def(addr.val);
-            let var_def: &VariableDefinition = &self.addr_list[&addr.val];
-            return String::from(format!("{}[_stack + {} + {}*{}]", size_def.long, addr.val, addr.decal, var_def.type_var.size))
+            return String::from(format!("{}[_stack + {}]", self.get_size_def(addr.val).long, addr.val))
         }
         
         pub fn is_valid_name(&self, name: &str) -> Result<(), String>{
@@ -441,13 +439,12 @@ pub mod hammer{
         Ok(())
     }
 
-    fn handle_tab_type(hammer: &mut Hammer, var: &mut Vec<&str>, type_var: &mut Type) -> Result<(), String> {
+    fn handle_tab_type_dec(hammer: &mut Hammer, var: &mut Vec<&str>, type_var: &mut Type) -> Result<(), String> {
         let mut previous_data: (u32, u32) = (1, hammer.stack_index);
         for i in 1..var.len() {
             if var[i] == "" || var[i].chars().last().unwrap() != ']'{
                 return Err(format!("Line {}: You forgot to close with '['", get_ln()))
             }
-            println!("{}", hammer.stack_index);
             let stack_index = hammer.stack_index;
             match str::parse::<u32>(&var[i][0..var[i].len()-1]) {
                 Ok(tab_size) => {
@@ -468,9 +465,23 @@ pub mod hammer{
             }
             previous_data.1 = stack_index;
         }
-        println!("{}", hammer.stack_index);
         Ok(())
     }
+
+
+    fn tab_analyse(hammer: &Hammer, var_s: &mut String) -> Result<Vec::<Vec<(Adress, u8)>>, String>{
+        let var: Vec::<&str> = var_s.split("[").collect();
+        let mut res = Vec::<Vec<(Adress, u8)>>::new();
+        for i in 1..var.len() {
+            if var[i] == "" || var[i].chars().last().unwrap() != ']'{
+                return Err(format!("Line {}: You forgot to close with '['", get_ln()))
+            }
+            res.push(build_aff_vec(hammer, String::from(&var[i][0..var[i].len()-1]), 0)?);
+        }
+        *var_s = String::from(var[0]);
+        Ok(res)
+    }
+
 
     fn handle_instruction(hammer: &mut Hammer, mut inst: String, mut line_split: Vec::<String>) -> Result<(), String> {
         if line_split.len() != 0{
@@ -481,7 +492,7 @@ pub mod hammer{
                     }
                     let mut split_var: Vec::<&str> = line_split[1].split("[").collect();
                     hammer.is_valid_name(split_var[0])?;
-                    handle_tab_type(hammer, &mut split_var, &mut type_var)?;
+                    handle_tab_type_dec(hammer, &mut split_var, &mut type_var)?;
                     hammer.define_new_var(String::from(split_var[0]), type_var);
                     if inst.contains("="){
                         line_split.remove(0);
@@ -529,11 +540,12 @@ pub mod hammer{
             }
             let mut element = String::from(arg);
             let mut content = Vec::<i32>::new();
-            let interpretation = get_element_interpretation(hammer, &mut element, &mut content)?;
+            let mut tab_vec = Vec::<Vec<(Adress, u8)>>::new();
+            let interpretation = get_element_interpretation(hammer, &mut element, &mut content, &mut tab_vec)?;
             match interpretation {
                 Interp::NUMBER => args.push((Adress::new(content[0]), 0)),
-                Interp::VARIABLE => args.push((Adress{val: hammer.get_addr(&element), decal: content[0], nb_stars: content[1]}, 1)),
-                Interp::CHARACTER => args.push((Adress{val: content[0], decal: 0, nb_stars: 0}, 0)),
+                Interp::VARIABLE => args.push((Adress{val: hammer.get_addr(&element), squares: Some(Vec::new()), nb_stars: content[1]}, 1)),
+                Interp::CHARACTER => args.push((Adress::new(content[0]), 0)),
             }
         }
         let nb_arg_expected = hammer.macro_list[&name];
@@ -558,12 +570,12 @@ pub mod hammer{
         let mut var1 = split[0].trim().to_string();
         split.remove(0);
         let nb_stars = get_prof_pointer(&mut var1, false)?;
-        let size_var1 = 0;
+        let tab_vec = tab_analyse(hammer, &mut var1)?;
         if hammer.var_exists(&var1){
             assert_prof(&hammer.get_var_def_by_name(&var1), nb_stars as u32)?;
             let var2 = split.join("=").replace(" = ", "=");
             let addr = hammer.get_addr(&var1);
-            let struct_addr = Adress{val: addr, decal: size_var1, nb_stars: nb_stars};
+            let struct_addr = Adress{val: addr, squares: Some(tab_vec), nb_stars: nb_stars};
             evaluate_exp(hammer,&build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars)?);
             hammer.txt_result.push_str(&format!("mov {}, {}\n", 
                 hammer.get_extract_string(&struct_addr), 
@@ -687,26 +699,29 @@ pub mod hammer{
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
         if hammer.tools.is_operator(&current_element){ 
-            exp.push((Adress{val: hammer.tools.ascii_val(&current_element), decal: 0, nb_stars: 0}, 2))
+            exp.push((Adress{val: hammer.tools.ascii_val(&current_element), squares: None, nb_stars: 0}, 2))
         }else{
             let mut content = Vec::<i32>::new();
-            let interpretation = get_element_interpretation(hammer, &mut current_element, &mut content)?;
+            let mut tab_vec = Vec::<Vec<(Adress, u8)>>::new();
+            let interpretation = get_element_interpretation(hammer, &mut current_element, &mut content, &mut tab_vec)?;
             match interpretation {
                 Interp::NUMBER => exp.push((Adress::new(content[0]), 0)),
                 Interp::VARIABLE => {
+                    content[1] += tab_vec.len() as i32;
                     if nb_stars_await != MAX_STARS+1 && (hammer.get_var_def_by_name(&current_element).type_var.stars + (content[1] == -1) as u32 - (((content[1] != -1) as i32)*content[1]) as u32) != nb_stars_await{
                         return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
                     }
-                    exp.push((Adress{val: hammer.get_addr(&current_element), decal: content[0], nb_stars: content[1]}, 1));
+                    content[1] -= tab_vec.len() as i32;
+                    exp.push((Adress{val: hammer.get_addr(&current_element), squares: Some(tab_vec), nb_stars: content[1]}, 1));
                 }
                 Interp::CHARACTER => exp.push((Adress::new(content[0]), 0)),
             }
-        }        
+        }
         Ok(())
     }
 
 
-    fn get_element_interpretation(hammer: &Hammer, element: &mut String, content: &mut Vec::<i32>) -> Result<Interp, String>{
+    fn get_element_interpretation(hammer: &Hammer, element: &mut String, content: &mut Vec::<i32>, tab_vec: &mut Vec::<Vec<(Adress, u8)>>) -> Result<Interp, String>{
         match element.parse::<i32>(){
             Ok(number) => {
                 content.push(number);
@@ -715,9 +730,10 @@ pub mod hammer{
             Err(_e) => {
                 let size = 0;
                 let nb_stars = get_prof_pointer(element, true)?;
-                if hammer.var_exists(&element){
+                if hammer.var_exists(&(element.split("[").next().unwrap())){
                     content.push(size);
                     content.push(nb_stars);
+                    *tab_vec = tab_analyse(hammer, element)?;
                     return Ok(Interp::VARIABLE);
                 }else{
                     match from_char_to_number(&element){
@@ -778,6 +794,7 @@ pub mod hammer{
                 hammer.txt_result.push_str(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val));
             }else{
                 if elt.1 == 1{
+                    deref_tab(hammer, &elt.0);
                     if elt.0.nb_stars == -1 {
                         hammer.txt_result.push_str(&format!("mov rax, {}\npush rax\n", &elt.0.val));
                     }else if elt.0.nb_stars == 0{
@@ -785,7 +802,7 @@ pub mod hammer{
                     }else{
                         hammer.txt_result.push_str(&format!("xor rax, rax\nmovsx rax, {}\n_deref {}\n", hammer.get_extract_string(&elt.0), elt.0.nb_stars));
                         let size_def = hammer.get_size_def(elt.0.val);
-                        hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax + {}*{}]\npush rax\n", size_def.mov, size_def.long, elt.0.decal, hammer.addr_list[&elt.0.val].type_var.size));
+                        hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
 
                     }
                 }else{
@@ -797,6 +814,12 @@ pub mod hammer{
         hammer.txt_result = hammer.txt_result.replace("push rax\npop rax\n", "");
     }
 
+    fn deref_tab(hammer: &mut Hammer, var: &Adress) {
+        for vec in var.squares.as_ref().unwrap().iter() {
+            evaluate_exp(hammer, vec);
+            
+        }
+    }
 
     fn reset_asm_file() -> Result<(), String>{
         let mut macro_file = TextFile::new(String::from("asm/macros.asm"))?;
@@ -811,25 +834,6 @@ pub mod hammer{
         script_file.reset(&base_script_file.get_text());
         data_file.reset(&base_data_file.get_text());
         Ok(())
-    }
-
-    fn recup_name_and_size(element: &mut String) -> Result<i32, String>{
-        let mut split: Vec::<String> = element.split("[").map(String::from).collect();
-        if split.len() == 1{
-            return Ok(0);
-        }else if split.len() == 2 {
-            *element = split[0].clone();
-            if split[1].pop().unwrap() == ']'{
-                match &split[1].parse::<i32>(){
-                    Ok(size) => return Ok(*size),
-                    _ => Err(format!("Line {}: '{}' found where a number was await.", get_ln(), split[1]))
-                }
-            }else{
-                Err(format!("Line {}: '[' never close.", get_ln()))        
-            }
-        }else {
-            Err(format!("Line {}: Syntax error", get_ln()))
-        }
     }
     
     fn break_keyword(hammer: &mut Hammer, _rest_of_line: &String) -> Result<(), String>{
