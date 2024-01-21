@@ -794,16 +794,26 @@ pub mod hammer{
                 hammer.txt_result.push_str(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val));
             }else{
                 if elt.1 == 1{
-                    deref_tab(hammer, &elt.0);
+                    let mut stars = hammer.addr_list[&elt.0.val].type_var.stars;
+                    stars -= elt.0.nb_stars as u32;
+                    deref_tab(hammer, &elt.0, &mut stars);
                     if elt.0.nb_stars == -1 {
-                        hammer.txt_result.push_str(&format!("mov rax, {}\npush rax\n", &elt.0.val));
+                        hammer.txt_result.push_str(&format!("push rax\n"));
                     }else if elt.0.nb_stars == 0{
-                        hammer.txt_result.push_str(&format!("xor rax, rax\n{} rax, {}\npush rax\n", hammer.get_size_def(elt.0.val).mov, hammer.get_extract_string(&elt.0)));
+                        if stars == 0{
+                            let size_def = hammer.get_size_def(elt.0.val);
+                            hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
+                        }else{
+                            hammer.txt_result.push_str("movzx rax, dword[_stack + rax]\npush rax\n");
+                        }
                     }else{
-                        hammer.txt_result.push_str(&format!("xor rax, rax\nmovsx rax, {}\n_deref {}\n", hammer.get_extract_string(&elt.0), elt.0.nb_stars));
-                        let size_def = hammer.get_size_def(elt.0.val);
-                        hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
-
+                        hammer.txt_result.push_str(&format!("_deref {}\n", elt.0.nb_stars));
+                        if stars == 0{
+                            let size_def = hammer.get_size_def(elt.0.val);
+                            hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
+                        }else{
+                            hammer.txt_result.push_str("movzx rax, dword[_stack + rax]\npush rax\n");
+                        }
                     }
                 }else{
                     hammer.txt_result.push_str(&format!("mov rax, {}\npush rax\n", elt.0.val));
@@ -814,11 +824,14 @@ pub mod hammer{
         hammer.txt_result = hammer.txt_result.replace("push rax\npop rax\n", "");
     }
 
-    fn deref_tab(hammer: &mut Hammer, var: &Adress) {
+    fn deref_tab(hammer: &mut Hammer, var: &Adress, stars: &mut u32) {
+        hammer.txt_result.push_str(&format!("movsx rbx, {}\n", hammer.get_extract_string(var)));
         for vec in var.squares.as_ref().unwrap().iter() {
             evaluate_exp(hammer, vec);
-            
+            hammer.txt_result.push_str("mov rcx, 4\nmul rcx\nadd rbx, rax\nmov rax, rbx\n_deref 1\n");
+            *stars -= 1;
         }
+        hammer.txt_result.push_str("mov rax, rbx\n");
     }
 
     fn reset_asm_file() -> Result<(), String>{
