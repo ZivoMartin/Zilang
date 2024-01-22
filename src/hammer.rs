@@ -74,7 +74,7 @@ pub mod hammer{
 
     struct MacroCall{
         macro_name: String,
-        args: Vec::<(Adress, i8)>
+        args: Vec::<Vec::<(Adress, u8)>>
     }
 
     struct Jump{
@@ -532,21 +532,13 @@ pub mod hammer{
             Some(rest_of_line)=> String::from(rest_of_line),
             _ => return Err(format!("Line {}: Parenthesis missing.", get_ln()))
         };
-        let mut args = Vec::<(Adress, i8)>::new();
+        let mut args = Vec::<Vec::<(Adress, u8)>>::new();
         line = line.replace(" ", "");
         for arg in line.split(","){
             if arg == ""{
                 break;
             }
-            let mut element = String::from(arg);
-            let mut content = Vec::<i32>::new();
-            let mut tab_vec = Vec::<Vec<(Adress, u8)>>::new();
-            let interpretation = get_element_interpretation(hammer, &mut element, &mut content, &mut tab_vec)?;
-            match interpretation {
-                Interp::NUMBER => args.push((Adress::new(content[0]), 0)),
-                Interp::VARIABLE => args.push((Adress{val: hammer.get_addr(&element), squares: Some(Vec::new()), nb_stars: content[1]}, 1)),
-                Interp::CHARACTER => args.push((Adress::new(content[0]), 0)),
-            }
+            args.push(build_aff_vec(hammer, String::from(arg), 0)?);
         }
         let nb_arg_expected = hammer.macro_list[&name];
         if args.len() != nb_arg_expected as usize{
@@ -768,24 +760,17 @@ pub mod hammer{
 
     
     fn insert_macro_call_in_txt(hammer: &mut Hammer, macro_call: MacroCall) {
-        let mut macro_call_s = String::new();
+        let mut i = 0;
         for arg in &macro_call.args{
-            match arg.1{
-                0 => {
-                    macro_call_s.push_str(&format!("mov rax, {}", arg.0.val));
-                }
-                _ =>{
-                    let size_def = hammer.get_size_def(arg.0.val);
-                    if arg.0.nb_stars == -1 {
-                        macro_call_s.push_str(&format!("mov rax, {}", arg.0.val));
-                    }else{
-                        macro_call_s.push_str(&format!("{} rax, {}", size_def.mov, hammer.get_extract_string(&arg.0)));
-                    }            
-                }
-            }
+            evaluate_exp(hammer, arg);
+            hammer.txt_result.push_str(&format!("mov [_stack + {} + {}], rax\n", hammer.stack_index, i*8));
+            i += 1;
         }
-        macro_call_s.push_str(&format!("\n{} rax\n", macro_call.macro_name));
-        hammer.txt_result.push_str(&macro_call_s);
+        hammer.txt_result.push_str(&format!("{} ", macro_call.macro_name));
+        for j in 0..i {
+            hammer.txt_result.push_str(&format!("[_stack + {} + {}] ", hammer.stack_index, j*8));
+        }
+        hammer.txt_result.push_str("\n");
     }
 
     fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<(Adress, u8)>) {
@@ -825,10 +810,10 @@ pub mod hammer{
     }
 
     fn deref_tab(hammer: &mut Hammer, var: &Adress, stars: &mut u32) {
-        hammer.txt_result.push_str(&format!("movsx rbx, {}\n", hammer.get_extract_string(var)));
+        hammer.txt_result.push_str(&format!("mov rbx, {}\n", var.val));
         for vec in var.squares.as_ref().unwrap().iter() {
             evaluate_exp(hammer, vec);
-            hammer.txt_result.push_str("mov rcx, 4\nmul rcx\nadd rbx, rax\nmov rax, rbx\n_deref 1\n");
+            hammer.txt_result.push_str("mov rcx, 4\nmul rcx\nadd rbx, rax\nmov rax, rbx\n_deref 1\nmov rbx, rax\n");
             *stars -= 1;
         }
         hammer.txt_result.push_str("mov rax, rbx\n");
