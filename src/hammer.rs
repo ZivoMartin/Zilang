@@ -569,10 +569,9 @@ pub mod hammer{
             let addr = hammer.get_addr(&var1);
             let struct_addr = Adress{val: addr, squares: Some(tab_vec), nb_stars: nb_stars};
             evaluate_exp(hammer,&build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars)?);
-            hammer.txt_result.push_str(&format!("mov {}, {}\n", 
-                hammer.get_extract_string(&struct_addr), 
-                hammer.get_size_def(struct_addr.val).register)
-            );
+            hammer.txt_result.push_str("push rax\n");
+            evaluate_exp(hammer, &vec!{(struct_addr, 1)});
+            hammer.txt_result.push_str("pop rbx\nmov dword[_stack + rax], ebx\n");
             Ok(())
         }else {
             return Err(format!("Line {}: The variable {} doesn't exists.", get_ln(), var1));
@@ -779,8 +778,8 @@ pub mod hammer{
                 hammer.txt_result.push_str(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val));
             }else{
                 if elt.1 == 1{
-                    let mut stars = hammer.addr_list[&elt.0.val].type_var.stars;
-                    stars -= elt.0.nb_stars as u32;
+                    let mut stars = hammer.addr_list[&elt.0.val].type_var.stars as i32;
+                    stars -= elt.0.nb_stars;
                     deref_tab(hammer, &elt.0, &mut stars);
                     if elt.0.nb_stars == -1 {
                         hammer.txt_result.push_str(&format!("push rax\n"));
@@ -789,7 +788,7 @@ pub mod hammer{
                             let size_def = hammer.get_size_def(elt.0.val);
                             hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
                         }else{
-                            hammer.txt_result.push_str("movzx rax, dword[_stack + rax]\npush rax\n");
+                            hammer.txt_result.push_str("movsx rax, dword[_stack + rax]\npush rax\n");
                         }
                     }else{
                         hammer.txt_result.push_str(&format!("_deref {}\n", elt.0.nb_stars));
@@ -809,7 +808,7 @@ pub mod hammer{
         hammer.txt_result = hammer.txt_result.replace("push rax\npop rax\n", "");
     }
 
-    fn deref_tab(hammer: &mut Hammer, var: &Adress, stars: &mut u32) {
+    fn deref_tab(hammer: &mut Hammer, var: &Adress, stars: &mut i32) {
         hammer.txt_result.push_str(&format!("mov rbx, {}\n", var.val));
         for vec in var.squares.as_ref().unwrap().iter() {
             evaluate_exp(hammer, vec);

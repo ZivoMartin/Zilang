@@ -2,11 +2,11 @@ MAIN;
 
 TEXT;
 
-int b = 2;
-int a = 5*7 - (7*b + - -4 *(3+(1 --- 1)));
+int a = 3;
+
+int* b = &a;
+
 
 !dn(a);
-
-!dn(3*7-a);
 
 !exit(0);
