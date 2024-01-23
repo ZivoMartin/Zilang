@@ -6,7 +6,6 @@ section .text
     xor r11, r11
     xor r10, r10
     mov r11, %1
-    dec r11
     %%_deref_loop:
         cmp r10, r11
         je %%_deref_end_loop

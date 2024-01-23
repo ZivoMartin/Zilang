@@ -3,9 +3,26 @@ MAIN;
 
 TEXT;
 
+int t[10][10];
+
 int i = 0;
-while i < 10 {    
-    !dn(i);
+
+while i < 10 {
+    int j = 0;
+    while j < 10 {
+        t[i][j] = i*10 + j;
+        j = j + 1;
+    }
+    i = i + 1;
+}
+
+i = 0;
+while i < 10 {
+    int j = 0;
+    while j < 10 {
+        !dn(t[i][j]);
+        j = j + 1;
+    }
     i = i + 1;
 }
 

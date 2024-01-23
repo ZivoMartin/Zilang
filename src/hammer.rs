@@ -71,10 +71,18 @@ pub mod hammer{
         type_var: Type,
     }
     
+    impl VariableDefinition {
+        pub fn clone(&self) -> VariableDefinition {
+            VariableDefinition {
+                name: self.name.clone(),
+                type_var: self.type_var.clone()
+            }
+        }
+    }
 
     struct MacroCall{
         macro_name: String,
-        args: Vec::<Vec::<(Adress, u8)>>
+        args: Vec::<Vec::<(Token, u8)>>
     }
 
     struct Jump{
@@ -98,16 +106,16 @@ pub mod hammer{
     }
     
     #[derive(Debug)]
-    struct Adress {
+    struct Token {
         val: i32,
         nb_stars: i32,
-        squares: Option<Vec::<Vec<(Adress, u8)>>>
+        squares: Option<Vec::<Vec<(Token, u8)>>>
     }
     
-    impl Adress {
+    impl Token {
 
-        pub fn new(val: i32) -> Adress{
-            Adress{val: val, squares: None, nb_stars: 0}
+        pub fn new(val: i32) -> Token{
+            Token{val: val, squares: None, nb_stars: 0}
         }
 
     }
@@ -298,7 +306,7 @@ pub mod hammer{
             &self.size[&(self.addr_list[&addr].type_var.size as u32)]
         }
 
-        fn get_extract_string(&self, addr: &Adress) -> String{
+        fn get_extract_string(&self, addr: &Token) -> String{
             return String::from(format!("{}[_stack + {}]", self.get_size_def(addr.val).long, addr.val))
         }
         
@@ -405,7 +413,7 @@ pub mod hammer{
     fn annalyse_inst_behind_bracket(hammer: &mut Hammer, mut inst: String) -> Result<(), String> {
         let mut end_txt = String::new();
         if inst.starts_with("if"){
-            evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?);
+            evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?)?;
             hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
             end_txt = format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index);
             hammer.cond_index_stack.push(hammer.blocs_index);
@@ -415,7 +423,7 @@ pub mod hammer{
             if inst.len() != 4 {
                 inst = String::from(&inst[5..inst.len()]).trim().to_string();
                 end_txt = format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", cond_index, hammer.blocs_index, cond_index);
-                evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?);
+                evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?)?;
                 hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
             }else{
                 end_txt = format!("_real_end_condition_{}:\n", cond_index);
@@ -429,17 +437,18 @@ pub mod hammer{
             hammer.txt_result.push_str(&format!("_loop_{}:\n", hammer.blocs_index));
             end_txt = format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index);
             hammer.loop_index_stack.push(hammer.blocs_index);
-            evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[5..inst.len()]), MAX_STARS+1)?);
+            evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[5..inst.len()]), MAX_STARS+1)?)?;
             hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index));
         }else if inst != ""{
             return Err(format!("Line {}: Not implemented yet.", get_ln()))
         }
-        hammer.jumps_stack.push(Jump::new(hammer.jumps_stack.val().stack_index, end_txt, hammer.blocs_index));
+        hammer.jumps_stack.push(Jump::new(hammer.stack_index as i32, end_txt, hammer.blocs_index));
         hammer.blocs_index += 1;
         Ok(())
     }
 
     fn handle_tab_type_dec(hammer: &mut Hammer, var: &mut Vec<&str>, type_var: &mut Type) -> Result<(), String> {
+        let tab_addr = hammer.stack_index;
         let mut previous_data: (u32, u32) = (1, hammer.stack_index);
         for i in 1..var.len() {
             if var[i] == "" || var[i].chars().last().unwrap() != ']'{
@@ -459,19 +468,22 @@ pub mod hammer{
                         hammer.txt_result.push_str(&format!("mov {}[_stack + {} + {}*{}], {}\n", hammer.size[&size].long, previous_data.1, size, j, hammer.stack_index));
                         hammer.stack_index += size*tab_size;
                     }
-                    previous_data.0 = tab_size*size;
+                    previous_data.0 *= tab_size;
                 },
                 Err(_) => return Err(format!("Line {}: You didn't write a correct number between the brackets", get_ln()))
             }
             previous_data.1 = stack_index;
         }
+        if var.len() != 1 {
+            hammer.txt_result.push_str(&format!("mov eax, {}\nmov dword[_stack + {}], eax\n", hammer.stack_index, tab_addr));
+        }
         Ok(())
     }
 
 
-    fn tab_analyse(hammer: &Hammer, var_s: &mut String) -> Result<Vec::<Vec<(Adress, u8)>>, String>{
+    fn tab_analyse(hammer: &Hammer, var_s: &mut String) -> Result<Vec::<Vec<(Token, u8)>>, String>{
         let var: Vec::<&str> = var_s.split("[").collect();
-        let mut res = Vec::<Vec<(Adress, u8)>>::new();
+        let mut res = Vec::<Vec<(Token, u8)>>::new();
         for i in 1..var.len() {
             if var[i] == "" || var[i].chars().last().unwrap() != ']'{
                 return Err(format!("Line {}: You forgot to close with '['", get_ln()))
@@ -532,7 +544,7 @@ pub mod hammer{
             Some(rest_of_line)=> String::from(rest_of_line),
             _ => return Err(format!("Line {}: Parenthesis missing.", get_ln()))
         };
-        let mut args = Vec::<Vec::<(Adress, u8)>>::new();
+        let mut args = Vec::<Vec::<(Token, u8)>>::new();
         line = line.replace(" ", "");
         for arg in line.split(","){
             if arg == ""{
@@ -547,7 +559,7 @@ pub mod hammer{
         insert_macro_call_in_txt(hammer, MacroCall{
             macro_name: name,
             args: args 
-        });
+        })?;
         Ok(())
     }
 
@@ -564,15 +576,20 @@ pub mod hammer{
         let nb_stars = get_prof_pointer(&mut var1, false)?;
         let tab_vec = tab_analyse(hammer, &mut var1)?;
         if hammer.var_exists(&var1){
-            assert_prof(&hammer.get_var_def_by_name(&var1), nb_stars as u32)?;
-            let var2 = split.join("=").replace(" = ", "=");
+            let right_exp = split.join("=").replace(" = ", "=");
             let addr = hammer.get_addr(&var1);
-            let len_tab_vec = tab_vec.len() as u32;
-            let struct_addr = Adress{val: addr, squares: Some(tab_vec), nb_stars: nb_stars};
-            evaluate_exp(hammer,&build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars-len_tab_vec)?);
+            let struct_addr = Token{val: addr, squares: Some(tab_vec), nb_stars: nb_stars};
+            let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?;
             hammer.txt_result.push_str("push rax\n");
-            evaluate_exp(hammer, &vec!{(struct_addr, 1)});
-            hammer.txt_result.push_str("pop rbx\nmov dword[_stack + rax], ebx\n");
+            evaluate_exp(hammer,&build_aff_vec(hammer, right_exp, stars_in_left_var as u32)?)?;
+
+            if stars_in_left_var != 0 {
+                hammer.txt_result.push_str("pop rbx\nmov dword[_stack + rbx], eax\n");
+            }else{
+                let size_def = hammer.get_size_def(addr);
+                hammer.txt_result.push_str(&format!("pop rbx\nmov {}[_stack + rbx], {}\n", size_def.long, size_def.register));
+            }
+            
             Ok(())
         }else {
             return Err(format!("Line {}: The variable {} doesn't exists.", get_ln(), var1));
@@ -580,12 +597,7 @@ pub mod hammer{
        
     }
 
-    fn assert_prof(var: &VariableDefinition, prof: u32) -> Result<(), String> {    
-        if var.type_var.stars < prof {
-            return Err(format!("Line {}: The variable {} can be dereference only {} time, you did it {} time", get_ln(), var.name, var.type_var.stars, prof))
-        }
-        Ok(())
-    }
+    
 
     fn get_prof_pointer(var: &mut String, can_be_ref: bool) -> Result<i32, String>{
         let mut count: i32 = 0;
@@ -621,7 +633,7 @@ pub mod hammer{
     }
 
 
-    fn build_aff_vec(hammer: &Hammer, mut string_exp: String, nb_stars_await: u32) -> Result<Vec::<(Adress, u8)>, String>{
+    fn build_aff_vec(hammer: &Hammer, mut string_exp: String, nb_stars_await: u32) -> Result<Vec::<(Token, u8)>, String>{
         if string_exp == String::from("") || string_exp.contains("_") && is_in_a_string(&string_exp, "_".to_string()){
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
@@ -675,7 +687,7 @@ pub mod hammer{
             }
         }
         exp_res = hammer.tools.convert_in_postfix_exp(exp_res);
-        let mut res = Vec::<(Adress, u8)>::new();
+        let mut res = Vec::<(Token, u8)>::new();
         for elt in exp_res.iter(){
             add_element_in_aff_exp(hammer, elt.to_string(), &mut res, nb_stars_await)?;
         }
@@ -686,34 +698,34 @@ pub mod hammer{
         false
     }
 
-    fn add_element_in_aff_exp(hammer: &Hammer, mut current_element: String, exp: &mut Vec::<(Adress, u8)>, nb_stars_await: u32) -> Result<(), String>{
+    fn add_element_in_aff_exp(hammer: &Hammer, mut current_element: String, exp: &mut Vec::<(Token, u8)>, nb_stars_await: u32) -> Result<(), String>{
         if current_element == ""{
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
         if hammer.tools.is_operator(&current_element){ 
-            exp.push((Adress{val: hammer.tools.ascii_val(&current_element), squares: None, nb_stars: 0}, 2))
+            exp.push((Token{val: hammer.tools.ascii_val(&current_element), squares: None, nb_stars: 0}, 2))
         }else{
             let mut content = Vec::<i32>::new();
-            let mut tab_vec = Vec::<Vec<(Adress, u8)>>::new();
+            let mut tab_vec = Vec::<Vec<(Token, u8)>>::new();
             let interpretation = get_element_interpretation(hammer, &mut current_element, &mut content, &mut tab_vec)?;
             match interpretation {
-                Interp::NUMBER => exp.push((Adress::new(content[0]), 0)),
+                Interp::NUMBER => exp.push((Token::new(content[0]), 0)),
                 Interp::VARIABLE => {
                     content[1] += tab_vec.len() as i32;
                     if nb_stars_await != MAX_STARS+1 && (hammer.get_var_def_by_name(&current_element).type_var.stars + (content[1] == -1) as u32 - (((content[1] != -1) as i32)*content[1]) as u32) != nb_stars_await{
                         return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
                     }
                     content[1] -= tab_vec.len() as i32;
-                    exp.push((Adress{val: hammer.get_addr(&current_element), squares: Some(tab_vec), nb_stars: content[1]}, 1));
+                    exp.push((Token{val: hammer.get_addr(&current_element), squares: Some(tab_vec), nb_stars: content[1]}, 1));
                 }
-                Interp::CHARACTER => exp.push((Adress::new(content[0]), 0)),
+                Interp::CHARACTER => exp.push((Token::new(content[0]), 0)),
             }
         }
         Ok(())
     }
 
 
-    fn get_element_interpretation(hammer: &Hammer, element: &mut String, content: &mut Vec::<i32>, tab_vec: &mut Vec::<Vec<(Adress, u8)>>) -> Result<Interp, String>{
+    fn get_element_interpretation(hammer: &Hammer, element: &mut String, content: &mut Vec::<i32>, tab_vec: &mut Vec::<Vec<(Token, u8)>>) -> Result<Interp, String>{
         match element.parse::<i32>(){
             Ok(number) => {
                 content.push(number);
@@ -759,10 +771,10 @@ pub mod hammer{
     }
 
     
-    fn insert_macro_call_in_txt(hammer: &mut Hammer, macro_call: MacroCall) {
+    fn insert_macro_call_in_txt(hammer: &mut Hammer, macro_call: MacroCall) -> Result<(), String> {
         let mut i = 0;
         for arg in &macro_call.args{
-            evaluate_exp(hammer, arg);
+            evaluate_exp(hammer, arg)?;
             hammer.txt_result.push_str(&format!("mov [_stack + {} + {}], rax\n", hammer.stack_index, i*8));
             i += 1;
         }
@@ -770,53 +782,59 @@ pub mod hammer{
         for j in 0..i {
             hammer.txt_result.push_str(&format!("[_stack + {} + {}] ", hammer.stack_index, j*8));
         }
-        hammer.txt_result.push_str("\n");
+        hammer.txt_result.push_str("\nxor rax, rax\n");
+        for j in 0..i {
+            hammer.txt_result.push_str(&format!("mov [_stack + {} + {}], rax\n", hammer.stack_index, j*8));
+        }
+        Ok(())
     }
 
-    fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<(Adress, u8)>) {
+    fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<(Token, u8)>) -> Result<(), String>{
         for elt in exp{
-            if elt.1 == 2{
-                hammer.txt_result.push_str(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val));
-            }else{
-                if elt.1 == 1{
-                    let mut stars = hammer.addr_list[&elt.0.val].type_var.stars as i32;
-                    stars -= elt.0.nb_stars;
-                    deref_tab(hammer, &elt.0, &mut stars);
-                    if elt.0.nb_stars == -1 {
-                        hammer.txt_result.push_str(&format!("push rax\n"));
-                    }else if elt.0.nb_stars == 0{
-                        if stars == 0{
-                            let size_def = hammer.get_size_def(elt.0.val);
-                            hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
-                        }else{
-                            hammer.txt_result.push_str("movsx rax, dword[_stack + rax]\npush rax\n");
-                        }
-                    }else{
-                        hammer.txt_result.push_str(&format!("_deref {}\n", elt.0.nb_stars));
-                        if stars == 0{
-                            let size_def = hammer.get_size_def(elt.0.val);
-                            hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
-                        }else{
-                            hammer.txt_result.push_str("movzx rax, dword[_stack + rax]\npush rax\n");
+            match elt.1 {
+                2 => hammer.txt_result.push_str(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val)),
+                1 => {
+                    let stars = handle_variable_dereference(hammer, &elt.0)?;
+                    match elt.0.nb_stars{
+                        -1 => hammer.txt_result.push_str(&format!("push rax\n")),
+                        _ => {
+                            if stars == 0{
+                                let size_def = hammer.get_size_def(elt.0.val);
+                                hammer.txt_result.push_str(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
+                            }else{
+                                hammer.txt_result.push_str("movsx rax, dword[_stack + rax]\npush rax\n");
+                            }
                         }
                     }
-                }else{
-                    hammer.txt_result.push_str(&format!("mov rax, {}\npush rax\n", elt.0.val));
-                }       
+                }
+                _ => hammer.txt_result.push_str(&format!("mov rax, {}\npush rax\n", elt.0.val))
             }
+            
         }
-        hammer.txt_result.push_str("pop rax\n");
+        hammer.txt_result.push_str("pop rax     ;end of evaluate_exp\n");
         hammer.txt_result = hammer.txt_result.replace("push rax\npop rax\n", "");
+        Ok(())
     }
-
-    fn deref_tab(hammer: &mut Hammer, var: &Adress, stars: &mut i32) {
+    
+    fn handle_variable_dereference(hammer: &mut Hammer, var: &Token) -> Result<u32, String> {
+        let var_def = hammer.addr_list[&var.val].clone();
+        let mut stars = var_def.type_var.stars as i32 - var.nb_stars;
         hammer.txt_result.push_str(&format!("mov rbx, {}\n", var.val));
         for vec in var.squares.as_ref().unwrap().iter() {
-            evaluate_exp(hammer, vec);
-            hammer.txt_result.push_str("mov rcx, 4\nmul rcx\nadd rbx, rax\nmov rax, rbx\n_deref 2\nmov rbx, rax\n");
-            *stars -= 1;
+            hammer.txt_result.push_str("push rbx\n");
+            evaluate_exp(hammer, vec)?;
+            hammer.txt_result.push_str("pop rbx\npush rax\nmov rax, rbx\n_deref 1\nmov rbx, rax\npop rax\nmov rcx, 4\nmul rcx\nadd rbx, rax\n");
+            stars -= 1
         }
-        hammer.txt_result.push_str("mov rax, rbx\n");
+        hammer.txt_result.push_str("mov rax, rbx");
+        if var.nb_stars > 0 {
+            hammer.txt_result.push_str(&format!("\n_deref {}", var.nb_stars));
+        }
+        hammer.txt_result.push_str("     ;end of handle_variable_dereference\n");
+        if stars < 0 {
+            return Err(format!("Line {}: You tried to dereference the variable {} {} but you only have the right to dereference it {} times", get_ln(), var_def.name, var_def.type_var.stars as i32 - stars, var_def.type_var.stars));
+        }
+        Ok(stars as u32)
     }
 
     fn reset_asm_file() -> Result<(), String>{

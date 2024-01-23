@@ -6,7 +6,10 @@ int a = 3;
 
 int* b = &a;
 
+a = $b + 3;
 
-!dn(a);
+$b = 9;
+
+!dn($b);
 
 !exit(0);
