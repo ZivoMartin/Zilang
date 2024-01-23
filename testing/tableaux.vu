@@ -3,12 +3,10 @@ MAIN;
 
 TEXT;
 
-int t[2];
-
-t[1] = 8;
-
-int a = t[1];
-
-!dn(a);
+int i = 0;
+while i < 10 {    
+    !dn(i);
+    i = i + 1;
+}
 
 !exit(0);

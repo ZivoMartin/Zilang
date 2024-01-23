@@ -567,8 +567,9 @@ pub mod hammer{
             assert_prof(&hammer.get_var_def_by_name(&var1), nb_stars as u32)?;
             let var2 = split.join("=").replace(" = ", "=");
             let addr = hammer.get_addr(&var1);
+            let len_tab_vec = tab_vec.len() as u32;
             let struct_addr = Adress{val: addr, squares: Some(tab_vec), nb_stars: nb_stars};
-            evaluate_exp(hammer,&build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars)?);
+            evaluate_exp(hammer,&build_aff_vec(hammer, var2, hammer.get_var_def_by_name(&var1).type_var.stars-len_tab_vec)?);
             hammer.txt_result.push_str("push rax\n");
             evaluate_exp(hammer, &vec!{(struct_addr, 1)});
             hammer.txt_result.push_str("pop rbx\nmov dword[_stack + rax], ebx\n");
@@ -812,7 +813,7 @@ pub mod hammer{
         hammer.txt_result.push_str(&format!("mov rbx, {}\n", var.val));
         for vec in var.squares.as_ref().unwrap().iter() {
             evaluate_exp(hammer, vec);
-            hammer.txt_result.push_str("mov rcx, 4\nmul rcx\nadd rbx, rax\nmov rax, rbx\n_deref 1\nmov rbx, rax\n");
+            hammer.txt_result.push_str("mov rcx, 4\nmul rcx\nadd rbx, rax\nmov rax, rbx\n_deref 2\nmov rbx, rax\n");
             *stars -= 1;
         }
         hammer.txt_result.push_str("mov rax, rbx\n");
