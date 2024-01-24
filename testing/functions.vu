@@ -1,0 +1,21 @@
+
+TEXT;
+
+
+func test(int a) -> void {
+    return;
+    !dn(a);
+}
+
+int a = 100;
+int b = 10;
+test(a);
+
+a = 80;
+
+test(a);
+
+!dn(a);
+
+break;
+!exit(0);

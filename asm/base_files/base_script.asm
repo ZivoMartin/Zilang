@@ -1,4 +1,4 @@
-%include "asm/macros.asm"
+%include "asm/functions.asm"
 
 global _start
 
