@@ -2,11 +2,11 @@ MAIN;
 
 TEXT;
 
-CHAR a;
-INT b;
+char a;
+int b;
 
 b = 356;
-a = 3;
+a = '2';
 
-!dn(b);
+!dn(a);
 !exit(0);

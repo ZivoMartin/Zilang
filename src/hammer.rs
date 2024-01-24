@@ -442,7 +442,7 @@ pub mod hammer{
             previous_data.1 = stack_index;
         }
         if var.len() != 1 {
-            hammer.txt_result.push_str(&format!("mov eax, {}\nmov dword[_stack + {}], eax\n", hammer.stack_index, tab_addr));
+            hammer.txt_result.push_str(&format!("mov eax, {}\nmov dword[_stack + eax], {}\n", hammer.stack_index, tab_addr));
         }
         Ok(())
     }
@@ -678,9 +678,13 @@ pub mod hammer{
                 Err(_e) => {
                     let mut nb_stars = get_prof_pointer(&mut current_element, true)?;
                     if hammer.var_exists(&(current_element.split("[").next().unwrap())){
+                        let var_def = hammer.get_var_def_by_name(&current_element);
+                        if (var_def.type_var.stars as i32) < nb_stars {
+                            return Err(format!("Line {}: You tried to dereference the variable {} {} times but you only have the right to dereference it {} times", get_ln(), var_def.name, nb_stars, var_def.type_var.stars));
+                        }
                         let tab_vec = tab_analyse(hammer, &mut current_element)?;
                         nb_stars += tab_vec.len() as i32;
-                        if nb_stars_await != MAX_STARS+1 && (hammer.get_var_def_by_name(&current_element).type_var.stars + (nb_stars == -1) as u32 - (((nb_stars != -1) as i32)*nb_stars) as u32) != nb_stars_await{
+                        if nb_stars_await != MAX_STARS+1 && var_def.type_var.stars as i32 - nb_stars != nb_stars_await as i32{
                             return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
                         }
                         nb_stars -= tab_vec.len() as i32;
@@ -777,7 +781,7 @@ pub mod hammer{
         }
         hammer.txt_result.push_str("     ;end of handle_variable_dereference\n");
         if stars < 0 {
-            return Err(format!("Line {}: You tried to dereference the variable {} {} but you only have the right to dereference it {} times", get_ln(), var_def.name, var_def.type_var.stars as i32 - stars, var_def.type_var.stars));
+            return Err(format!("Line {}: You tried to dereference the variable {} {} times but you only have the right to dereference it {} times", get_ln(), var_def.name, var_def.type_var.stars as i32 - stars, var_def.type_var.stars));
         }
         Ok(stars as u32)
     }
