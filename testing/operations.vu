@@ -2,13 +2,11 @@ MAIN;
 
 TEXT;
 
-int a = 3;
+int a = 3+2;
 
 int* b = &a;
 
 a = $b + 3;
-
-$b = 9;
 
 !dn($b);
 

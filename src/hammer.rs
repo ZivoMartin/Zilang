@@ -52,12 +52,6 @@ pub mod hammer{
         } 
     }
 
-    enum Interp {
-        NUMBER,
-        VARIABLE,
-        CHARACTER
-    }
-
 
     struct AsmType{
         long: &'static str,
@@ -191,6 +185,10 @@ pub mod hammer{
         pub fn init_dispo_keyword(&mut self) {
             self.keyword_list.insert(String::from("break"), break_keyword);
             self.keyword_list.insert(String::from("continue"), continue_keyword);
+            self.keyword_list.insert(String::from("if"), if_keyword);
+            self.keyword_list.insert(String::from("else"), else_keyword);
+            self.keyword_list.insert(String::from("loop"), loop_keyword);
+            self.keyword_list.insert(String::from("while"), while_keyword);
         }
 
         pub fn jump_out(&mut self){
@@ -306,10 +304,6 @@ pub mod hammer{
             &self.size[&(self.addr_list[&addr].type_var.size as u32)]
         }
 
-        fn get_extract_string(&self, addr: &Token) -> String{
-            return String::from(format!("{}[_stack + {}]", self.get_size_def(addr.val).long, addr.val))
-        }
-        
         pub fn is_valid_name(&self, name: &str) -> Result<(), String>{
             if name != "" && name.chars().nth(0).unwrap() == '_'{
                 return Err(String::from("A name can't start with '_' it's a vulcain private use."));
@@ -410,40 +404,13 @@ pub mod hammer{
         }
     }
 
-    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, mut inst: String) -> Result<(), String> {
-        let mut end_txt = String::new();
-        if inst.starts_with("if"){
-            evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?)?;
-            hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
-            end_txt = format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index);
-            hammer.cond_index_stack.push(hammer.blocs_index);
-        }else if inst.starts_with("else"){
-            let cond_index = *hammer.cond_index_stack.val();
-            hammer.txt_result = hammer.txt_result.replace(&format!("_real_end_condition_{}:\n", cond_index), "" );
-            if inst.len() != 4 {
-                inst = String::from(&inst[5..inst.len()]).trim().to_string();
-                end_txt = format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", cond_index, hammer.blocs_index, cond_index);
-                evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[2..inst.len()]), MAX_STARS+1)?)?;
-                hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
-            }else{
-                end_txt = format!("_real_end_condition_{}:\n", cond_index);
-                hammer.cond_index_stack.pop();
-            }
-        }else if inst == "loop" {
-            hammer.txt_result.push_str(&format!("_loop_{}:\n", hammer.blocs_index));
-            end_txt = format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index);
-            hammer.loop_index_stack.push(hammer.blocs_index);
-        }else if inst.starts_with("while") {
-            hammer.txt_result.push_str(&format!("_loop_{}:\n", hammer.blocs_index));
-            end_txt = format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index);
-            hammer.loop_index_stack.push(hammer.blocs_index);
-            evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&inst[5..inst.len()]), MAX_STARS+1)?)?;
-            hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index));
-        }else if inst != ""{
-            return Err(format!("Line {}: Not implemented yet.", get_ln()))
+    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: String) -> Result<(), String> {
+        let first_word = inst.split(" ").next().unwrap();
+        if hammer.keyword_exists(first_word) {
+            return hammer.keyword_list[first_word](hammer, &String::from(&inst[first_word.len()..inst.len()]).trim().to_string())
+        }else if inst != "" {
+            return Err(format!("Line {}: Syntax error.", get_ln()));
         }
-        hammer.jumps_stack.push(Jump::new(hammer.stack_index as i32, end_txt, hammer.blocs_index));
-        hammer.blocs_index += 1;
         Ok(())
     }
 
@@ -634,6 +601,7 @@ pub mod hammer{
 
 
     fn build_aff_vec(hammer: &Hammer, mut string_exp: String, nb_stars_await: u32) -> Result<Vec::<(Token, u8)>, String>{
+        string_exp = string_exp.trim().to_string();
         if string_exp == String::from("") || string_exp.contains("_") && is_in_a_string(&string_exp, "_".to_string()){
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
@@ -705,53 +673,30 @@ pub mod hammer{
         if hammer.tools.is_operator(&current_element){ 
             exp.push((Token{val: hammer.tools.ascii_val(&current_element), squares: None, nb_stars: 0}, 2))
         }else{
-            let mut content = Vec::<i32>::new();
-            let mut tab_vec = Vec::<Vec<(Token, u8)>>::new();
-            let interpretation = get_element_interpretation(hammer, &mut current_element, &mut content, &mut tab_vec)?;
-            match interpretation {
-                Interp::NUMBER => exp.push((Token::new(content[0]), 0)),
-                Interp::VARIABLE => {
-                    content[1] += tab_vec.len() as i32;
-                    if nb_stars_await != MAX_STARS+1 && (hammer.get_var_def_by_name(&current_element).type_var.stars + (content[1] == -1) as u32 - (((content[1] != -1) as i32)*content[1]) as u32) != nb_stars_await{
-                        return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
+            match current_element.parse::<i32>(){
+                Ok(number) => exp.push((Token::new(number), 0)),
+                Err(_e) => {
+                    let mut nb_stars = get_prof_pointer(&mut current_element, true)?;
+                    if hammer.var_exists(&(current_element.split("[").next().unwrap())){
+                        let tab_vec = tab_analyse(hammer, &mut current_element)?;
+                        nb_stars += tab_vec.len() as i32;
+                        if nb_stars_await != MAX_STARS+1 && (hammer.get_var_def_by_name(&current_element).type_var.stars + (nb_stars == -1) as u32 - (((nb_stars != -1) as i32)*nb_stars) as u32) != nb_stars_await{
+                            return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
+                        }
+                        nb_stars -= tab_vec.len() as i32;
+                        exp.push((Token{val: hammer.get_addr(&current_element), squares: Some(tab_vec), nb_stars: nb_stars}, 1));
+                    }else{
+                        match from_char_to_number(&current_element){
+                            Some(val) => exp.push((Token::new(val as i32), 0)),
+                            _ => return Err(format!("Line {}: we found an incorrect value: {}", get_ln(), current_element))
+                        }
                     }
-                    content[1] -= tab_vec.len() as i32;
-                    exp.push((Token{val: hammer.get_addr(&current_element), squares: Some(tab_vec), nb_stars: content[1]}, 1));
                 }
-                Interp::CHARACTER => exp.push((Token::new(content[0]), 0)),
             }
         }
         Ok(())
     }
 
-
-    fn get_element_interpretation(hammer: &Hammer, element: &mut String, content: &mut Vec::<i32>, tab_vec: &mut Vec::<Vec<(Token, u8)>>) -> Result<Interp, String>{
-        match element.parse::<i32>(){
-            Ok(number) => {
-                content.push(number);
-                return Ok(Interp::NUMBER)
-            }
-            Err(_e) => {
-                let size = 0;
-                let nb_stars = get_prof_pointer(element, true)?;
-                if hammer.var_exists(&(element.split("[").next().unwrap())){
-                    content.push(size);
-                    content.push(nb_stars);
-                    *tab_vec = tab_analyse(hammer, element)?;
-                    return Ok(Interp::VARIABLE);
-                }else{
-                    match from_char_to_number(&element){
-                        Some(val) => {
-                            content.push(val as i32);
-                            return Ok(Interp::CHARACTER)
-                        }
-                        _ => return Err(format!("Line {}: we found an incorrect value: {}", get_ln(), element))
-                    }
-                    
-                }
-            }
-        }
-    }
 
     fn clean_line(line: &mut Vec::<String>) -> usize{
         let mut res = 0;
@@ -862,4 +807,58 @@ pub mod hammer{
         Ok(())
     }
 
+    fn loop_keyword(hammer: &mut Hammer, _rest_of_line: &String) -> Result<(), String> {
+        new_loop(hammer);
+        end_of_inst(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
+        Ok(())
+    }
+
+    fn if_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String> {
+        evaluate_exp(hammer, &build_aff_vec(hammer, String::from(rest_of_line), MAX_STARS+1)?)?;
+        hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
+        hammer.cond_index_stack.push(hammer.blocs_index);
+        end_of_inst(hammer, format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index));
+        Ok(())
+    }
+
+    fn else_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
+        let cond_index = *hammer.cond_index_stack.val();
+        let end_txt: String;
+        hammer.txt_result = hammer.txt_result.replace(&format!("_real_end_condition_{}:\n", cond_index), "" );
+        if rest_of_line.len() != 0 {
+            end_txt = format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", cond_index, hammer.blocs_index, cond_index);
+            let first_word = rest_of_line.split(" ").next().unwrap();
+            if first_word == "if"{
+                evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&rest_of_line[2..rest_of_line.len()]), MAX_STARS+1)?)?;
+                hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
+            } else {
+                return Err(format!("Line {}: We found {} when nothing or the if keyword was attempt.", get_ln(), first_word))
+            }
+        }else{
+            end_txt = format!("_real_end_condition_{}:\n", cond_index);
+            hammer.cond_index_stack.pop();
+        }
+        end_of_inst(hammer, end_txt);
+        Ok(())
+    }
+
+    fn while_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
+        new_loop(hammer);
+        evaluate_exp(hammer, &build_aff_vec(hammer, String::from(rest_of_line), MAX_STARS+1)?)?;
+        hammer.txt_result.push_str(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index));
+        end_of_inst(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
+        Ok(())
+    }
+
+    fn new_loop(hammer: &mut Hammer) {
+        hammer.txt_result.push_str(&format!("_loop_{}:\n", hammer.blocs_index));
+        hammer.loop_index_stack.push(hammer.blocs_index);
+    }
+
+    fn end_of_inst(hammer: &mut Hammer, end_txt: String) {
+        hammer.jumps_stack.push(Jump::new(hammer.stack_index as i32, end_txt, hammer.blocs_index));
+        hammer.blocs_index += 1;
+    }
+
 }
+

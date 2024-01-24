@@ -4,15 +4,15 @@ TEXT;
 
 
 
-INT a = 30;
-INT* b = &a;
-INT** c = &b;
-INT*** d = &c;
+int a = 30;
+int* b = &a;
+int** c = &b;
+int*** d = &c;
 
 
-INT result = $$$d;
+int result = $$$d;
 
-INT demo = 2 + -- a;
+int demo = 2 + -- a;
 
 
 !dn(demo); 
