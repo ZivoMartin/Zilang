@@ -1,7 +1,4 @@
 
-TEXT;
-
-
 func display_tab(int** t, int width, int height) -> void {
     int a = 30;
     int* b = &a;

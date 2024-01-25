@@ -1,7 +1,3 @@
-MAIN;
-
-TEXT;
-
 char a;
 int b;
 

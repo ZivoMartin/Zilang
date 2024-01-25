@@ -116,5 +116,13 @@ _operation:
     false:
         mov rax, 0
         ret
+        
+_invalid_address:
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, _seg_fault_msg
+    mov rdx, _size_seg_fault_msg
+    syscall
+    exit 1
 
 _start:

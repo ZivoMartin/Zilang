@@ -1,6 +1,3 @@
-MAIN;
-
-TEXT;
 
 int a = 30;
 int* b = &a;

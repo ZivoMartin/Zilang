@@ -1,5 +1,3 @@
-TEXT;
-
 int a = 1/2;
 
 !dn(a);

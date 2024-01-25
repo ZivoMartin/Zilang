@@ -229,29 +229,10 @@ pub mod tools{
 
     pub fn extract_end_char(s: &mut String, chara: char) -> u32 {
         let mut result: u32 = 0;
-
-        while s.len() > 0 {
-            if !s.ends_with(chara) {
-                return result
-            }
+        while s.len() > 0 && s.ends_with(chara) {
             s.pop();
             result += 1;
         }
-        
-        result    
-    }
-
-    pub fn extract_start_char(s: &mut String, chara: char) -> u32 {
-        let mut result: u32 = 0;
-
-        while s.len() > 0 {
-            if !s.starts_with(chara) {
-                return result
-            }
-            s.remove(0);
-            result += 1;
-        }
-        
         result    
     }
 

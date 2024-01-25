@@ -15,6 +15,8 @@ section .data
     _diff: db '@'
     _chiffres: db '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
     _newline: db 10
+    _seg_fault_msg: db 'Segmentation fault', 10
+    _size_seg_fault_msg: equ $-_seg_fault_msg
 
 section .bss
      _stack: resb 300000

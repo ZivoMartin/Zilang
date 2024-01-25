@@ -1,10 +1,6 @@
-MAIN;
-
-TEXT;
-
 int a = 5;
 
-{
+if 1 == 1 {
     int a = 3;
     !dn(a);
 }

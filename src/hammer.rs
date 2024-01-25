@@ -220,6 +220,21 @@ pub mod hammer{
             });
         }
 
+        fn init_dispo_type(&mut self){
+            self.new_type(String::from("int"), 4);
+            self.new_type(String::from("char"), 1);
+            self.new_type(String::from("void"), 0);
+        }
+
+        fn new_type(&mut self, name: String, size: u32){
+            self.type_list.insert( name.clone(), Type{name: name, id: self.type_list.len() as i32, size: size, stars: 0});   
+        }
+
+        fn init_dispo_macro(&mut self){
+            self.macro_list.insert(String::from("dn"), 1);
+            self.macro_list.insert(String::from("exit"), 1);
+        }
+
         pub fn init_dispo_keyword(&mut self) {
             self.keyword_list.insert(String::from("break"), break_keyword);
             self.keyword_list.insert(String::from("continue"), continue_keyword);
@@ -230,6 +245,7 @@ pub mod hammer{
             self.keyword_list.insert(String::from("while"), while_keyword);
             self.keyword_list.insert(String::from("func"), func_keyword);
             self.keyword_list.insert(String::from("return"), return_keyword);
+            self.keyword_list.insert(String::from("for"), for_keyword);
         }
 
         pub fn jump_out(&mut self){
@@ -259,21 +275,6 @@ pub mod hammer{
             *self.txt_stack.val_mut() = self.txt_stack.val_mut().replace(txt1, txt2); 
         }
 
-        fn init_dispo_macro(&mut self){
-            self.macro_list.insert(String::from("dn"), 1);
-            self.macro_list.insert(String::from("exit"), 1);
-        }
-
-        fn init_dispo_type(&mut self){
-            self.new_type(String::from("int"), 4);
-            self.new_type(String::from("char"), 1);
-            self.new_type(String::from("void"), 0);
-        } 
-
-        fn new_type(&mut self, name: String, size: u32){
-            self.type_list.insert( name.clone(), Type{name: name, id: self.type_list.len() as i32, size: size, stars: 0});   
-        }
-
         fn define_new_function(&mut self, name: String, args: Vec::<VariableDefinition>, return_type: Type) -> Result<(), String> {
             if self.func_exists(&name) {
                 return Err(format!("Line {}: The function {} already exists", get_ln(), name))
@@ -288,14 +289,14 @@ pub mod hammer{
             self.func_list.contains_key(name)
         }       
         
-        fn type_exists(&self, mut name: &mut String) -> Result<Type, String>{
-            let nb_stars = extract_end_char(&mut name, '*');
+        fn type_exists(&self, name: &mut String) -> Result<Type, String>{
+            let nb_stars = extract_end_char(name, '*');
             if self.type_list.contains_key(name){
                 let mut result = self.type_list[name].clone();
                 result.stars = nb_stars;
                 return Ok(result)
             }else{
-                Err(format!("{} is not a valid type.", name))
+                Err(format!("Line {}: The type {} not exists.", get_ln(), name))
             }
         }
 
@@ -324,7 +325,15 @@ pub mod hammer{
         }
 
         pub fn define_new_var(&mut self, name: String, type_var: Type){
-            let addr = self.insert_var_in_memory(&name, type_var);
+            let addr = self.stack_index as i32;
+            self.stack_index += type_var.size as u32;
+            self.addr_list.insert(
+                addr,
+                VariableDefinition{
+                    name: name.clone(),
+                    type_var: type_var
+                }
+            );
             self.jumps_stack.val_mut().vars.push(addr);
             if !self.var_exists(&name){
                 let mut new_stack = Stack::<i32>::new();
@@ -338,21 +347,6 @@ pub mod hammer{
             }
         }
 
-        fn insert_var_in_memory(&mut self, name: &str, type_var: Type) -> i32 {
-            let addr = self.stack_index as i32;
-            self.stack_index += type_var.size as u32;
-
-            let var_def: VariableDefinition = VariableDefinition{
-                name: String::from(name),
-                type_var: type_var
-            };
-            
-            self.addr_list.insert(
-                addr,
-                var_def
-            );
-            addr
-        }
         
         pub fn get_size_def(&self, addr: i32) -> &AsmType{
             &self.size[&(self.addr_list[&addr].type_var.size as u32)]
@@ -373,154 +367,40 @@ pub mod hammer{
     pub fn compile_txt(input: String) -> Result<(), String>{
         let mut hammer: Hammer = Hammer::new();
         reset_asm_file()?;
-        let mut vec = split(&input, ";");
-        begin_loop(&mut vec)?;
-        if get_in() == vec.len() {
-            return Err(format!("You can't compile without text"));
-        } 
+        let mut vec = split(&input, ";"); 
         instruct_loop(&mut hammer, &mut vec)?;
         let mut script_file = TextFile::new(String::from("asm/script.asm"))?;
         script_file.push(&hammer.txt_stack.val());
         Ok(())
     }
 
-    fn begin_loop(vec: &mut Vec::<String>) -> Result<(), String>{
-        loop{
-            if get_in() == vec.len(){
-                return Ok(())
-            }
-            let mut line = split(&vec[get_in()], " ");
-            inc_ln(clean_line(&mut line));
-            match line.len(){
-                1 => {
-                    if line[0] == "INIT" || line[0] == "TEXT"{
-                        return Ok(())
-                    }else if line[0] != "MAIN"{
-                        return Err(format!("Line {}: Syntax error.", get_ln()));
-                    }
-                }
-                _ => {
-                    if line.len() != 0  {
-                        return Err(format!("Line {}: syntax error.", get_ln()));
-                    }
-                }
-            }
-            inc_in(1);
-        }
-    }
-
-    fn end_prog(_hammer: &mut Hammer, _s: String) {}
-    
-   
-    fn setup_inst(inst: &mut String){
-        let mut i: usize = 0;
-        for chara in inst.clone().chars() {
-            if chara == '=' {
-                inst.insert(i+1, ' ');
-                inst.insert(i, ' ');
-                break;
-            }
-            i += 1;
-        }
-        *inst = inst.trim().to_string();
-    }
-
-    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: String) -> Result<(), String> {
-        let first_word = inst.split(" ").next().unwrap();
-        if hammer.keyword_exists(first_word) {
-            return hammer.keyword_list[first_word](hammer, &String::from(&inst[first_word.len()..inst.len()]).trim().to_string())
-        }else if inst != "" {
-            return Err(format!("Line {}: Syntax error.", get_ln()));
-        }else{
-            end_of_inst(hammer, String::from(""));
-        }
-        Ok(())
-    }
-
-    fn handle_tab_type_dec(hammer: &mut Hammer, var: &mut Vec<&str>, type_var: &mut Type) -> Result<(), String> {
-        let tab_addr = hammer.stack_index;
-        let mut previous_data: (u32, u32) = (1, hammer.stack_index);
-        for i in 1..var.len() {
-            if var[i] == "" || var[i].chars().last().unwrap() != ']'{
-                return Err(format!("Line {}: You forgot to close with '['", get_ln()))
-            }
-            let stack_index = hammer.stack_index;
-            match str::parse::<u32>(&var[i][0..var[i].len()-1]) {
-                Ok(tab_size) => {
-                    type_var.stars += 1;
-                    let size: u32;
-                    if i != var[i].len()-1 {
-                        size = POINTER_SIZE;
-                    }else{
-                        size = type_var.size as u32;
-                    }
-                    for j in 0..previous_data.0{
-                        hammer.push_txt(&format!("mov {}[_stack + r15 + {} + {}*{}], {}\n", hammer.size[&size].long, previous_data.1, size, j, hammer.stack_index));
-                        hammer.stack_index += size*tab_size;
-                    }
-                    previous_data.0 *= tab_size;
-                },
-                Err(_) => return Err(format!("Line {}: You didn't write a correct number between the brackets", get_ln()))
-            }
-            previous_data.1 = stack_index;
-        }
-        if var.len() != 1 {
-            hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov eax, {}\nmov rcx, r15\nmov dword[_stack + ecx + eax], edx\n", tab_addr, hammer.stack_index));
-        }
-        Ok(())
-    }
-
-
-    fn tab_analyse(hammer: &Hammer, var_s: &mut String) -> Result<Vec::<Vec<Token>>, String>{
-        let var: Vec::<&str> = var_s.split("[").collect();
-        let mut res = Vec::<Vec<Token>>::new();
-        for i in 1..var.len() {
-            if var[i] == "" || var[i].chars().last().unwrap() != ']'{
-                return Err(format!("Line {}: You forgot to close with '['", get_ln()))
-            }
-            res.push(build_aff_vec(hammer, String::from(&var[i][0..var[i].len()-1]), 0)?);
-        }
-        *var_s = String::from(var[0]);
-        Ok(res)
-    }
-
     fn instruct_loop(hammer: &mut Hammer, vec: &mut Vec::<String>) -> Result<(), String>{
-        inc_in(1);
-        hammer.jumps_stack.push(Jump::new(0, (end_prog, String::new()), 0));
+        hammer.jumps_stack.push(Jump::new(0, (end_prog, String::new()), 0)); //Set the first jump
         hammer.txt_stack.push(String::from("xor r15, r15\n"));
-        loop{
-            if get_in() == vec.len() -1{
-                break;
-            }
 
-            let mut inst = vec[get_in()].clone();
-            let mut line_split = split(&inst, " ");
-            inc_ln(clean_line(&mut line_split));
-            inst = line_split.join(" ");
-            inst = inst.trim().to_string();
+        while get_in() != vec.len() -1{
+            inc_ln(vec[get_in()].matches('\n').count());
+            vec[get_in()] = vec[get_in()].replace("\n", "").trim().to_string();
+            let inst = &mut vec[get_in()];
             if inst.starts_with("}") {
                 inst.remove(0);
-                vec[get_in()] = inst;
                 hammer.jump_out();
-                continue;
             } else if inst.contains("{") {
                 let mut split_inst: Vec::<&str> = inst.split("{").collect();
                 annalyse_inst_behind_bracket(hammer, split_inst[0].trim().to_string())?;
                 split_inst.remove(0);
                 vec[get_in()] = split_inst.join("{");
-                continue;
             }else{
-                setup_inst(&mut inst);
-                line_split = split(&inst, " ");
-                handle_instruction(hammer, inst, line_split)?;
+                setup_inst(inst);
+                handle_instruction(hammer, inst.to_string())?;
                 inc_in(1);
             }
-            
         }
         Ok(())
     }
 
-    fn handle_instruction(hammer: &mut Hammer, mut inst: String, mut line_split: Vec::<String>) -> Result<(), String> {
+    fn handle_instruction(hammer: &mut Hammer, mut inst: String) -> Result<(), String> {
+        let mut line_split = split(&inst, " ");
         if line_split.len() != 0{
             match hammer.type_exists(&mut line_split[0]) {
                 Ok(mut type_var) => {
@@ -536,18 +416,16 @@ pub mod hammer{
                         handle_affectation(hammer, line_split.join(" "))?;
                     }
                 }   
-
                 _ => {
-
-                    if inst.contains("="){
-                        handle_affectation(hammer, inst)?;
+                    if hammer.func_exists(line_split[0].split("(").next().unwrap()) {
+                        handle_func_call(hammer, inst)?;
                     }else if inst.starts_with("!"){
                         inst.remove(0);
                         handle_macros_call(hammer, inst)?; 
                     }else if hammer.keyword_exists(&line_split[0]){
                         hammer.call_keyword(&line_split.remove(0), &line_split.join(" "))?;
-                    }else if hammer.func_exists(line_split[0].split("(").next().unwrap()) {
-                        handle_func_call(hammer, inst)?;
+                    }else if inst.contains("="){
+                        handle_affectation(hammer, inst)?;
                     }else{
                         return Err(format!("Line {}: Not implemented yet.", get_ln()));
                     }
@@ -656,6 +534,85 @@ pub mod hammer{
        
     }
 
+    fn end_prog(_hammer: &mut Hammer, _s: String) {}
+    
+   
+    fn setup_inst(inst: &mut String){
+        let mut prev = ' ';
+        for (i, chara) in inst.clone().chars().enumerate() {
+            if chara == '=' {
+                inst.insert(i, ' ');
+                if "*+-/%".contains(prev) {
+                    inst.remove(i-1);
+                    inst.insert_str(i+1, &format!(" {} {}", &inst[0..i], prev));
+                }else{
+                    inst.insert(i+2, ' ');
+                }
+                break;
+            }
+            prev = chara;
+        }
+        *inst = inst.trim().to_string();
+    }
+
+    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: String) -> Result<(), String> {
+        let first_word = inst.split(" ").next().unwrap();
+        if hammer.keyword_exists(first_word) {
+            return hammer.keyword_list[first_word](hammer, &String::from(&inst[first_word.len()..inst.len()]).trim().to_string())
+        }else if inst != "" {
+            return Err(format!("Line {}: Syntax error.", get_ln()));
+        }else{
+            jump_in(hammer, String::from(""));
+        }
+        Ok(())
+    }
+
+    fn handle_tab_type_dec(hammer: &mut Hammer, var: &mut Vec<&str>, type_var: &mut Type) -> Result<(), String> {
+        if var.len() != 1 {
+            let tab_addr = hammer.stack_index;
+            let mut previous_data: (u32, u32) = (1, hammer.stack_index);
+            for i in 1..var.len() {
+                if var[i] == "" || var[i].chars().last().unwrap() != ']'{
+                    return Err(format!("Line {}: You forgot to close the bracket with '['", get_ln()))
+                }
+                let stack_index = hammer.stack_index;
+                match str::parse::<u32>(&var[i][0..var[i].len()-1]) {
+                    Ok(tab_size) => {
+                        type_var.stars += 1;
+                        let size: u32;
+                        if i != var[i].len()-1 {
+                            size = POINTER_SIZE;
+                        }else{
+                            size = type_var.size as u32;
+                        }
+                        for j in 0..previous_data.0{
+                            hammer.push_txt(&format!("mov {}[_stack + r15 + {} + {}*{}], {}\n", hammer.size[&size].long, previous_data.1, size, j, hammer.stack_index));
+                            hammer.stack_index += size*tab_size;
+                        }
+                        previous_data.0 *= tab_size;
+                    },
+                    Err(_) => return Err(format!("Line {}: You didn't write a correct number between the brackets", get_ln()))
+                }
+                previous_data.1 = stack_index;
+            }
+            hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov eax, {}\nmov rcx, r15\nmov dword[_stack + ecx + eax], edx\n", tab_addr, hammer.stack_index));
+        }
+        Ok(())
+    }
+
+
+    fn tab_analyse(hammer: &Hammer, var_s: &mut String) -> Result<Vec::<Vec<Token>>, String>{
+        let var: Vec::<&str> = var_s.split("[").collect();
+        let mut res = Vec::<Vec<Token>>::new();
+        for i in 1..var.len() {
+            if var[i] == "" || var[i].chars().last().unwrap() != ']'{
+                return Err(format!("Line {}: You forgot to close with '['", get_ln()))
+            }
+            res.push(build_aff_vec(hammer, String::from(&var[i][0..var[i].len()-1]), 0)?);
+        }
+        *var_s = String::from(var[0]);
+        Ok(res)
+    }
     
 
     fn get_prof_pointer(var: &mut String, can_be_ref: bool) -> Result<i32, String>{
@@ -677,26 +634,12 @@ pub mod hammer{
         Ok(count)
     }
 
-    fn new_operator_separator(current_element: &mut String, exp: &mut Vec<String>, last: String, neg_count: &mut u32){
-        if current_element != ""{
-            if *neg_count % 2 == 0 {
-                exp.push(current_element.to_string());
-            }else{
-                exp.push(String::from("-") + &current_element.to_string());
-            }
-            
-        }
-        exp.push(last);
-        *current_element = String::new();
-        *neg_count = 0;
-    }
-
     fn format_string_exp(hammer: &Hammer, mut string_exp: String) -> String {
         for op in hammer.tools.get_op_iter(){
             string_exp = string_exp.replace(op, &format!("µ{}µ", op));
         }
-        string_exp = string_exp.replace("(", &format!("µ(µ"));
-        string_exp = string_exp.replace(")", &format!("µ)µ"));
+        string_exp = string_exp.replace("(", "µ(µ");
+        string_exp = string_exp.replace(")", "µ)µ");
         while string_exp.contains("µµ") {
             string_exp = string_exp.replace("µµ", "µ");
         }
@@ -723,7 +666,6 @@ pub mod hammer{
 
     fn tokenize_expression(hammer: &Hammer, exp: Vec::<String>) -> Result<Vec<String>, String> {
         let mut exp_res = Vec::<String>::new();
-        let mut current_element = String::new(); 
         let mut func_dec = String::new();
         let mut cant_be_op = true;
         let mut neg_count: u32 = 0;
@@ -734,20 +676,19 @@ pub mod hammer{
                 if looking_for_function == -1 {
                     let is_op = hammer.tools.is_operator(&word); 
                     if is_op || hammer.tools.is_separator(&word){
+                        neg_count *= (!is_op || !cant_be_op) as u32; //If the word can be an op we set neg_count at 0
                         if is_op {
                             if cant_be_op{
                                 match &word as &str{
-                                    "-" => {
-                                        neg_count += 1;
-                                    }
+                                    "-" => neg_count += 1,
                                     _ => return Err(format!("Line {}: There is a bad operator in your expression.", get_ln()))
                                 }   
                             }else{
-                                new_operator_separator(&mut current_element, &mut exp_res, word, &mut neg_count);    
+                                exp_res.push(word);
                                 cant_be_op = true;
                             }
                         }else {
-                            new_operator_separator(&mut current_element, &mut exp_res, word, &mut neg_count);
+                            exp_res.push(word);
                             cant_be_op = false;
                         }
                     }else{
@@ -755,34 +696,29 @@ pub mod hammer{
                             func_dec = word;
                             looking_for_function = 0;
                         }else{
-                            current_element.push_str(&word);
+                            if neg_count % 2 == 0 {
+                                exp_res.push(word);
+                            }else{
+                                exp_res.push(String::from("-") + &word);
+                            }
                         }
                         cant_be_op = false;
                     }
                 }else{
                     func_dec.push_str(&word);
-                    if word == ")" {
-                        looking_for_function -= 1;
-                        if looking_for_function == 0 {
-                            exp_res.push(func_dec.clone());
-                            func_dec = String::new();
-                            looking_for_function = -1;
-                        }
-                    }else if word == "(" {
-                        looking_for_function += 1;
-                    }
+                    looking_for_function += (word == "(") as i32; //if the word is ( we add 1
+                    looking_for_function -= (word == ")") as i32; //if he is ) we dec 1
+                    if looking_for_function == 0 {
+                        exp_res.push(func_dec);
+                        func_dec = String::new();
+                        looking_for_function = -1;
+                    }                                       
                 }
-            }
-        }
-        if current_element != ""{
-            if neg_count % 2 == 0 {
-                exp_res.push(current_element);
-            }else{
-                exp_res.push(String::from("-") + &current_element);
             }
         }
         Ok(exp_res)
     }
+
 
     fn is_in_a_string(_exp: &String, _part: String) -> bool {
         false
@@ -829,25 +765,6 @@ pub mod hammer{
         }
         Ok(())
     }
-
-
-    fn clean_line(line: &mut Vec::<String>) -> usize{
-        let mut res = 0;
-        let mut i = 0;
-        while i < line.len(){
-            res += count_occur(&line[i], '\n') as usize;
-            if line[i] == String::from("") {
-                line.remove(i);
-            }else{
-                while line[i].contains("\n"){
-                    line[i] = line[i].replace("\n", "");
-                }
-                i += 1;
-            }
-        }
-        return res;
-    }
-
     
     fn insert_macro_call_in_txt(hammer: &mut Hammer, macro_call: MacroCall) -> Result<(), String> {
         let mut i = 0;
@@ -915,7 +832,12 @@ pub mod hammer{
         if stars < 0 {
             return Err(format!("Line {}: You tried to dereference the variable {} {} times but you only have the right to dereference it {} times", get_ln(), var_def.name, var_def.type_var.stars as i32 - stars, var_def.type_var.stars));
         }
+        is_valid_address(hammer);
         Ok(stars as u32)
+    }
+
+    fn is_valid_address(hammer: &mut Hammer) {
+        hammer.push_txt(&format!("push r15\nadd r15, {}\ncmp rax, r15\njg _invalid_address\npop r15\n", hammer.stack_index));
     }
 
     fn reset_asm_file() -> Result<(), String>{
@@ -972,8 +894,8 @@ pub mod hammer{
     }
 
     fn loop_keyword(hammer: &mut Hammer, _rest_of_line: &String) -> Result<(), String> {
-        new_loop(hammer);
-        end_of_inst(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
+        new_loop(hammer, hammer.blocs_index);
+        jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
         Ok(())
     }
 
@@ -981,7 +903,7 @@ pub mod hammer{
         evaluate_exp(hammer, &build_aff_vec(hammer, String::from(rest_of_line), MAX_STARS+1)?)?;
         hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
         hammer.cond_index_stack.push(hammer.blocs_index);
-        end_of_inst(hammer, format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index));
+        jump_in(hammer, format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index));
         Ok(())
     }
 
@@ -1002,24 +924,43 @@ pub mod hammer{
             end_txt = format!("_real_end_condition_{}:\n", cond_index);
             hammer.cond_index_stack.pop();
         }
-        end_of_inst(hammer, end_txt);
+        jump_in(hammer, end_txt);
         Ok(())
     }
 
     fn while_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
-        new_loop(hammer);
+        new_loop(hammer, hammer.blocs_index);
         evaluate_exp(hammer, &build_aff_vec(hammer, String::from(rest_of_line), MAX_STARS+1)?)?;
         hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index));
-        end_of_inst(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
+        jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
         Ok(())
     }
 
-    fn new_loop(hammer: &mut Hammer) {
-        hammer.push_txt(&format!("_loop_{}:\n", hammer.blocs_index));
-        hammer.loop_index_stack.push(hammer.blocs_index);
+    fn for_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String> {
+        let mut split_exp: Vec::<String> = rest_of_line.split(":").map(String::from).collect();
+        if split_exp.len() != 3 {
+            return Err(format!("Line {}: Bad declaration of the for loop, we found {} instructions instead of 3.", get_ln(), split_exp.len()))
+        }
+        setup_inst(&mut split_exp[0]);
+        setup_inst(&mut split_exp[2]);
+
+        jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
+        handle_instruction(hammer, split_exp[0].clone())?;
+        hammer.push_txt(&format!("jmp _loop_{}_end_start_inst\n", hammer.blocs_index-1));
+        new_loop(hammer, hammer.blocs_index - 1);
+        handle_instruction(hammer, split_exp[2].to_string())?;
+        hammer.push_txt(&format!("_loop_{}_end_start_inst:\n", hammer.blocs_index-1));
+        evaluate_exp(hammer, &build_aff_vec(hammer, split_exp[1].clone(), 0)?)?;
+        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index-1));
+        Ok(())
     }
 
-    fn end_of_inst(hammer: &mut Hammer, end_txt: String) {
+    fn new_loop(hammer: &mut Hammer, loop_index: u32) {
+        hammer.push_txt(&format!("_loop_{}:\n", loop_index));
+        hammer.loop_index_stack.push(loop_index);
+    }
+
+    fn jump_in(hammer: &mut Hammer, end_txt: String) {
         hammer.jumps_stack.push(Jump::new(hammer.stack_index, (end_of_bloc, end_txt), hammer.blocs_index));
         hammer.blocs_index += 1;
     }
