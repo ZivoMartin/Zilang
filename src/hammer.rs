@@ -40,7 +40,7 @@ pub mod hammer{
     struct Type {
         name: String,
         id: i32,
-        size: i32,
+        size: u32,
         stars: u32
     }
 
@@ -162,7 +162,8 @@ pub mod hammer{
         txt_stack: Stack<String>,
         blocs_index: u32,
         loop_index_stack: Stack<u32>,
-        cond_index_stack: Stack<u32>
+        cond_index_stack: Stack<u32>,
+        type_return: Option<Type>
     }
 
 
@@ -182,7 +183,8 @@ pub mod hammer{
                 txt_stack: Stack::new(),
                 blocs_index: 1,
                 loop_index_stack: Stack::new(),
-                cond_index_stack: Stack::new()
+                cond_index_stack: Stack::new(),
+                type_return: None
             };
             res.init_size();
             res.init_dispo_type();
@@ -268,7 +270,7 @@ pub mod hammer{
             self.new_type(String::from("void"), 0);
         } 
 
-        fn new_type(&mut self, name: String, size: i32){
+        fn new_type(&mut self, name: String, size: u32){
             self.type_list.insert( name.clone(), Type{name: name, id: self.type_list.len() as i32, size: size, stars: 0});   
         }
 
@@ -276,6 +278,7 @@ pub mod hammer{
             if self.func_exists(&name) {
                 return Err(format!("Line {}: The function {} already exists", get_ln(), name))
             }else{
+                self.type_return = Some(return_type.clone());
                 self.func_list.insert(name, Function{args: args, return_type: return_type});
             }
             Ok(())
@@ -303,7 +306,6 @@ pub mod hammer{
         pub fn macro_exists(&self, name: &str) -> bool{
             self.macro_list.contains_key(name)
         }
-
 
         pub fn keyword_exists(&self, name: &str) -> bool {
             self.keyword_list.contains_key(name)
@@ -463,7 +465,7 @@ pub mod hammer{
             previous_data.1 = stack_index;
         }
         if var.len() != 1 {
-            hammer.push_txt(&format!("mov eax, {}\nmov rcx, r15\nmov dword[_stack + ecx + eax], {}\n", hammer.stack_index, tab_addr));
+            hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov eax, {}\nmov rcx, r15\nmov dword[_stack + ecx + eax], edx\n", tab_addr, hammer.stack_index));
         }
         Ok(())
     }
@@ -583,7 +585,7 @@ pub mod hammer{
             hammer.push_txt(&format!("mov {}[_stack + r15 + {} + {}], {}\n", size_def.long, hammer.stack_index, decal, size_def.register));
             decal += func.args[i].type_var.size;
         }
-        hammer.push_txt(&format!("push r15\nmov r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name));
+        hammer.push_txt(&format!("push r15\nadd r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name));
         Ok(())
     }
 
@@ -691,15 +693,15 @@ pub mod hammer{
 
     fn format_string_exp(hammer: &Hammer, mut string_exp: String) -> String {
         for op in hammer.tools.get_op_iter(){
-            string_exp = string_exp.replace(op, &format!("_{}_", op));
+            string_exp = string_exp.replace(op, &format!("µ{}µ", op));
         }
-        string_exp = string_exp.replace("(", &format!("_(_"));
-        string_exp = string_exp.replace(")", &format!("_)_"));
-        while string_exp.contains("__") {
-            string_exp = string_exp.replace("__", "_");
+        string_exp = string_exp.replace("(", &format!("µ(µ"));
+        string_exp = string_exp.replace(")", &format!("µ)µ"));
+        while string_exp.contains("µµ") {
+            string_exp = string_exp.replace("µµ", "µ");
         }
-        string_exp = string_exp.replace("<_=", "<=_");
-        string_exp = string_exp.replace(">_=", ">=_");
+        string_exp = string_exp.replace("<µ=", "<=µ");
+        string_exp = string_exp.replace(">µ=", ">=µ");
         string_exp
     }
 
@@ -709,9 +711,8 @@ pub mod hammer{
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
         string_exp = format_string_exp(hammer, string_exp);
-        let exp: Vec::<String>  = string_exp.split("_").map(String::from).collect();
-        let mut exp_res = tokenise_expression(hammer, exp)?;
-        println!("{exp_res:?}");
+        let exp: Vec::<String>  = string_exp.split("µ").map(String::from).collect();
+        let mut exp_res = tokenize_expression(hammer, exp)?;
         exp_res = hammer.tools.convert_in_postfix_exp(exp_res);
         let mut res = Vec::<Token>::new();
         for elt in exp_res.iter(){
@@ -720,7 +721,7 @@ pub mod hammer{
         Ok(res)
     }
 
-    fn tokenise_expression(hammer: &Hammer, exp: Vec::<String>) -> Result<Vec<String>, String> {
+    fn tokenize_expression(hammer: &Hammer, exp: Vec::<String>) -> Result<Vec<String>, String> {
         let mut exp_res = Vec::<String>::new();
         let mut current_element = String::new(); 
         let mut func_dec = String::new();
@@ -812,7 +813,11 @@ pub mod hammer{
                         nb_stars -= tab_vec.len() as i32;
                         exp.push(Token{val: hammer.get_addr(&current_element), squares: Some(tab_vec), func_dec: None, nb_stars: nb_stars, interp: Interp::Variable});
                     }else if hammer.func_exists(current_element.split("(").next().unwrap()){
-                        exp.push(Token::new_func(current_element));
+                        if hammer.func_list[current_element.split("(").next().unwrap()].return_type.stars == nb_stars_await && nb_stars_await != MAX_STARS+1 {
+                            exp.push(Token::new_func(current_element));
+                        }else{
+                            return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
+                        }
                     }else{
                         match from_char_to_number(&current_element){
                             Some(val) => exp.push(Token::new_val(val as i32)),
@@ -883,6 +888,7 @@ pub mod hammer{
                 Interp::Value => hammer.push_txt(&format!("mov rax, {}\npush rax\n", elt.val)),
                 Interp::Function => {
                     handle_func_call(hammer, elt.func_dec.as_ref().unwrap().to_string())?;
+                    hammer.push_txt("push rax\n");
                 }
             }
             
@@ -953,7 +959,7 @@ pub mod hammer{
         if hammer.txt_stack.size() == 1 {
             return Err(format!("Line {}: You can't use the return keyword outside of a function.", get_ln()));
         }
-        no_txt_after_keyword(rest_of_line, "return")?;
+        evaluate_exp(hammer, &build_aff_vec(hammer, rest_of_line.to_string(), hammer.type_return.as_ref().unwrap().stars)?)?;
         hammer.push_txt("ret\n");
         Ok(())
     }
@@ -1024,11 +1030,15 @@ pub mod hammer{
 
     fn end_of_func(hammer: &mut Hammer, func_name: String) {
         let mut func_file = TextFile::new(String::from("asm/functions.asm")).unwrap();
-        func_file.push(&format!("{}:\n{}ret", func_name, hammer.txt_stack.pop()));
+        func_file.push(&format!("{}:\n{}ret\n", func_name, hammer.txt_stack.pop()));
         hammer.stack_index = hammer.jumps_stack.val().stack_index;
+        hammer.type_return = None;
     }
 
     fn func_keyword(hammer: &mut Hammer, line: &String) -> Result<(), String> {
+        if hammer.type_return.is_some() {
+            return Err(format!("Line {}: You can't define a function in a function.", get_ln()));
+        }
         let mut split_par: Vec::<&str> = line.split("(").collect();
         if split_par.len() != 2 {
             return Err(format!("Line {}: Syntax error.", get_ln()))

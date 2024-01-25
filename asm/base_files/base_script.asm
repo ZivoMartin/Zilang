@@ -49,14 +49,16 @@ _operation:
         mul r11
         ret
     _divis_op:
+        xor rdx, rdx
         mov rax, r10
         idiv r11
         ret
 
     _modulo_op:
+        xor rdx, rdx
         mov rax, r10
         idiv r11
-        mov rax, rdi
+        mov rax, rdx
         ret 
     
     _inf_op:
@@ -116,4 +118,3 @@ _operation:
         ret
 
 _start:
-
