@@ -1,0 +1,10 @@
+TEXT;
+
+func f(int x) -> void {
+    !dn(x);
+}
+
+int a = f(19);
+
+!exit(0);
+

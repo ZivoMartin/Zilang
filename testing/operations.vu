@@ -8,6 +8,10 @@ int* b = &a;
 
 a = $b + 3;
 
-!dn($b);
+!dn(a);
+
+int op = 2*3*(4 + 3+a);
+
+!dn(op);
 
 !exit(0);

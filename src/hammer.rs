@@ -33,6 +33,9 @@ pub mod hammer{
             LINE_NUMBER.0 += x;
         }
     }
+
+    
+
     #[derive(Debug)]
     struct Type {
         name: String,
@@ -71,7 +74,7 @@ pub mod hammer{
         }
 
     }
-
+    
     struct AsmType{
         long: &'static str,
         short: &'static str,
@@ -95,7 +98,7 @@ pub mod hammer{
 
     struct MacroCall{
         macro_name: String,
-        args: Vec::<Vec::<(Token, u8)>>
+        args: Vec::<Vec::<Token>>
     }
 
     struct Jump{
@@ -117,20 +120,32 @@ pub mod hammer{
         }
 
     }
-    
-    #[derive(Debug)]
+
+    enum Interp {
+        Function,
+        Variable,
+        Value,
+        Operator
+    }
     struct Token {
         val: i32,
         nb_stars: i32,
-        squares: Option<Vec::<Vec<(Token, u8)>>>
+        squares: Option<Vec::<Vec<Token>>>,
+        func_dec: Option<String>,
+        interp: Interp
     }
     
     impl Token {
 
-        pub fn new(val: i32) -> Token{
-            Token{val: val, squares: None, nb_stars: 0}
+        pub fn new_val(val: i32) -> Token{
+            Token{val: val, squares: None, func_dec: None, nb_stars: 0, interp: Interp::Value}
         }
-
+        pub fn new_op(op: i32) -> Token {
+            Token{val: op, squares: None, func_dec: None, nb_stars: 0, interp: Interp::Operator}
+        }
+        pub fn new_func(func: String) -> Token {
+            Token{val: 0, squares: None, func_dec: Some(func), nb_stars: 0, interp: Interp::Function}
+        }
     }
 
     struct Hammer{
@@ -454,9 +469,9 @@ pub mod hammer{
     }
 
 
-    fn tab_analyse(hammer: &Hammer, var_s: &mut String) -> Result<Vec::<Vec<(Token, u8)>>, String>{
+    fn tab_analyse(hammer: &Hammer, var_s: &mut String) -> Result<Vec::<Vec<Token>>, String>{
         let var: Vec::<&str> = var_s.split("[").collect();
-        let mut res = Vec::<Vec<(Token, u8)>>::new();
+        let mut res = Vec::<Vec<Token>>::new();
         for i in 1..var.len() {
             if var[i] == "" || var[i].chars().last().unwrap() != ']'{
                 return Err(format!("Line {}: You forgot to close with '['", get_ln()))
@@ -542,6 +557,7 @@ pub mod hammer{
 
 
     fn handle_func_call(hammer: &mut Hammer, mut call: String) -> Result<(), String> {
+        
         let mut split_par: Vec::<String> = call.split("(").map(String::from).collect();
         if split_par.len() == 1 {
             return Err(format!("Line {}: You have to specifie args between parenthesis.", get_ln()))
@@ -553,9 +569,12 @@ pub mod hammer{
             return Err(format!("Line {}: Parenthesis never closes.", get_ln()));
         }
         call = String::from(&call[0..call.len()-1]);
-        let split_virg: Vec::<String> = call.split(",").map(String::from).collect();
+        let mut split_virg: Vec::<String> = call.split(",").map(String::from).collect();
+        if split_virg.len() == 1 && split_virg[0].trim().to_string() == "" {
+            split_virg.remove(0);
+        }
         if split_virg.len() != func.args.len() {
-            return Err(format!("Line {}: We found {} in the call of the function {} but {} takes {} arguments.", get_ln(), split_virg.len(), func_name, func_name, func.args.len()));
+            return Err(format!("Line {}: We found {} elements in the call of the function {} but {} takes {} arguments.", get_ln(), split_virg.len(), func_name, func_name, func.args.len()));
         }
         let mut decal = 0;
         for (i, exp) in split_virg.iter().enumerate() {
@@ -582,7 +601,7 @@ pub mod hammer{
             Some(rest_of_line)=> String::from(rest_of_line),
             _ => return Err(format!("Line {}: Parenthesis missing.", get_ln()))
         };
-        let mut args = Vec::<Vec::<(Token, u8)>>::new();
+        let mut args = Vec::<Vec::<Token>>::new();
         line = line.replace(" ", "");
         for arg in line.split(","){
             if arg == ""{
@@ -616,16 +635,16 @@ pub mod hammer{
         if hammer.var_exists(&var1){
             let right_exp = split.join("=").replace(" = ", "=");
             let addr = hammer.get_addr(&var1);
-            let struct_addr = Token{val: addr, squares: Some(tab_vec), nb_stars: nb_stars};
+            let struct_addr = Token{val: addr, func_dec: None, squares: Some(tab_vec), nb_stars: nb_stars, interp: Interp::Variable};
             let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?;
             hammer.push_txt("push rax\n");
-            evaluate_exp(hammer,&build_aff_vec(hammer, right_exp, stars_in_left_var as u32)?)?;
+            evaluate_exp(hammer, &build_aff_vec(hammer, right_exp, stars_in_left_var as u32)?)?;
 
             if stars_in_left_var != 0 {
-                hammer.push_txt("pop rbx\nmov dword[_stack + r15 + rbx], eax\n");
+                hammer.push_txt("pop rbx\nmov dword[_stack + rbx], eax\n");
             }else{
                 let size_def = hammer.get_size_def(addr);
-                hammer.push_txt(&format!("pop rbx\nmov {}[_stack + r15 + rbx], {}\n", size_def.long, size_def.register));
+                hammer.push_txt(&format!("pop rbx\nmov {}[_stack + rbx], {}\n", size_def.long, size_def.register));
             }
             
             Ok(())
@@ -670,12 +689,7 @@ pub mod hammer{
         *neg_count = 0;
     }
 
-
-    fn build_aff_vec(hammer: &Hammer, mut string_exp: String, nb_stars_await: u32) -> Result<Vec::<(Token, u8)>, String>{
-        string_exp = string_exp.trim().to_string();
-        if string_exp == String::from("") || string_exp.contains("_") && is_in_a_string(&string_exp, "_".to_string()){
-            return Err(format!("Line {}: Syntax error.", get_ln()));
-        }
+    fn format_string_exp(hammer: &Hammer, mut string_exp: String) -> String {
         for op in hammer.tools.get_op_iter(){
             string_exp = string_exp.replace(op, &format!("_{}_", op));
         }
@@ -686,35 +700,76 @@ pub mod hammer{
         }
         string_exp = string_exp.replace("<_=", "<=_");
         string_exp = string_exp.replace(">_=", ">=_");
+        string_exp
+    }
+
+    fn build_aff_vec(hammer: &Hammer, mut string_exp: String, nb_stars_await: u32) -> Result<Vec::<Token>, String>{
+        string_exp = string_exp.trim().to_string();
+        if string_exp == String::from("") || string_exp.contains("_") && is_in_a_string(&string_exp, "_".to_string()){
+            return Err(format!("Line {}: Syntax error.", get_ln()));
+        }
+        string_exp = format_string_exp(hammer, string_exp);
         let exp: Vec::<String>  = string_exp.split("_").map(String::from).collect();
+        let mut exp_res = tokenise_expression(hammer, exp)?;
+        println!("{exp_res:?}");
+        exp_res = hammer.tools.convert_in_postfix_exp(exp_res);
+        let mut res = Vec::<Token>::new();
+        for elt in exp_res.iter(){
+            add_element_in_aff_exp(hammer, elt.to_string(), &mut res, nb_stars_await)?;
+        }
+        Ok(res)
+    }
+
+    fn tokenise_expression(hammer: &Hammer, exp: Vec::<String>) -> Result<Vec<String>, String> {
         let mut exp_res = Vec::<String>::new();
         let mut current_element = String::new(); 
+        let mut func_dec = String::new();
         let mut cant_be_op = true;
         let mut neg_count: u32 = 0;
+        let mut looking_for_function = -1;
         for i in 0..exp.len(){
             let word = exp[i].trim().to_string();
             if word != "" {
-                let is_op = hammer.tools.is_operator(&word); 
-                if is_op || hammer.tools.is_separator(&word){
-                    if is_op {
-                        if cant_be_op{
-                            match &word as &str{
-                                "-" => {
-                                    neg_count += 1;
-                                }
-                                _ => return Err(format!("Line {}: There is a bad operator in your expression.", get_ln()))
-                            }   
-                        }else{
-                            new_operator_separator(&mut current_element, &mut exp_res, word, &mut neg_count);    
-                            cant_be_op = true;
+                if looking_for_function == -1 {
+                    let is_op = hammer.tools.is_operator(&word); 
+                    if is_op || hammer.tools.is_separator(&word){
+                        if is_op {
+                            if cant_be_op{
+                                match &word as &str{
+                                    "-" => {
+                                        neg_count += 1;
+                                    }
+                                    _ => return Err(format!("Line {}: There is a bad operator in your expression.", get_ln()))
+                                }   
+                            }else{
+                                new_operator_separator(&mut current_element, &mut exp_res, word, &mut neg_count);    
+                                cant_be_op = true;
+                            }
+                        }else {
+                            new_operator_separator(&mut current_element, &mut exp_res, word, &mut neg_count);
+                            cant_be_op = false;
                         }
-                    }else {
-                        new_operator_separator(&mut current_element, &mut exp_res, word, &mut neg_count);
+                    }else{
+                        if hammer.func_exists(&word) {
+                            func_dec = word;
+                            looking_for_function = 0;
+                        }else{
+                            current_element.push_str(&word);
+                        }
                         cant_be_op = false;
                     }
                 }else{
-                    cant_be_op = false;
-                    current_element.push_str(&word);
+                    func_dec.push_str(&word);
+                    if word == ")" {
+                        looking_for_function -= 1;
+                        if looking_for_function == 0 {
+                            exp_res.push(func_dec.clone());
+                            func_dec = String::new();
+                            looking_for_function = -1;
+                        }
+                    }else if word == "(" {
+                        looking_for_function += 1;
+                    }
                 }
             }
         }
@@ -725,28 +780,22 @@ pub mod hammer{
                 exp_res.push(String::from("-") + &current_element);
             }
         }
-        exp_res = hammer.tools.convert_in_postfix_exp(exp_res);
-        let mut res = Vec::<(Token, u8)>::new();
-        for elt in exp_res.iter(){
-            add_element_in_aff_exp(hammer, elt.to_string(), &mut res, nb_stars_await)?;
-        }
-        Ok(res)
+        Ok(exp_res)
     }
 
     fn is_in_a_string(_exp: &String, _part: String) -> bool {
         false
     }
 
-    fn add_element_in_aff_exp(hammer: &Hammer, mut current_element: String, exp: &mut Vec::<(Token, u8)>, nb_stars_await: u32) -> Result<(), String>{
-
+    fn add_element_in_aff_exp(hammer: &Hammer, mut current_element: String, exp: &mut Vec::<Token>, nb_stars_await: u32) -> Result<(), String>{
         if current_element == ""{
             return Err(format!("Line {}: Syntax error.", get_ln()));
         }
         if hammer.tools.is_operator(&current_element){ 
-            exp.push((Token{val: hammer.tools.ascii_val(&current_element), squares: None, nb_stars: 0}, 2))
+            exp.push(Token::new_op(hammer.tools.ascii_val(&current_element)))
         }else{
             match current_element.parse::<i32>(){
-                Ok(number) => exp.push((Token::new(number), 0)),
+                Ok(number) => exp.push(Token::new_val(number)),
                 Err(_e) => {
                     let mut nb_stars = get_prof_pointer(&mut current_element, true)?;
                     let var_name = current_element.split("[").next().unwrap();
@@ -761,10 +810,12 @@ pub mod hammer{
                             return Err(format!("Line {}: The two types are incompatibles.", get_ln()));
                         }
                         nb_stars -= tab_vec.len() as i32;
-                        exp.push((Token{val: hammer.get_addr(&current_element), squares: Some(tab_vec), nb_stars: nb_stars}, 1));
+                        exp.push(Token{val: hammer.get_addr(&current_element), squares: Some(tab_vec), func_dec: None, nb_stars: nb_stars, interp: Interp::Variable});
+                    }else if hammer.func_exists(current_element.split("(").next().unwrap()){
+                        exp.push(Token::new_func(current_element));
                     }else{
                         match from_char_to_number(&current_element){
-                            Some(val) => exp.push((Token::new(val as i32), 0)),
+                            Some(val) => exp.push(Token::new_val(val as i32)),
                             _ => return Err(format!("Line {}: we found an incorrect value: {}", get_ln(), current_element))
                         }
                     }
@@ -811,25 +862,28 @@ pub mod hammer{
         Ok(())
     }
 
-    fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<(Token, u8)>) -> Result<(), String>{
+    fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<Token>) -> Result<(), String>{
         for elt in exp{
-            match elt.1 {
-                2 => hammer.push_txt(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.0.val)),
-                1 => {
-                    let stars = handle_variable_dereference(hammer, &elt.0)?;
-                    match elt.0.nb_stars{
+            match elt.interp {
+                Interp::Operator => hammer.push_txt(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.val)),
+                Interp::Variable => {
+                    let stars = handle_variable_dereference(hammer, &elt)?;
+                    match elt.nb_stars{
                         -1 => hammer.push_txt(&format!("push rax\n")),
                         _ => {
                             if stars == 0{
-                                let size_def = hammer.get_size_def(elt.0.val);
-                                hammer.push_txt(&format!("{} rax, {}[_stack + r15 + rax]\npush rax\n", size_def.mov, size_def.long));
+                                let size_def = hammer.get_size_def(elt.val);
+                                hammer.push_txt(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
                             }else{
-                                hammer.push_txt("movsx rax, dword[_stack + r15 + rax]\npush rax\n");
+                                hammer.push_txt("movsx rax, dword[_stack + rax]\npush rax\n");
                             }
                         }
                     }
                 }
-                _ => hammer.push_txt(&format!("mov rax, {}\npush rax\n", elt.0.val))
+                Interp::Value => hammer.push_txt(&format!("mov rax, {}\npush rax\n", elt.val)),
+                Interp::Function => {
+                    handle_func_call(hammer, elt.func_dec.as_ref().unwrap().to_string())?;
+                }
             }
             
         }
@@ -841,7 +895,7 @@ pub mod hammer{
     fn handle_variable_dereference(hammer: &mut Hammer, var: &Token) -> Result<u32, String> {
         let var_def = hammer.addr_list[&var.val].clone();
         let mut stars = var_def.type_var.stars as i32 - var.nb_stars;
-        hammer.push_txt(&format!("mov rbx, {}\n", var.val));
+        hammer.push_txt(&format!("mov rbx, {}\nadd rbx, r15\n", var.val));
         for vec in var.squares.as_ref().unwrap().iter() {
             hammer.push_txt("push rbx\n");
             evaluate_exp(hammer, vec)?;

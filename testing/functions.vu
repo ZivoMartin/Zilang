@@ -2,20 +2,26 @@
 TEXT;
 
 
-func test(int a) -> void {
-    return;
+func display_tab(int** t, int width, int height) -> void {
+    int a = 30;
+    int* b = &a;
+    $b = 20;
     !dn(a);
 }
 
-int a = 100;
-int b = 10;
-test(a);
+int t[10][10];
 
-a = 80;
+int i = 0;
 
-test(a);
+while i < 10 {
+    int j = 0;
+    while j < 10 {
+        t[i][j] = i*10 + j;
+        j = j + 1;
+    }
+    i = i + 1;
+}
 
-!dn(a);
+display_tab(t, 10, 10);
 
-break;
 !exit(0);
