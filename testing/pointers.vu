@@ -1,19 +1,12 @@
-MAIN;
-
-TEXT;
-
-
 
 int a = 30;
 int* b = &a;
 int** c = &b;
 int*** d = &c;
 
-
 int result = $$$d;
 
-int demo = 2 + -- a;
-
+int demo = 2 + -- 2 + 2;
 
 !dn(demo); 
 

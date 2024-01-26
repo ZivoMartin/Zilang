@@ -1,16 +1,9 @@
 
-int a = 3+2;
+func test(int a, char b) -> int{
+    
+}
 
-int* b = &a;
 
-a = $b + 3;
 
-!dn(a);
+int b = $$'3';
 
-int op = 2*3*(4 + 3+a);
-
-op = - 1;
-
-!dn(op);
-
-!exit(0);
