@@ -72,11 +72,6 @@ pub mod tools{
             }
             result
         }
-
-        pub fn replace(&mut self, text_to_replace: &str, new_text: &str){
-            let new_txt = self.get_text().replace(text_to_replace, new_text);
-            self.reset(&new_txt);
-        }
     }
 
 
@@ -187,16 +182,6 @@ pub mod tools{
 
     pub fn split(string: &str, splitter: &str) -> Vec::<String>{
         string.split(splitter).map(String::from).collect()
-    }
-
-    pub fn count_occur(string: &str, x: char) -> i32{
-        let mut count = 0;
-        for chara in string.chars(){
-            if chara == x {
-                count += 1;
-            }
-        }
-        return count;
     }
 
     fn build_operator_priority() -> HashMap<String, u8>{
