@@ -1,5 +1,5 @@
-import testing/merge_sort.vu;
-
+import tab_in_vulcain/sort.vu;
+import tab_in_vulcain/display.vu;
 
 int t[10];
 t[0] = 7;
@@ -13,15 +13,8 @@ t[7] = 7;
 t[8] = 8;
 t[9] = 11;
 
-
 merge_sort(t, 0, 10);
 
-int i = 0;
-while i<10 {
-    !dn(t[i]);
-    i = i + 1;
-}
-
-display_x(30);
+display_tab(t, 10);
 
 !exit(0);

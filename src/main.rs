@@ -29,7 +29,7 @@ fn compile(input: &str, output: &str) -> Result<(), String>{
         return Err(format!("File {} don't exist.", input));
     }
     let mut input_file = TextFile::new(String::from(input))?; 
-    compile_txt(String::from(input_file.get_text()))?;
+    compile_txt(input.to_string(), String::from(input_file.get_text()))?;
     compile_asm_to_executable("asm/script.asm", output);
     Ok(())
 }

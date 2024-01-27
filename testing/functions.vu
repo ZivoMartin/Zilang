@@ -1,24 +1,5 @@
 
-func display_tab(int** t, int width, int height) -> void {
-    int a = 30;
-    int* b = &a;
-    $b = 20;
-    !dn(a);
+
+func display_x(int x) -> void {
+    !dn(x);
 }
-
-int t[10][10];
-
-int i = 0;
-
-while i < 10 {
-    int j = 0;
-    while j < 10 {
-        t[i][j] = i*10 + j;
-        j = j + 1;
-    }
-    i = i + 1;
-}
-
-display_tab(t, 10, 10);
-
-!exit(0);

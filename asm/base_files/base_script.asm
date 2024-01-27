@@ -126,3 +126,4 @@ _invalid_address:
     exit 1
 
 _start:
+xor r15, r15
