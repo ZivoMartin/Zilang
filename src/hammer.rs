@@ -3,7 +3,6 @@ pub mod hammer{
     use std::collections::HashMap;
     use crate::stack::Stack;
     use crate::tools::tools::*;
-    use std::str;
 
     static POINTER: &str = "$";
     static POINTER_SIZE: u32 = 4;
@@ -611,7 +610,7 @@ pub mod hammer{
             if arg == ""{
                 break;
             }
-            args.push(build_aff_vec(hammer, String::from(arg), 0)?);
+            args.push(build_aff_vec(hammer, String::from(arg), MAX_STARS+1)?);
         }
         let nb_arg_expected = hammer.macro_list[&name];
         if args.len() != nb_arg_expected as usize{

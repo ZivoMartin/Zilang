@@ -8,6 +8,6 @@ int result = $$$d;
 
 int demo = 2 + -- 2 + 2;
 
-!dn(demo); 
+!dn(d); 
 
 !exit(0); 
