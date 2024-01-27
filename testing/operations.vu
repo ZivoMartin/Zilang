@@ -1,9 +1,15 @@
 
-func test(int a, char b) -> int{
-    
+int c = 8;
+
+func test(int c) -> int{
+    if c != 0 {
+        test(c-1);
+    }
+    !dn(c);    
 }
 
+test(10);
 
+!dn(c);
 
-int b = $$'3';
-
+!exit(0);

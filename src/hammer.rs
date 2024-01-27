@@ -125,9 +125,10 @@ pub mod hammer{
     struct Hammer{
         tools: Tools,
         inst_vec: Vec<String>,
+        asm_files: HashMap<&'static str, TextFile>,
         type_list: HashMap::<String, Type>,
         defined_var_list: HashMap::<String, Stack::<u32>>,
-        addr_list: HashMap::<u32, VariableDefinition>,
+        addr_list: HashMap::<u32, Stack::<VariableDefinition>>,
         macro_list: HashMap::<String, u32>,
         keyword_list: HashMap::<String, fn(&mut Hammer, &String) -> Result<(), String>>,
         func_list: HashMap::<String, Function>,
@@ -148,9 +149,10 @@ pub mod hammer{
             let mut res = Hammer{
                 tools: Tools::new(),
                 inst_vec: split(&txt, ";"),
+                asm_files: HashMap::<&'static str, TextFile>::new(),
                 type_list: HashMap::<String, Type>::new(),
                 defined_var_list: HashMap::<String, Stack<u32>>::new(),
-                addr_list: HashMap::<u32, VariableDefinition>::new(),
+                addr_list: HashMap::<u32, Stack<VariableDefinition>>::new(),
                 macro_list: HashMap::<String, u32>::new(),
                 keyword_list: HashMap::<String, fn(&mut Hammer, &String) -> Result<(), String>>::new(),
                 func_list: HashMap::<String, Function>::new(),
@@ -164,6 +166,7 @@ pub mod hammer{
                 type_return: None,
                 line_number_stack: Stack::new()
             };
+            res.init_asm_file();
             res.init_size();
             res.init_dispo_type();
             res.init_dispo_macro();
@@ -174,8 +177,27 @@ pub mod hammer{
 
 
         fn init(&mut self) {
+            self.line_number_stack.push((1, 0));
             self.jumps_stack.push(Jump::new(0, (end_prog, String::new()), 0));
             self.txt_stack.push(String::from("xor r15, r15\n"));
+        }
+
+        fn init_asm_file(&mut self) {
+            let paths = vec!("macros", "data", "functions", "script");
+            let base_paths = vec!("base_macros", "base_data", "base_functions", "base_script");
+            for (i, path) in paths.iter().enumerate() {
+                let mut file_path = String::from("asm/");
+                let mut base_file_path = String::from("asm/base_files/base_");
+                file_path.push_str(path);
+                base_file_path.push_str(path);
+                file_path.push_str(".asm");
+                base_file_path.push_str(".asm");
+                let mut file = TextFile::new(file_path).unwrap();
+                let mut base_file = TextFile::new(base_file_path).unwrap();
+                file.reset(&base_file.get_text());
+                self.asm_files.insert(path, file);
+                self.asm_files.insert(base_paths[i], base_file);
+            }
         }
 
         fn init_size(&mut self){
@@ -241,11 +263,15 @@ pub mod hammer{
             }
             self.stack_index = last_jump.stack_index;
             for addr in &last_jump.vars{
-                let def = self.addr_list.remove(addr).unwrap(); //We remove the addr
-                let var_stack: &mut Stack<_> = self.defined_var_list.get_mut(&def.name).unwrap(); //Now we are gonna remove the top of the name stack.
+                let addr_stack: &mut Stack<_> = self.addr_list.get_mut(addr).unwrap();
+                let def = addr_stack.pop();
+                if addr_stack.is_empty() {
+                    self.addr_list.remove(addr);
+                }
+                let var_stack: &mut Stack<_> = self.defined_var_list.get_mut(&def.name).unwrap();
                 var_stack.pop();
                 if var_stack.is_empty() {
-                    self.defined_var_list.remove(&def.name); //delete stack if empty
+                    self.defined_var_list.remove(&def.name); 
                 }
             }
             last_jump.action.0(self, last_jump.action.1.clone()); //We call the function to call at the end of the jump with in parameter the end txt. 
@@ -289,9 +315,13 @@ pub mod hammer{
                 Err(format!("Line {}: The type {} not exists.", self.get_ln(), name))
             }
         }
+        
+        fn push_txt_in_file(&mut self, file_name: &str, txt: &str) {
+            self.asm_files.get_mut(file_name).unwrap().push(txt);
+        }
 
         fn get_ln(&self) -> usize {
-            self.line_number_stack.val().0
+            self.line_number_stack.val().0   
         }
     
         fn get_in(&self) ->usize {
@@ -327,7 +357,7 @@ pub mod hammer{
         }
 
         pub fn get_var_def_by_name(&self, name: &str) -> &VariableDefinition{
-            &self.addr_list[&self.get_addr(name)]
+            &self.addr_list[&self.get_addr(name)].val()
         }
 
         pub fn get_var_def_i32(&self, addr: i32) -> &VariableDefinition {
@@ -335,27 +365,23 @@ pub mod hammer{
         }
 
         pub fn get_var_def(&self, addr: u32) -> &VariableDefinition {
-            &self.addr_list[&addr]
+            &self.addr_list[&addr].val()
         }
 
         pub fn define_new_var(&mut self, name: String, type_var: Type){
             let addr = self.stack_index;
             self.stack_index += type_var.size;
-            self.addr_list.insert(
-                addr,
-                VariableDefinition{
-                    name: name.clone(),
-                    type_var: type_var
-                }
-            );
+            let var_def = VariableDefinition{
+                name: name.clone(),
+                type_var: type_var
+            };
+            match self.addr_list.get_mut(&addr) {
+                Some(stack) => stack.push(var_def),
+                _ => {self.addr_list.insert(addr, Stack::init(var_def));}
+            }
             self.jumps_stack.val_mut().vars.push(addr);
             if !self.var_exists(&name){
-                let mut new_stack = Stack::<u32>::new();
-                new_stack.push(addr);
-                self.defined_var_list.insert(
-                    name,
-                    new_stack
-                );    
+                self.defined_var_list.insert(name, Stack::<u32>::init(addr));    
             }else{
                 self.defined_var_list.get_mut(&name).unwrap().push(addr)
             }
@@ -363,7 +389,7 @@ pub mod hammer{
 
         
         pub fn get_size_def(&self, addr: u32) -> &AsmType{
-            &self.size[&(self.addr_list[&addr].type_var.size as u32)]
+            &self.size[&(self.addr_list[&addr].val().type_var.size as u32)]
         }
 
         pub fn is_valid_name(&self, name: &str) -> Result<(), String>{
@@ -380,10 +406,7 @@ pub mod hammer{
 
     pub fn compile_txt(input: String) -> Result<(), String>{
         let mut hammer: Hammer = Hammer::new(input);
-        reset_asm_file()?;
         instruct_loop(&mut hammer)?;
-        let mut script_file = TextFile::new(String::from("asm/script.asm"))?;
-        script_file.push(&hammer.txt_stack.val());
         Ok(())
     }
 
@@ -407,6 +430,7 @@ pub mod hammer{
                 hammer.inc_in(1);
             }
         }
+        hammer.jump_out();
         Ok(())
     }
 
@@ -544,7 +568,10 @@ pub mod hammer{
        
     }
 
-    fn end_prog(_hammer: &mut Hammer, _s: String) {}
+    fn end_prog(hammer: &mut Hammer, _s: String) {
+        let txt = &hammer.txt_stack.pop();
+        hammer.push_txt_in_file("script", txt);
+    }
     
    
     fn setup_inst(inst: &mut String){
@@ -775,7 +802,9 @@ pub mod hammer{
                                 }
                                 exp.push(Token::new_val(val as i32))
                             },
-                            _ => return Err(format!("Line {}: we found an incorrect value: {}", hammer.get_ln(), element))
+                            _ => {
+                                return Err(format!("Line {}: we found an incorrect value: {}", hammer.get_ln(), element))
+                            }
                         }
                     }
                 }
@@ -856,25 +885,6 @@ pub mod hammer{
 
     fn is_valid_address(hammer: &mut Hammer) {
         hammer.push_txt(&format!("push r15\nadd r15, {}\ncmp rax, r15\njg _invalid_address\npop r15\n", hammer.stack_index));
-    }
-
-    fn reset_asm_file() -> Result<(), String>{
-        let mut macro_file = TextFile::new(String::from("asm/macros.asm"))?;
-        let mut data_file = TextFile::new(String::from("asm/data.asm"))?;
-        let mut script_file = TextFile::new(String::from("asm/script.asm"))?;
-        let mut func_file = TextFile::new(String::from("asm/functions.asm"))?;
-
-        let mut base_macro_file: TextFile = TextFile::new(String::from("asm/base_files/base_macros.asm"))?;
-        let mut base_data_file = TextFile::new(String::from("asm/base_files/base_data.asm"))?;
-        let mut base_script_file = TextFile::new(String::from("asm/base_files/base_script.asm"))?;
-        let mut base_funcs_file = TextFile::new(String::from("asm/base_files/base_functions.asm"))?;
-
-        macro_file.reset(&base_macro_file.get_text());
-        script_file.reset(&base_script_file.get_text());
-        data_file.reset(&base_data_file.get_text());
-        func_file.reset(&base_funcs_file.get_text());
-
-        Ok(())
     }
     
     fn break_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
@@ -988,8 +998,8 @@ pub mod hammer{
     }
 
     fn end_of_func(hammer: &mut Hammer, func_name: String) {
-        let mut func_file = TextFile::new(String::from("asm/functions.asm")).unwrap();
-        func_file.push(&format!("{}:\n{}ret\n", func_name, hammer.txt_stack.pop()));
+        let txt = hammer.txt_stack.pop();
+        hammer.push_txt_in_file("functions", &format!("{}:\n{}ret\n", func_name, txt));
         hammer.stack_index = hammer.jumps_stack.val().stack_index;
         hammer.type_return = None;
     }

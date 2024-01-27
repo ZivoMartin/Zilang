@@ -10,6 +10,14 @@ impl<T> Stack<T>{
         }
     }
 
+    pub fn init(first: T) -> Stack<T> {
+        let mut res = Stack{
+            vec: Vec::new()
+        };
+        res.push(first);
+        res
+    }
+
     pub fn push(&mut self, x: T){
         self.vec.push(x);
     }
