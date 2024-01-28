@@ -3,7 +3,6 @@ pub mod hammer{
     use std::collections::HashMap;
     use crate::stack::Stack;
     use crate::tools::tools::*;
-    use std::str;
 
     static POINTER: &str = "$";
     static POINTER_SIZE: u32 = 4;
