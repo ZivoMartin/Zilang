@@ -1,15 +1,11 @@
 
-int c = 8;
-
-func test(int c) -> int{
-    if c != 0 {
-        test(c-1);
-    }
-    !dn(c);    
+func f() -> int {
+    return 2;
 }
 
-test(10);
+int elt = 8*35-f()+(7*7);
 
-!dn(c);
+
+!dn(elt);
 
 !exit(0);
