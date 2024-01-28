@@ -161,7 +161,8 @@ pub mod hammer{
         }
 
         fn replace_txt(&mut self, txt1: &str, txt2: &str) {
-            *self.txt_stack.val_mut() = self.txt_stack.val_mut().replace(txt1, txt2); 
+            let new_txt = self.txt_stack.val_mut().replace(txt1, txt2);
+            self.txt_stack.change_top(new_txt); 
         }
 
         fn get_ln(&self) -> usize {
@@ -402,7 +403,7 @@ pub mod hammer{
         fn inc_ln(&mut self, x: usize) {
             self.top_prog_mut().inc_ln(x)
         }
-
+        
         pub fn var_exists(&self, name: &str) -> bool{
             self.defined_var_list.contains_key(name)
         }
@@ -509,10 +510,9 @@ pub mod hammer{
                 hammer.inst().remove(0);
                 hammer.jump_out();
             } else if hammer.inst().contains("{") {
-                let mut split_inst: Vec::<String> = hammer.inst().split("{").map(String::from).collect();
-                annalyse_inst_behind_bracket(hammer, split_inst[0].trim().to_string())?;
-                split_inst.remove(0);
-                *hammer.inst() = split_inst.join("{");
+                let mut split_inst: Vec::<String> = split(hammer.inst() as &str, "{");
+                let inst_behind = split_inst.remove(0).trim().to_string();
+                *hammer.inst() = annalyse_inst_behind_bracket(hammer, inst_behind, split_inst.join("{"))?;
             }else{
                 setup_inst(hammer.inst());
                 let inst = hammer.inst().to_string();
@@ -529,13 +529,7 @@ pub mod hammer{
         if line_split.len() != 0{
             match hammer.type_exists(&mut line_split[0]) {
                 Ok(mut type_var) => {
-                    if line_split.len() < 2{
-                        return Err(format!("{} You should initialise a variable.", hammer.error_msg()))
-                    }
-                    let mut split_var: Vec::<&str> = line_split[1].split("[").collect();
-                    hammer.is_valid_name(split_var[0])?;
-                    handle_tab_type_dec(hammer, &mut split_var, &mut type_var)?;
-                    hammer.define_new_var(String::from(split_var[0]), type_var);
+                    dec_new_var(hammer, &line_split, &mut type_var)?;
                     if inst.contains("="){
                         line_split.remove(0);
                         handle_affectation(hammer, line_split.join(" "))?;
@@ -582,7 +576,7 @@ pub mod hammer{
         }
         let mut decal = 0;
         for (i, exp) in split_virg.iter().enumerate() {
-            evaluate_exp(hammer, &build_aff_vec(hammer, exp.to_string(), func.args[i].type_var.stars)?)?;
+            put_res_in_rax(hammer, exp.to_string(), func.args[i].type_var.stars)?;
             let size_def = &hammer.size[&(func.args[i].type_var.size as u32)];
             hammer.push_txt(&format!("mov {}[_stack + r15 + {} + {}], {}\n", size_def.long, hammer.stack_index, decal, size_def.register));
             decal += func.args[i].type_var.size;
@@ -611,7 +605,7 @@ pub mod hammer{
             if arg == ""{
                 break;
             }
-            args.push(build_aff_vec(hammer, String::from(arg), 0)?);
+            args.push(build_aff_vec(hammer, String::from(arg), MAX_STARS+1)?);
         }
         let nb_arg_expected = hammer.macro_list[&name];
         if args.len() != nb_arg_expected as usize{
@@ -642,8 +636,7 @@ pub mod hammer{
             let struct_addr = Token{val: addr as i32, func_dec: None, squares: Some(tab_vec), nb_stars: nb_stars, interp: Interp::Variable};
             let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?;
             hammer.push_txt("push rax\n");
-            evaluate_exp(hammer, &build_aff_vec(hammer, right_exp, stars_in_left_var as u32)?)?;
-
+            put_res_in_rax(hammer, right_exp, stars_in_left_var as u32)?;
             if stars_in_left_var != 0 {
                 hammer.push_txt("pop rbx\nmov dword[_stack + rbx], eax\n");
             }else{
@@ -683,22 +676,75 @@ pub mod hammer{
         *inst = inst.trim().to_string();
     }
 
-    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: String) -> Result<(), String> {
+    fn annalyse_inst_behind_bracket(hammer: &mut Hammer, inst: String, rest_of_inst: String) -> Result<String, String> {
         let first_word = inst.split(" ").next().unwrap();
         if hammer.keyword_exists(first_word) {
-            return hammer.keyword_list[first_word](hammer, &String::from(&inst[first_word.len()..inst.len()]).trim().to_string()) // We call the keyword function with the rest of the line in parameter
+            hammer.keyword_list[first_word](hammer, &String::from(&inst[first_word.len()..inst.len()]).trim().to_string())?; // We call the keyword function with the rest of the line in parameter
         }else if inst == "" {
             jump_in(hammer, String::from(""));
-        }else{
-            return Err(format!("{} Syntax error.", hammer.error_msg()));
+        }else if inst.ends_with("="){
+            direct_dec_tab(hammer, inst, rest_of_inst)?;         
+            return Ok(String::new())   
+        }else {
+            return Err(format!("{} Syntax error, we found {} behind brackets.", hammer.error_msg(), inst))
+        }
+        Ok(rest_of_inst)
+    }
+
+
+    fn direct_dec_tab(hammer: &mut Hammer, inst: String, rest_of_inst: String) -> Result<(), String> {
+        let mut inst_split: Vec<String> = split(&inst, " ");
+        match hammer.type_exists(&mut inst_split[0]) {
+            Ok(mut type_var) => {
+                let data_square = dec_new_var(hammer, &inst_split, &mut type_var)?;
+                let s = type_var.size;
+                let mut arrays: Vec<String> = split(&rest_of_inst, "{");
+                let mut i = 0;
+                for arr in arrays.iter_mut(){
+                    *arr = arr.trim().to_string();
+                    if arr != ""{
+                        if arr.pop() != Some('}') && arr.pop() != Some('}') {
+                            return Err(format!("{} You forgot to close a bracket.", hammer.error_msg()));
+                        }
+                        while arr.chars().last() == Some('}') || arr.chars().last() == Some(' '){
+                            arr.pop();
+                        }
+                        let val_vec: Vec<&str> = arr.split(",").collect();
+                        if val_vec.len() > data_square.0 as usize {
+                            return Err(format!("{} You put {} values between bracket when {} at maximum was attempt.", hammer.error_msg(), val_vec.len(), data_square.0));
+                        }
+                        for j in 0..val_vec.len() as u32{
+                            put_res_in_rax(hammer, val_vec[j as usize].trim().to_string(), type_var.stars)?;
+                            hammer.push_txt(&format!("mov {}[_stack + r15 + {} + {} + {}], {}\n", hammer.size[&type_var.size].long, i*s*data_square.0, data_square.1, s*j, hammer.size[&s].register));
+                        }
+                        i += 1;
+                    }
+                }
+            }   
+            _ => return Err(format!("{} Syntax error, we found {} behind brackets.", hammer.error_msg(), inst))
         }
         Ok(())
     }
 
-    fn handle_tab_type_dec(hammer: &mut Hammer, var: &mut Vec<&str>, type_var: &mut Type) -> Result<(), String> {
+    fn dec_new_var(hammer: &mut Hammer, inst_split: &Vec<String>, type_var: &mut Type) -> Result<(u32, u32), String> {
+        if inst_split.len() < 2{
+            return Err(format!("{} You should initialise a variable.", hammer.error_msg()))
+        }
+        let mut split_var: Vec::<&str> = inst_split[1].split("[").collect();
+        hammer.is_valid_name(split_var[0])?;
+        let data_square = handle_tab_type_dec(hammer, &mut split_var, type_var)?;
+        hammer.define_new_var(String::from(split_var[0]), type_var.clone());
+        Ok(data_square)
+    }
+
+    fn put_res_in_rax(hammer: &mut Hammer, exp: String, nb_stars_await: u32) -> Result<(), String> {
+        evaluate_exp(hammer, &build_aff_vec(hammer, exp, nb_stars_await)?)
+    }
+
+    fn handle_tab_type_dec(hammer: &mut Hammer, var: &mut Vec<&str>, type_var: &mut Type) -> Result<(u32, u32), String> {
+        let mut previous_data: (u32, u32) = (1, hammer.stack_index);
         if var.len() != 1 {
             let tab_addr = hammer.stack_index;
-            let mut previous_data: (u32, u32) = (1, hammer.stack_index);
             for i in 1..var.len() {
                 if var[i] == "" || var[i].chars().last().unwrap() != ']'{
                     return Err(format!("{} You forgot to close the bracket with '['", hammer.error_msg()))
@@ -717,7 +763,11 @@ pub mod hammer{
                             hammer.push_txt(&format!("mov {}[_stack + r15 + {} + {}*{}], {}\n", hammer.size[&size].long, previous_data.1, size, j, hammer.stack_index));
                             hammer.stack_index += size*tab_size;
                         }
-                        previous_data.0 *= tab_size;
+                        if i != var.len()-1 {
+                            previous_data.0 *= tab_size;
+                        }else{
+                            previous_data.0 = tab_size;
+                        }
                     },
                     Err(_) => return Err(format!("{} You didn't write a correct number between the brackets", hammer.error_msg()))
                 }
@@ -725,7 +775,7 @@ pub mod hammer{
             }
             hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov eax, {}\nmov rcx, r15\nmov dword[_stack + ecx + eax], edx\n", tab_addr, hammer.stack_index));
         }
-        Ok(())
+        Ok(previous_data)
     }
 
 
@@ -1003,7 +1053,7 @@ pub mod hammer{
             return Err(format!("{} You can't use the return keyword outside of a function.", hammer.error_msg()));
         }
         let nb_stars_await = hammer.type_return().as_mut().unwrap().stars;
-        evaluate_exp(hammer, &build_aff_vec(hammer, rest_of_line.to_string(), nb_stars_await)?)?;
+        put_res_in_rax(hammer, rest_of_line.to_string(), nb_stars_await)?;
         hammer.push_txt("ret\n");
         Ok(())
     }
@@ -1022,7 +1072,7 @@ pub mod hammer{
     }
 
     fn if_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String> {
-        evaluate_exp(hammer, &build_aff_vec(hammer, String::from(rest_of_line), MAX_STARS+1)?)?;
+        put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
         hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
         let bloc_index = hammer.blocs_index;
         hammer.cond_index_stack().push(bloc_index);
@@ -1038,7 +1088,7 @@ pub mod hammer{
             end_txt = format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", cond_index, hammer.blocs_index, cond_index);
             let first_word = rest_of_line.split(" ").next().unwrap();
             if first_word == "if"{
-                evaluate_exp(hammer, &build_aff_vec(hammer, String::from(&rest_of_line[2..rest_of_line.len()]), MAX_STARS+1)?)?;
+                put_res_in_rax(hammer, String::from(&rest_of_line[2..rest_of_line.len()]), MAX_STARS+1)?;
                 hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
             } else {
                 return Err(format!("{} We found {} when nothing or the if keyword was attempt.", hammer.error_msg(), first_word))
@@ -1053,7 +1103,7 @@ pub mod hammer{
 
     fn while_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
         new_loop(hammer, hammer.blocs_index);
-        evaluate_exp(hammer, &build_aff_vec(hammer, String::from(rest_of_line), MAX_STARS+1)?)?;
+        put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
         hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index));
         jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
         Ok(())
@@ -1073,7 +1123,7 @@ pub mod hammer{
         new_loop(hammer, hammer.blocs_index - 1);
         handle_instruction(hammer, split_exp[2].to_string())?;
         hammer.push_txt(&format!("_loop_{}_end_start_inst:\n", hammer.blocs_index-1));
-        evaluate_exp(hammer, &build_aff_vec(hammer, split_exp[1].clone(), MAX_STARS+1)?)?;
+        put_res_in_rax(hammer, split_exp[1].clone(), MAX_STARS+1)?;
         hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index-1));
         Ok(())
     }
@@ -1164,6 +1214,4 @@ pub mod hammer{
         }
         Ok(())
     }
-
 }
-

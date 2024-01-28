@@ -45,4 +45,8 @@ impl<T> Stack<T>{
     pub fn size(&self) -> usize{
         self.vec.len()
     }
+
+    pub fn change_top(&mut self, new: T) {
+        *self.val_mut() = new;
+    }
 } 
