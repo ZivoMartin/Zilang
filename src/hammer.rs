@@ -149,19 +149,26 @@ pub mod hammer{
             match tokens.len() {
                 2 => todo!(),
                 _ => {
-                    if self.registers.is_followed(&tokens[2]) {
-                        if self.registers.is_followed(&tokens[1]) {
+                    match self.registers.extract_val(&tokens[2]) {
+                            Some(val) => {
+                            if self.registers.is_followed(&tokens[1]) {
+                                match &tokens[0] as &str{
+                                    "add" => {
+                                        match self.registers.add_val(&tokens[1], val){
+                                            Some(()) => return String::new(),
+                                            _ => return 
+                                        }
 
-                            match &tokens[0] as &str{
-                                "add" => self.registers.set_val(&tokens[1], val),
-                                _ => self.registers.set_val(&tokens[1], val)
+                                    }
+                                    _ => self.registers.set_val(&tokens[1], val)
+                                }
+                                return String::new()
                             }
+                            _ =>
                         }
-                        
                     }
                 }
             }
-               
             inst.push('\n');
             inst
         }
@@ -201,16 +208,37 @@ pub mod hammer{
             res
         }
 
-        pub fn get_val(&self, register: &str) -> &Option<i64> {
-            self.map.get(self.convert.get(register).unwrap()).unwrap()
+        pub fn get_val(&self, register: &str) -> Option<i64> {
+            self.map.get(self.convert.get(register).unwrap()).unwrap().clone()
         }
 
         pub fn set_val(&mut self, register: &str, val: i64) {
             *self.map.get_mut(self.convert.get(register).unwrap()).unwrap() = Some(val);
         }
 
+        pub fn add_val(&mut self, register: &str, val: i64) -> Option<()>{
+            let previous_val = self.map.get(self.convert.get(register).unwrap()).unwrap();
+            match previous_val {
+                Some(prev) => return Some(self.set_val(register, val+prev)),
+                _ => return None
+            }
+        }
+
         pub fn is_followed(&self, register: &str) -> bool {
             self.convert.contains_key(register)
+        }
+
+
+        pub fn extract_val(&self, elt: &str) -> Option<i64> {
+            match str::parse::<i64>(elt) {
+                Ok(res) => Some(res),
+                _ => {
+                    if self.is_followed(elt) {
+                        return self.get_val(elt)
+                    }
+                    None
+                }
+            }
         }
     }
 
