@@ -144,15 +144,27 @@ pub mod hammer{
             }
         }
 
-        pub fn new_inst(&mut self, inst: &String) {
-            let inst_split: Vec<&str> = inst.split(" ").collect();
-            if self.registers.is_followed(inst_split[1]) {
-                if inst_split[0].starts_with("mov") {
-                    
-                }
-            }   
-        }
+        pub fn new_inst(&mut self, inst: String) -> String {
+            let tokens = tokenise_asm_inst(&inst);
+            match tokens.len() {
+                2 => todo!(),
+                _ => {
+                    if self.registers.is_followed(&tokens[2]) {
+                        if self.registers.is_followed(&tokens[1]) {
 
+                            match &tokens[0] as &str{
+                                "add" => self.registers.set_val(&tokens[1], val),
+                                _ => self.registers.set_val(&tokens[1], val)
+                            }
+                        }
+                        
+                    }
+                }
+            }
+               
+            inst.push('\n');
+            inst
+        }
 
         pub fn clean_line(&mut self, txt: &mut String) {
             let mut split_txt: Vec<&str> = txt.split("\n").collect();
@@ -162,6 +174,10 @@ pub mod hammer{
             self.line_to_delete = Vec::new();
         }
     } 
+
+    fn tokenise_asm_inst(inst: &String) -> Vec<String> {
+        todo!()
+    }
 
     struct Registers {
         map: HashMap<&'static str, Option<i64>>,
@@ -656,7 +672,7 @@ pub mod hammer{
         let mut decal = 0;
         for (i, exp) in split_virg.iter().enumerate() {
             put_res_in_rax(hammer, exp.to_string(), func.args[i].type_var.stars)?;
-            hammer.push_txt(&format!("mov [_stack + r15 + {}], {}\n", hammer.stack_index + decal, hammer.size[&func.args[i].type_var.size].register));
+            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", hammer.stack_index + decal, hammer.size[&func.args[i].type_var.size].register));
             decal += func.args[i].type_var.size;
         }
         hammer.push_txt(&format!("push r15\nadd r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name));
@@ -716,9 +732,9 @@ pub mod hammer{
             hammer.push_txt("push rax\n");
             put_res_in_rax(hammer, right_exp, stars_in_left_var as u32)?;
             if stars_in_left_var != 0 {
-                hammer.push_txt("pop rbx\nmov dword[_stack + rbx], eax\n");
+                hammer.push_txt("pop rbx\nmov dword[_stack+ rbx], eax\n");
             }else{
-                hammer.push_txt(&format!("pop rbx\nmov [_stack + rbx], {}\n", hammer.get_size_def(addr).register));
+                hammer.push_txt(&format!("pop rbx\nmov [_stack+ rbx], {}\n", hammer.get_size_def(addr).register));
             }
             
             Ok(())
@@ -792,7 +808,7 @@ pub mod hammer{
                         }
                         for j in 0..val_vec.len() as u32{
                             put_res_in_rax(hammer, val_vec[j as usize].trim().to_string(), type_var.stars)?;
-                            hammer.push_txt(&format!("mov [_stack + r15 + {}], {}\n", i*s*data_square.0 + data_square.1 + s*j, hammer.size[&s].register));
+                            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", i*s*data_square.0 + data_square.1 + s*j, hammer.size[&s].register));
                         }
                         i += 1;
                     }
@@ -837,7 +853,7 @@ pub mod hammer{
                             size = type_var.size as u32;
                         }
                         for j in 0..previous_data.0{
-                            hammer.push_txt(&format!("mov {}[_stack + r15 + {}], {}\n", hammer.size[&size].long, previous_data.1+size*j, hammer.stack_index));
+                            hammer.push_txt(&format!("mov {}[_stack+r15+ {}], {}\n", hammer.size[&size].long, previous_data.1+size*j, hammer.stack_index));
                             hammer.stack_index += size*tab_size;
                         }
                         if i != var.len()-1 {
@@ -850,7 +866,7 @@ pub mod hammer{
                 }
                 previous_data.1 = stack_index;
             }
-            hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov rax, {}\nadd rax, r15\nmov [_stack + rax], edx\n", tab_addr, hammer.stack_index));
+            hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov rax, {}\nadd rax, r15\nmov [_stack+ rax], edx\n", tab_addr, hammer.stack_index));
         }
         Ok(previous_data)
     }
@@ -1035,12 +1051,12 @@ pub mod hammer{
         let mut i = 0;
         for arg in &macro_call.args{
             evaluate_exp(hammer, arg)?;
-            hammer.push_txt(&format!("mov [_stack + r15 + {}], rax\n", hammer.stack_index + i*8));
+            hammer.push_txt(&format!("mov [_stack+r15+ {}], rax\n", hammer.stack_index + i*8));
             i += 1;
         }
         hammer.push_txt(&format!("{} ", macro_call.macro_name));
         for j in 0..i {
-            hammer.push_txt(&format!("[_stack + r15 + {}] ", hammer.stack_index + j*8));
+            hammer.push_txt(&format!("[_stack+r15+ {}] ", hammer.stack_index + j*8));
         }
         hammer.push_txt("\n");
         Ok(())
@@ -1057,9 +1073,9 @@ pub mod hammer{
                         _ => {
                             if stars == 0{
                                 let size_def = hammer.get_size_def(elt.val as u32);
-                                hammer.push_txt(&format!("{} rax, {}[_stack + rax]\npush rax\n", size_def.mov, size_def.long));
+                                hammer.push_txt(&format!("{} rax, {}[_stack+ rax]\npush rax\n", size_def.mov, size_def.long));
                             }else{
-                                hammer.push_txt("movsx rax, dword[_stack + rax]\npush rax\n");
+                                hammer.push_txt("movsx rax, dword[_stack+ rax]\npush rax\n");
                             }
                         }
                     }
