@@ -123,54 +123,54 @@ pub mod hammer{
 
 
     struct Insertion {
-        value: i64,
-        lines: Vec<i32>,
-        register: String
+        value: Option<i64>,
+        line: u32,
     }
 
     struct Tracker{
         registers: Registers,
         stack: Stack<Insertion>,
-        line_to_delete: Vec<i32>
+        line_to_delete: Vec<u32>,
+        inst_map: HashMap::<String, fn (&mut Tracker, Vec<&str>, u32)->Option<String>>,
+        useless_inst: &'static str
     }
 
     impl Tracker {
 
         pub fn new() -> Tracker {
-            Tracker{
+            let mut res = Tracker{
                 registers: Registers::new(),
                 stack: Stack::new(),
-                line_to_delete: Vec::new()
-            }
+                line_to_delete: Vec::new(),
+                inst_map: HashMap::<String, fn (&mut Tracker, Vec<&str>, u32)->Option<String>>::new(),
+                useless_inst: "call ret jg jmp cmp je _deref"
+            };
+            res.init_inst_map();
+            res
+        }   
+
+        fn init_inst_map(&mut self) {
+            self.inst_map.insert(String::from("pop"), Tracker::pop_inst);
+            self.inst_map.insert(String::from("push"), Tracker::push_inst);
+            self.inst_map.insert(String::from("xor"), Tracker::xor_inst);
+            self.inst_map.insert(String::from("mov"), Tracker::memory_action);
+            self.inst_map.insert(String::from("movzx"), Tracker::memory_action);
+            self.inst_map.insert(String::from("movsx"), Tracker::memory_action);
+            self.inst_map.insert(String::from("xor"), Tracker::xor_inst);
+            self.inst_map.insert(String::from("add"), Tracker::memory_action);
+            self.inst_map.insert(String::from("mul"), Tracker::mul_inst);
         }
 
-        pub fn new_inst(&mut self, inst: String) -> String {
-            let tokens = tokenise_asm_inst(&inst);
-            match tokens.len() {
-                2 => todo!(),
-                _ => {
-                    match self.registers.extract_val(&tokens[2]) {
-                            Some(val) => {
-                            if self.registers.is_followed(&tokens[1]) {
-                                match &tokens[0] as &str{
-                                    "add" => {
-                                        match self.registers.add_val(&tokens[1], val){
-                                            Some(()) => return String::new(),
-                                            _ => return 
-                                        }
 
-                                    }
-                                    _ => self.registers.set_val(&tokens[1], val)
-                                }
-                                return String::new()
-                            }
-                            _ =>
-                        }
-                    }
+        pub fn new_inst(&mut self, inst: &str, inst_number: u32) -> String {
+            let tokens = tokenise_asm_inst(inst);
+            if !self.useless_inst.contains(tokens[0]) && tokens.len() > 1{
+                return match self.inst_map.get(tokens[0]).unwrap()(self, tokens, inst_number) {
+                    Some(new_inst) => new_inst,
+                    _ => String::from(inst)
                 }
             }
-            inst.push('\n');
-            inst
+            return String::from(inst)
         }
 
         pub fn clean_line(&mut self, txt: &mut String) {
@@ -180,10 +180,80 @@ pub mod hammer{
             }
             self.line_to_delete = Vec::new();
         }
+
+        fn memory_action(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String> {
+            let opt_val = self.registers.extract_val(&tokens[2]);
+            if opt_val.is_some() {
+                let val = opt_val.unwrap();
+                match tokens[0] as &str{
+                    "add" => {
+                        if !self.registers.add_val(tokens[1], val){
+                            return Some(format!("add {}, {}", tokens[1], val))
+                        }
+                    }
+                    _ => self.registers.set_val(tokens[1], Some(val))
+                }
+                return Some(String::new())
+            }
+            self.registers.set_val(tokens[1], None);
+            return None
+        }
+
+        fn mul_inst(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String> {
+            let val_rax = self.registers.get_val("rax");
+            if val_rax.is_some(){
+                if self.registers.mul_val(tokens[1], val_rax.unwrap()) {
+                    return Some(String::new())
+                }else{
+                    return Some(format!("mov rax, {}\nmul {}", val_rax.unwrap(), tokens[1]))
+                }   
+            }else{
+                let val_token = self.registers.get_val(tokens[1]);
+                if val_token.is_some(){
+                    return Some(format!("mov {}, {}\nmul {}", tokens[1], val_token.unwrap(), tokens[1]))
+                }else{
+                    return None
+                }   
+            }
+        }
+
+        fn push_inst(&mut self, tokens: Vec<&str>, inst_number: u32) -> Option<String> {
+            self.stack.push(Insertion{
+                value: self.registers.get_val(tokens[1]),
+                line: inst_number,
+            });
+            None
+        }
+
+        fn pop_inst(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String> {
+            let last_insert = self.stack.pop();
+            if last_insert.value.is_some(){
+                self.line_to_delete.push(last_insert.line);
+                return Some(String::from(format!("mov {}, {}", tokens[1], last_insert.value.unwrap())));
+            }
+            None
+        }
+
+        fn xor_inst(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String> {
+            self.registers.set_val(tokens[1], Some(0));
+            Some(String::new())
+        }
+
     } 
 
-    fn tokenise_asm_inst(inst: &String) -> Vec<String> {
-        todo!()
+    
+    fn tokenise_asm_inst(inst: &str) -> Vec<&str> {
+        let split_inst: Vec::<&str> = inst.split(" ").collect();
+        match split_inst.len() {
+            4 => {
+                match inst.chars().last().unwrap() {
+                    ']' => return vec!(split_inst[0], &split_inst[1][0..split_inst[1].len()-1], &split_inst[3][0..split_inst[3].len()-1]),
+                    _ => return vec!(split_inst[0], &split_inst[2][0..split_inst[2].len()-2], split_inst[3]),
+                }
+            }
+            3 => return vec!(split_inst[0], &split_inst[1][0..split_inst[1].len()-1], split_inst[2]),
+            _ => return split_inst
+        }
     }
 
     struct Registers {
@@ -209,25 +279,51 @@ pub mod hammer{
         }
 
         pub fn get_val(&self, register: &str) -> Option<i64> {
-            self.map.get(self.convert.get(register).unwrap()).unwrap().clone()
-        }
-
-        pub fn set_val(&mut self, register: &str, val: i64) {
-            *self.map.get_mut(self.convert.get(register).unwrap()).unwrap() = Some(val);
-        }
-
-        pub fn add_val(&mut self, register: &str, val: i64) -> Option<()>{
-            let previous_val = self.map.get(self.convert.get(register).unwrap()).unwrap();
-            match previous_val {
-                Some(prev) => return Some(self.set_val(register, val+prev)),
-                _ => return None
+            if self.is_followed(register){
+                return self.convert(register).clone()
             }
+            None
+        }
+
+        pub fn set_val(&mut self, register: &str, val: Option<i64>) {
+            if self.is_followed(register){
+                *self.convert_mut(register) = val;
+            }
+        }
+
+        pub fn add_val(&mut self, register: &str, val: i64) -> bool{
+            if self.is_followed(register){
+                let previous_val = self.convert(register);
+                if previous_val.is_some(){
+                    self.set_val(register, Some(val+previous_val.unwrap()));
+                    return true
+                }
+            }
+            return false
+        }
+
+        pub fn mul_val(&mut self, register: &str, val: i64) -> bool{
+            if self.is_followed(register){
+                let previous_val = self.convert(register);
+                if previous_val.is_some(){
+                    self.set_val(register, Some(val*previous_val.unwrap()));
+                    return true
+                }
+            }
+            return false
+        }
+
+        fn convert(&self, register: &str) -> &Option<i64> {
+            self.map.get(self.convert.get(register).unwrap()).unwrap()
+        }
+
+        fn convert_mut(&mut self, register: &str) -> &mut Option<i64> {
+            self.map.get_mut(self.convert.get(register).unwrap()).unwrap()
         }
 
         pub fn is_followed(&self, register: &str) -> bool {
             self.convert.contains_key(register)
         }
-
 
         pub fn extract_val(&self, elt: &str) -> Option<i64> {
             match str::parse::<i64>(elt) {
@@ -245,12 +341,12 @@ pub mod hammer{
     struct Program {
         inst_vec: Vec<String>,
         txt_stack: Stack<String>,
+        len_stack: Stack<u32>,
         loop_index_stack: Stack<u32>,
         cond_index_stack: Stack<u32>,
         type_return: Option<Type>,
         line_number_stack: Stack<(usize, usize)>,
         prog_name: String,
-        tracker: Tracker
     }
 
     impl Program {
@@ -258,12 +354,12 @@ pub mod hammer{
             Program {
                 inst_vec: split(&txt, ";"),
                 txt_stack: Stack::init(String::new()),
+                len_stack: Stack::init(0),
                 loop_index_stack: Stack::new(),
                 cond_index_stack: Stack::new(),
                 type_return: None,
                 line_number_stack: Stack::init((1, 0)),
                 prog_name: prog_name,
-                tracker: Tracker::new()
             }
         }
 
@@ -280,6 +376,21 @@ pub mod hammer{
 
         fn push_txt(&mut self, txt: &str) {   
             self.txt_stack.val_mut().push_str(txt);
+            *self.len_stack.val_mut() += txt.matches('\n').count() as u32;
+        }
+
+        pub fn get_len_txt(&self) -> u32 {
+            *self.len_stack.val()
+        }
+
+        pub fn pop_current_txt(&mut self) -> String {
+            self.len_stack.pop();
+            self.txt_stack.pop()
+        }
+
+        pub fn new_txt_on_stack(&mut self) {
+            self.txt_stack.push(String::new());
+            self.len_stack.push(0);
         }
 
         fn replace_txt(&mut self, txt1: &str, txt2: &str) {
@@ -319,9 +430,10 @@ pub mod hammer{
         blocs_index: u32,
         prog_stack: Stack<Program>,
         file_compiled: Vec<String>,
+        tracker: Tracker
     }
 
-    impl<'a> Hammer{
+    impl Hammer{
         pub fn new(prog_name: String, txt: String)->Hammer{
             let mut res = Hammer{
                 tools: Tools::new(),
@@ -338,6 +450,7 @@ pub mod hammer{
                 blocs_index: 1,
                 prog_stack: Stack::init(Program::new(prog_name, txt)),
                 file_compiled: Vec::new(),
+                tracker: Tracker::new()
             };
             res.init_asm_file();
             res.init_size();
@@ -465,13 +578,24 @@ pub mod hammer{
             self.top_prog_mut().inst()
         }
 
-        fn push_txt(&mut self, txt: &str) {   
-            self.top_prog_mut().push_txt(txt);
+        fn push_txt(&mut self, txt: &str, opt: bool) {   
+            if opt {
+                let len = self.top_prog().get_len_txt();
+                let mut i: i32 = 0;
+                for inst in txt.split("\n") {
+                    let mut optimise_inst = self.tracker.new_inst(inst, len + i as u32);
+                    if optimise_inst != "" {
+                        optimise_inst.push('\n');
+                        self.top_prog_mut().push_txt(&optimise_inst);
+                        i += 1;
+                    }
+                 }
+            }else{
+                self.top_prog_mut().push_txt(txt);
+            }   
+            
         }
 
-        fn replace_txt(&mut self, txt1: &str, txt2: &str) {
-            self.top_prog_mut().replace_txt(txt1, txt2)
-        }
 
         fn define_new_function(&mut self, name: String, args: Vec::<VariableDefinition>, return_type: Type) -> Result<(), String> {
             if self.func_exists(&name) {
@@ -484,7 +608,7 @@ pub mod hammer{
         }
 
         fn pop_current_txt(&mut self) -> String {
-            self.top_prog_mut().txt_stack.pop()
+            self.top_prog_mut().pop_current_txt()
         }
 
         fn func_exists(&self, name: &str) -> bool {
@@ -507,8 +631,12 @@ pub mod hammer{
         }
         
         fn push_txt_in_file(&mut self, file_name: &str, txt: &mut String) {
-            self.top_prog_mut().tracker.clean_line(txt);
+            self.tracker.clean_line(txt);
             self.asm_files.get_mut(file_name).unwrap().push(txt);
+        }
+
+        fn replace_txt(&mut self, txt1: &str, txt2: &str) {
+            self.top_prog_mut().replace_txt(txt1, txt2)
         }
 
         fn get_ln(&self) -> usize {
@@ -558,6 +686,11 @@ pub mod hammer{
         pub fn get_var_def(&self, addr: u32) -> &VariableDefinition {
             &self.addr_list[&addr].val()
         }
+
+        pub fn new_txt_on_stack(&mut self) {
+            self.top_prog_mut().new_txt_on_stack();
+        }
+
 
         pub fn define_new_var(&mut self, name: String, type_var: Type){
             let addr = self.stack_index;
@@ -700,10 +833,10 @@ pub mod hammer{
         let mut decal = 0;
         for (i, exp) in split_virg.iter().enumerate() {
             put_res_in_rax(hammer, exp.to_string(), func.args[i].type_var.stars)?;
-            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", hammer.stack_index + decal, hammer.size[&func.args[i].type_var.size].register));
+            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", hammer.stack_index + decal, hammer.size[&func.args[i].type_var.size].register), true);
             decal += func.args[i].type_var.size;
         }
-        hammer.push_txt(&format!("push r15\nadd r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name));
+        hammer.push_txt(&format!("push r15\nadd r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name), true);
         Ok(())
     }
 
@@ -757,12 +890,12 @@ pub mod hammer{
             let addr = hammer.get_addr(&var1);
             let struct_addr = Token{val: addr as i32, func_dec: None, squares: Some(tab_vec), nb_stars: nb_stars, interp: Interp::Variable};
             let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?;
-            hammer.push_txt("push rax\n");
+            hammer.push_txt("push rax\n", true);
             put_res_in_rax(hammer, right_exp, stars_in_left_var as u32)?;
             if stars_in_left_var != 0 {
-                hammer.push_txt("pop rbx\nmov dword[_stack+ rbx], eax\n");
+                hammer.push_txt("pop rbx\nmov dword[_stack+ rbx], eax\n", true);
             }else{
-                hammer.push_txt(&format!("pop rbx\nmov [_stack+ rbx], {}\n", hammer.get_size_def(addr).register));
+                hammer.push_txt(&format!("pop rbx\nmov [_stack+ rbx], {}\n", hammer.get_size_def(addr).register), true);
             }
             
             Ok(())
@@ -836,7 +969,7 @@ pub mod hammer{
                         }
                         for j in 0..val_vec.len() as u32{
                             put_res_in_rax(hammer, val_vec[j as usize].trim().to_string(), type_var.stars)?;
-                            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", i*s*data_square.0 + data_square.1 + s*j, hammer.size[&s].register));
+                            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", i*s*data_square.0 + data_square.1 + s*j, hammer.size[&s].register), false);
                         }
                         i += 1;
                     }
@@ -881,7 +1014,7 @@ pub mod hammer{
                             size = type_var.size as u32;
                         }
                         for j in 0..previous_data.0{
-                            hammer.push_txt(&format!("mov {}[_stack+r15+ {}], {}\n", hammer.size[&size].long, previous_data.1+size*j, hammer.stack_index));
+                            hammer.push_txt(&format!("mov {}[_stack+r15+ {}], {}\n", hammer.size[&size].long, previous_data.1+size*j, hammer.stack_index), false);
                             hammer.stack_index += size*tab_size;
                         }
                         if i != var.len()-1 {
@@ -894,7 +1027,7 @@ pub mod hammer{
                 }
                 previous_data.1 = stack_index;
             }
-            hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov rax, {}\nadd rax, r15\nmov [_stack+ rax], edx\n", tab_addr, hammer.stack_index));
+            hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov rax, {}\nadd rax, r15\nmov [_stack+ rax], edx\n", tab_addr, hammer.stack_index), true);
         }
         Ok(previous_data)
     }
@@ -1079,63 +1212,61 @@ pub mod hammer{
         let mut i = 0;
         for arg in &macro_call.args{
             evaluate_exp(hammer, arg)?;
-            hammer.push_txt(&format!("mov [_stack+r15+ {}], rax\n", hammer.stack_index + i*8));
+            hammer.push_txt(&format!("mov [_stack+r15+ {}], rax\n", hammer.stack_index + i*8), true);
             i += 1;
         }
-        hammer.push_txt(&format!("{} ", macro_call.macro_name));
+        hammer.push_txt(&format!("{} ", macro_call.macro_name), false);
         for j in 0..i {
-            hammer.push_txt(&format!("[_stack+r15+ {}] ", hammer.stack_index + j*8));
+            hammer.push_txt(&format!("[_stack+r15+ {}] ", hammer.stack_index + j*8), false);
         }
-        hammer.push_txt("\n");
+        hammer.push_txt("\n", false);
         Ok(())
     }
 
     fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<Token>) -> Result<(), String>{
         for elt in exp{
             match elt.interp {
-                Interp::Operator => hammer.push_txt(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.val)),
+                Interp::Operator => hammer.push_txt(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.val), true),
                 Interp::Variable => {
                     let stars = handle_variable_dereference(hammer, &elt)?;
                     match elt.nb_stars{
-                        -1 => hammer.push_txt(&format!("push rax\n")),
+                        -1 => hammer.push_txt(&format!("push rax\n"), true),
                         _ => {
                             if stars == 0{
                                 let size_def = hammer.get_size_def(elt.val as u32);
-                                hammer.push_txt(&format!("{} rax, {}[_stack+ rax]\npush rax\n", size_def.mov, size_def.long));
+                                hammer.push_txt(&format!("{} rax, {}[_stack+ rax]\npush rax\n", size_def.mov, size_def.long), true);
                             }else{
-                                hammer.push_txt("movsx rax, dword[_stack+ rax]\npush rax\n");
+                                hammer.push_txt("movsx rax, dword[_stack+ rax]\npush rax\n", true);
                             }
                         }
                     }
                 }
-                Interp::Value => hammer.push_txt(&format!("mov rax, {}\npush rax\n", elt.val)),
+                Interp::Value => hammer.push_txt(&format!("mov rax, {}\npush rax\n", elt.val), true),
                 Interp::Function => {
                     handle_func_call(hammer, elt.func_dec.as_ref().unwrap().to_string())?;
-                    hammer.push_txt("push rax\n");
+                    hammer.push_txt("push rax\n", true);
                 }
             }
             
         }
-        hammer.push_txt("pop rax\n");
-        hammer.replace_txt("push rax\npop rax\n", "");
-        hammer.replace_txt("push rax\npop r11\n", "mov r11, rax\n");
+        hammer.push_txt("pop rax\n", true);
         Ok(())
     }
     
     fn handle_variable_dereference(hammer: &mut Hammer, var: &Token) -> Result<u32, String> {
         let var_def = hammer.get_var_def_i32(var.val).clone();
         let mut stars = var_def.type_var.stars as i32 - var.nb_stars;
-        hammer.push_txt(&format!("mov rbx, {}\nadd rbx, r15\n", var.val));
+        hammer.push_txt(&format!("mov rbx, {}\nadd rbx, r15\n", var.val), true);
         for vec in var.squares.as_ref().unwrap().iter() {
-            hammer.push_txt("push rbx\n");
+            hammer.push_txt("push rbx\n", true);
             evaluate_exp(hammer, vec)?;
-            hammer.push_txt("pop rbx\n_deref 1\nmov rcx, 4\nmul rcx\nadd rbx, rax\n");
+            hammer.push_txt("pop rbx\n_deref 1\nmov rcx, 4\nmul rcx\nadd rbx, rax\n", true);
             stars -= 1
         }
         if var.nb_stars > 0 {
-            hammer.push_txt(&format!("\n_deref {}\n", var.nb_stars));
+            hammer.push_txt(&format!("\n_deref {}\n", var.nb_stars), false);
         }
-        hammer.push_txt("mov rax, rbx\n");
+        hammer.push_txt("mov rax, rbx\n", true);
         if stars < 0 {
             return Err(format!("{} You tried to dereference the variable {} {} times but you only have the right to dereference it {} times", hammer.error_msg(), var_def.name, var_def.type_var.stars as i32 - stars, var_def.type_var.stars));
         }
@@ -1144,7 +1275,7 @@ pub mod hammer{
     }
 
     fn is_valid_address(hammer: &mut Hammer) {
-        hammer.push_txt(&format!("mov rdx, r15\nadd rdx, {}\ncmp rax, rdx\njg _invalid_address\n", hammer.stack_index));
+        hammer.push_txt(&format!("mov rdx, r15\nadd rdx, {}\ncmp rax, rdx\njg _invalid_address\n", hammer.stack_index), true);
     }
     
     fn break_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
@@ -1153,7 +1284,7 @@ pub mod hammer{
             return Err(format!("{} You can't use the break keyword outside of a loop bloc.", hammer.error_msg()));
         }
         let loop_index = *hammer.loop_index_stack().val();
-        hammer.push_txt(&format!("jmp _end_loop_{}\n", loop_index));
+        hammer.push_txt(&format!("jmp _end_loop_{}\n", loop_index), false);
         Ok(())
     }
 
@@ -1163,7 +1294,7 @@ pub mod hammer{
             return Err(format!("{} You can't use the continue keyword outside of a loop bloc.", hammer.error_msg()));
         }
         let loop_index = *hammer.loop_index_stack().val();
-        hammer.push_txt(&format!("jmp _loop_{}\n", loop_index));
+        hammer.push_txt(&format!("jmp _loop_{}\n", loop_index), false);
         Ok(())
     }
 
@@ -1173,7 +1304,7 @@ pub mod hammer{
         }
         let nb_stars_await = hammer.type_return().as_mut().unwrap().stars;
         put_res_in_rax(hammer, rest_of_line.to_string(), nb_stars_await)?;
-        hammer.push_txt("ret\n");
+        hammer.push_txt("ret\n", false);
         Ok(())
     }
 
@@ -1192,7 +1323,7 @@ pub mod hammer{
 
     fn if_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String> {
         put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
-        hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
+        hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), true);
         let bloc_index = hammer.blocs_index;
         hammer.cond_index_stack().push(bloc_index);
         jump_in(hammer, format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index));
@@ -1208,7 +1339,7 @@ pub mod hammer{
             let first_word = rest_of_line.split(" ").next().unwrap();
             if first_word == "if"{
                 put_res_in_rax(hammer, String::from(&rest_of_line[2..rest_of_line.len()]), MAX_STARS+1)?;
-                hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index));
+                hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), true);
             } else {
                 return Err(format!("{} We found {} when nothing or the if keyword was attempt.", hammer.error_msg(), first_word))
             }
@@ -1223,7 +1354,7 @@ pub mod hammer{
     fn while_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
         new_loop(hammer, hammer.blocs_index);
         put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
-        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index));
+        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index), true);
         jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
         Ok(())
     }
@@ -1238,17 +1369,17 @@ pub mod hammer{
 
         jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
         handle_instruction(hammer, split_exp[0].clone())?;
-        hammer.push_txt(&format!("jmp _loop_{}_end_start_inst\n", hammer.blocs_index-1));
+        hammer.push_txt(&format!("jmp _loop_{}_end_start_inst\n", hammer.blocs_index-1), false);
         new_loop(hammer, hammer.blocs_index - 1);
         handle_instruction(hammer, split_exp[2].to_string())?;
-        hammer.push_txt(&format!("_loop_{}_end_start_inst:\n", hammer.blocs_index-1));
+        hammer.push_txt(&format!("_loop_{}_end_start_inst:\n", hammer.blocs_index-1), false);
         put_res_in_rax(hammer, split_exp[1].clone(), MAX_STARS+1)?;
-        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index-1));
+        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index-1), true);
         Ok(())
     }
 
     fn new_loop(hammer: &mut Hammer, loop_index: u32) {
-        hammer.push_txt(&format!("_loop_{}:\n", loop_index));
+        hammer.push_txt(&format!("_loop_{}:\n", loop_index), false);
         hammer.loop_index_stack().push(loop_index);
     }
 
@@ -1258,7 +1389,7 @@ pub mod hammer{
     }
 
     fn end_of_bloc(hammer: &mut Hammer, end_txt: String) {
-        hammer.push_txt(&end_txt);
+        hammer.push_txt(&end_txt, true);
     }
 
     fn end_of_func(hammer: &mut Hammer, func_name: String) {
@@ -1303,7 +1434,7 @@ pub mod hammer{
         if split_arrow.len() != 2 || split_arrow[0].trim().to_string() != "" {
             return Err(format!("{} Incorrect type return definition for the function {}.", hammer.error_msg(), func_name));
         }
-        hammer.txt_stack().push(String::new());
+        hammer.new_txt_on_stack();
         hammer.jumps_stack.push(Jump::new(hammer.stack_index, (end_of_func, String::from(func_name)), hammer.blocs_index));
         hammer.stack_index = 0;
         hammer.blocs_index += 1;
@@ -1319,9 +1450,9 @@ pub mod hammer{
             if file_exists(file) {
                 if !hammer.file_compiled.contains(file){
                     hammer.file_compiled.push(file.to_string());
-                    let mut txt = hammer.top_prog_mut().txt_stack.pop();
+                    let mut txt = hammer.pop_current_txt();
                     hammer.push_txt_in_file("script", &mut txt);
-                    hammer.top_prog_mut().txt_stack.push(String::new());
+                    hammer.new_txt_on_stack();
                     let mut imported_file = TextFile::new(file.to_string())?;
                     hammer.compile_new_prog(file.to_string(), imported_file.get_text())?;
                 }
