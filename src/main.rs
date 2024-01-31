@@ -9,11 +9,20 @@ use std::process::{Command, exit};
 fn main() -> Result<(), String> {
     let mut args: Vec<String> = env::args().collect();
     args.remove(0);
-    match args.len() == 3{
-        true => {
+    match args.len(){
+        3 => {
             let operation = args.remove(1);
             if operation == String::from("-o") {
-                    compile(&args[0], &args[1])?;
+                    compile(&args[0], &args[1], false)?;
+            }else{  
+                return Err(format!("{} is unknow in second argument", operation));
+            }
+        },
+        4 => {
+            let debug = args.remove(1) == "-g";
+            let operation = args.remove(1);
+            if operation == String::from("-o") {
+                    compile(&args[0], &args[1], debug)?;
             }else{  
                 return Err(format!("{} is unknow in second argument", operation));
             }
@@ -24,12 +33,12 @@ fn main() -> Result<(), String> {
 }
 
 
-fn compile(input: &str, output: &str) -> Result<(), String>{
+fn compile(input: &str, output: &str, debug: bool) -> Result<(), String>{
     if !file_exists(&input){
         return Err(format!("File {} don't exist.", input));
     }
     let mut input_file = TextFile::new(String::from(input))?; 
-    compile_txt(input.to_string(), String::from(input_file.get_text()))?;
+    compile_txt(input.to_string(), String::from(input_file.get_text()), debug)?;
     compile_asm_to_executable("asm/script.asm", output);
     Ok(())
 }
