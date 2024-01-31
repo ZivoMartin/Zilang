@@ -1,9 +1,6 @@
 
-func f() -> int {
-    return 2;
-}
 
-int elt = 8*35-f()+(7*7);
+int elt = 2;
 
 
 !dn(elt);

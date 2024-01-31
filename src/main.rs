@@ -4,6 +4,7 @@ use tools::tools::{file_exists, TextFile};
 mod tools;
 mod hammer;
 mod stack;
+mod tracker;
 use std::process::{Command, exit};
 
 fn main() -> Result<(), String> {
