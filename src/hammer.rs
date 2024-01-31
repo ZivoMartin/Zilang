@@ -430,11 +430,12 @@ pub mod hammer{
         blocs_index: u32,
         prog_stack: Stack<Program>,
         file_compiled: Vec<String>,
-        tracker: Tracker
+        tracker: Tracker, 
+        debug: bool
     }
 
     impl Hammer{
-        pub fn new(prog_name: String, txt: String)->Hammer{
+        pub fn new(prog_name: String, txt: String, debug: bool)->Hammer{
             let mut res = Hammer{
                 tools: Tools::new(),
                 asm_files: HashMap::<&'static str, TextFile>::new(),
@@ -450,7 +451,8 @@ pub mod hammer{
                 blocs_index: 1,
                 prog_stack: Stack::init(Program::new(prog_name, txt)),
                 file_compiled: Vec::new(),
-                tracker: Tracker::new()
+                tracker: Tracker::new(),
+                debug: debug
             };
             res.init_asm_file();
             res.init_size();
@@ -751,8 +753,8 @@ pub mod hammer{
 
     }
 
-    pub fn compile_txt(prog_name: String, input: String) -> Result<(), String>{
-        let mut hammer: Hammer = Hammer::new(prog_name, input);
+    pub fn compile_txt(prog_name: String, input: String, debug: bool) -> Result<(), String>{
+        let mut hammer: Hammer = Hammer::new(prog_name, input, debug);
         instruct_loop(&mut hammer)?;
         Ok(())
     }
@@ -833,10 +835,10 @@ pub mod hammer{
         let mut decal = 0;
         for (i, exp) in split_virg.iter().enumerate() {
             put_res_in_rax(hammer, exp.to_string(), func.args[i].type_var.stars)?;
-            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", hammer.stack_index + decal, hammer.size[&func.args[i].type_var.size].register), true);
+            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", hammer.stack_index + decal, hammer.size[&func.args[i].type_var.size].register), !hammer.debug);
             decal += func.args[i].type_var.size;
         }
-        hammer.push_txt(&format!("push r15\nadd r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name), true);
+        hammer.push_txt(&format!("push r15\nadd r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name), !hammer.debug);
         Ok(())
     }
 
@@ -890,12 +892,12 @@ pub mod hammer{
             let addr = hammer.get_addr(&var1);
             let struct_addr = Token{val: addr as i32, func_dec: None, squares: Some(tab_vec), nb_stars: nb_stars, interp: Interp::Variable};
             let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?;
-            hammer.push_txt("push rax\n", true);
+            hammer.push_txt("push rax\n", !hammer.debug);
             put_res_in_rax(hammer, right_exp, stars_in_left_var as u32)?;
             if stars_in_left_var != 0 {
-                hammer.push_txt("pop rbx\nmov dword[_stack+ rbx], eax\n", true);
+                hammer.push_txt("pop rbx\nmov dword[_stack+ rbx], eax\n", !hammer.debug);
             }else{
-                hammer.push_txt(&format!("pop rbx\nmov [_stack+ rbx], {}\n", hammer.get_size_def(addr).register), true);
+                hammer.push_txt(&format!("pop rbx\nmov [_stack+ rbx], {}\n", hammer.get_size_def(addr).register), !hammer.debug);
             }
             
             Ok(())
@@ -1027,7 +1029,7 @@ pub mod hammer{
                 }
                 previous_data.1 = stack_index;
             }
-            hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov rax, {}\nadd rax, r15\nmov [_stack+ rax], edx\n", tab_addr, hammer.stack_index), true);
+            hammer.push_txt(&format!("mov rdx, {}\nadd rdx, r15\nmov rax, {}\nadd rax, r15\nmov [_stack+ rax], edx\n", tab_addr, hammer.stack_index), !hammer.debug);
         }
         Ok(previous_data)
     }
@@ -1212,7 +1214,7 @@ pub mod hammer{
         let mut i = 0;
         for arg in &macro_call.args{
             evaluate_exp(hammer, arg)?;
-            hammer.push_txt(&format!("mov [_stack+r15+ {}], rax\n", hammer.stack_index + i*8), true);
+            hammer.push_txt(&format!("mov [_stack+r15+ {}], rax\n", hammer.stack_index + i*8), !hammer.debug);
             i += 1;
         }
         hammer.push_txt(&format!("{} ", macro_call.macro_name), false);
@@ -1226,47 +1228,47 @@ pub mod hammer{
     fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<Token>) -> Result<(), String>{
         for elt in exp{
             match elt.interp {
-                Interp::Operator => hammer.push_txt(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.val), true),
+                Interp::Operator => hammer.push_txt(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.val), !hammer.debug),
                 Interp::Variable => {
                     let stars = handle_variable_dereference(hammer, &elt)?;
                     match elt.nb_stars{
-                        -1 => hammer.push_txt(&format!("push rax\n"), true),
+                        -1 => hammer.push_txt(&format!("push rax\n"), !hammer.debug),
                         _ => {
                             if stars == 0{
                                 let size_def = hammer.get_size_def(elt.val as u32);
-                                hammer.push_txt(&format!("{} rax, {}[_stack+ rax]\npush rax\n", size_def.mov, size_def.long), true);
+                                hammer.push_txt(&format!("{} rax, {}[_stack+ rax]\npush rax\n", size_def.mov, size_def.long), !hammer.debug);
                             }else{
-                                hammer.push_txt("movsx rax, dword[_stack+ rax]\npush rax\n", true);
+                                hammer.push_txt("movsx rax, dword[_stack+ rax]\npush rax\n", !hammer.debug);
                             }
                         }
                     }
                 }
-                Interp::Value => hammer.push_txt(&format!("mov rax, {}\npush rax\n", elt.val), true),
+                Interp::Value => hammer.push_txt(&format!("mov rax, {}\npush rax\n", elt.val), !hammer.debug),
                 Interp::Function => {
                     handle_func_call(hammer, elt.func_dec.as_ref().unwrap().to_string())?;
-                    hammer.push_txt("push rax\n", true);
+                    hammer.push_txt("push rax\n", !hammer.debug);
                 }
             }
             
         }
-        hammer.push_txt("pop rax\n", true);
+        hammer.push_txt("pop rax\n", !hammer.debug);
         Ok(())
     }
     
     fn handle_variable_dereference(hammer: &mut Hammer, var: &Token) -> Result<u32, String> {
         let var_def = hammer.get_var_def_i32(var.val).clone();
         let mut stars = var_def.type_var.stars as i32 - var.nb_stars;
-        hammer.push_txt(&format!("mov rbx, {}\nadd rbx, r15\n", var.val), true);
+        hammer.push_txt(&format!("mov rbx, {}\nadd rbx, r15\n", var.val), !hammer.debug);
         for vec in var.squares.as_ref().unwrap().iter() {
             hammer.push_txt("push rbx\n", true);
             evaluate_exp(hammer, vec)?;
-            hammer.push_txt("pop rbx\n_deref 1\nmov rcx, 4\nmul rcx\nadd rbx, rax\n", true);
+            hammer.push_txt("pop rbx\n_deref 1\nmov rcx, 4\nmul rcx\nadd rbx, rax\n", !hammer.debug);
             stars -= 1
         }
         if var.nb_stars > 0 {
-            hammer.push_txt(&format!("\n_deref {}\n", var.nb_stars), false);
+            hammer.push_txt(&format!("\n_deref {}\n", var.nb_stars), !hammer.debug);
         }
-        hammer.push_txt("mov rax, rbx\n", true);
+        hammer.push_txt("mov rax, rbx\n", !hammer.debug);
         if stars < 0 {
             return Err(format!("{} You tried to dereference the variable {} {} times but you only have the right to dereference it {} times", hammer.error_msg(), var_def.name, var_def.type_var.stars as i32 - stars, var_def.type_var.stars));
         }
@@ -1275,7 +1277,7 @@ pub mod hammer{
     }
 
     fn is_valid_address(hammer: &mut Hammer) {
-        hammer.push_txt(&format!("mov rdx, r15\nadd rdx, {}\ncmp rax, rdx\njg _invalid_address\n", hammer.stack_index), true);
+        hammer.push_txt(&format!("mov rdx, r15\nadd rdx, {}\ncmp rax, rdx\njg _invalid_address\n", hammer.stack_index), !hammer.debug);
     }
     
     fn break_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
@@ -1323,7 +1325,7 @@ pub mod hammer{
 
     fn if_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String> {
         put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
-        hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), true);
+        hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), !hammer.debug);
         let bloc_index = hammer.blocs_index;
         hammer.cond_index_stack().push(bloc_index);
         jump_in(hammer, format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index));
@@ -1339,7 +1341,7 @@ pub mod hammer{
             let first_word = rest_of_line.split(" ").next().unwrap();
             if first_word == "if"{
                 put_res_in_rax(hammer, String::from(&rest_of_line[2..rest_of_line.len()]), MAX_STARS+1)?;
-                hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), true);
+                hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), !hammer.debug);
             } else {
                 return Err(format!("{} We found {} when nothing or the if keyword was attempt.", hammer.error_msg(), first_word))
             }
@@ -1354,7 +1356,7 @@ pub mod hammer{
     fn while_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
         new_loop(hammer, hammer.blocs_index);
         put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
-        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index), true);
+        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index), !hammer.debug);
         jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
         Ok(())
     }
@@ -1374,7 +1376,7 @@ pub mod hammer{
         handle_instruction(hammer, split_exp[2].to_string())?;
         hammer.push_txt(&format!("_loop_{}_end_start_inst:\n", hammer.blocs_index-1), false);
         put_res_in_rax(hammer, split_exp[1].clone(), MAX_STARS+1)?;
-        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index-1), true);
+        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index-1), !hammer.debug);
         Ok(())
     }
 
@@ -1389,7 +1391,7 @@ pub mod hammer{
     }
 
     fn end_of_bloc(hammer: &mut Hammer, end_txt: String) {
-        hammer.push_txt(&end_txt, true);
+        hammer.push_txt(&end_txt, !hammer.debug);
     }
 
     fn end_of_func(hammer: &mut Hammer, func_name: String) {
