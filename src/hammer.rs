@@ -366,15 +366,12 @@ pub mod hammer{
 
         fn push_txt(&mut self, txt: &str, opt: bool) {   
             if opt {
-                let len = self.top_prog().get_len_txt();
-                let mut i: i32 = 0;
                 for inst in txt.split("\n") {
                     if inst != ""{
-                        let mut optimise_inst = self.tracker.new_inst(inst, len + i as u32);
+                        let mut optimise_inst = self.tracker.new_inst(inst);
                         if optimise_inst != "" {
                             optimise_inst.push('\n');
                             self.top_prog_mut().push_txt(&optimise_inst);
-                            i += 1;
                         }
                     }
                     
@@ -420,7 +417,6 @@ pub mod hammer{
         }
         
         fn push_txt_in_file(&mut self, file_name: &str, txt: &mut String) {
-            self.tracker.clean_line(txt);
             self.asm_files.get_mut(file_name).unwrap().push(txt);
         }
 
@@ -749,7 +745,7 @@ pub mod hammer{
                         if arr.pop() != Some('}') && arr.pop() != Some('}') {
                             return Err(format!("{} You forgot to close a bracket.", hammer.error_msg()));
                         }
-                        while arr.chars().last() == Some('}') || arr.chars().last() == Some(' '){
+                        while last_char(arr) == '}' || last_char(arr) == ' '{
                             arr.pop();
                         }
                         let val_vec: Vec<&str> = arr.split(",").collect();
@@ -789,7 +785,7 @@ pub mod hammer{
         if var.len() != 1 {
             let tab_addr = hammer.stack_index;
             for i in 1..var.len() {
-                if var[i] == "" || var[i].chars().last().unwrap() != ']'{
+                if var[i] == "" || last_char(var[i]) != ']'{
                     return Err(format!("{} You forgot to close the bracket with '['", hammer.error_msg()))
                 }
                 let stack_index = hammer.stack_index;
@@ -826,7 +822,7 @@ pub mod hammer{
         let var: Vec::<&str> = var_s.split("[").collect();
         let mut res = Vec::<Vec<Token>>::new();
         for i in 1..var.len() {
-            if var[i] == "" || var[i].chars().last().unwrap() != ']'{
+            if var[i] == "" || last_char(var[i]) != ']'{
                 return Err(format!("{} You forgot to close with '['", hammer.error_msg()))
             }
             res.push(build_aff_vec(hammer, String::from(&var[i][0..var[i].len()-1]), 0)?);

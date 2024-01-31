@@ -221,4 +221,7 @@ pub mod tools{
         result    
     }
 
+    pub fn last_char(s: &str) -> char {
+        s.chars().last().unwrap()
+    }
 }

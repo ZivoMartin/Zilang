@@ -1,15 +1,10 @@
 use crate::stack::Stack;
 use std::collections::HashMap;
-struct Insertion {
-    value: Option<i64>,
-    line: u32,
-}
-
+use crate::tools::tools::last_char;
 pub struct Tracker{
     registers: Registers,
-    stack: Stack<Insertion>,
-    line_to_delete: Vec<u32>,
-    inst_map: HashMap::<String, fn (&mut Tracker, Vec<&str>, u32)->Option<String>>,
+    stack: Stack<Option<i64>>,
+    inst_map: HashMap::<String, fn (&mut Tracker, Vec<&str>, &str)->Option<String>>,
     useless_inst: &'static str,
     last_cmp: Option<(i64, i64)>
 }
@@ -20,8 +15,7 @@ impl Tracker {
         let mut res = Tracker{
             registers: Registers::new(),
             stack: Stack::new(),
-            line_to_delete: Vec::new(),
-            inst_map: HashMap::<String, fn (&mut Tracker, Vec<&str>, u32)->Option<String>>::new(),
+            inst_map: HashMap::<String, fn (&mut Tracker, Vec<&str>, &str)->Option<String>>::new(),
             useless_inst: "call ret jmp _deref",
             last_cmp: None
         };
@@ -45,11 +39,11 @@ impl Tracker {
     }
 
 
-    pub fn new_inst(&mut self, inst: &str, inst_number: u32) -> String {
+    pub fn new_inst(&mut self, inst: &str) -> String {
         let tokens = tokenise_asm_inst(inst);
         println!("{inst}\n{tokens:?}");
-        if !self.useless_inst.contains(tokens[0]) && tokens.len() > 1{
-            return match self.inst_map.get(tokens[0]).unwrap()(self, tokens.clone(), inst_number) {
+        if !self.useless_inst.contains(tokens.0[0]) && tokens.0.len() > 1{
+            return match self.inst_map.get(tokens.0[0]).unwrap()(self, tokens.0, tokens.1) {
                 Some(new_inst) => {
                     println!("new inst: {}\n", new_inst);
                     return new_inst
@@ -63,33 +57,48 @@ impl Tracker {
         return String::from(inst)
     }
 
-    pub fn clean_line(&mut self, txt: &mut String) {
-        let mut split_txt: Vec<&str> = txt.split("\n").collect();
-        for line_number in self.line_to_delete.iter().rev() {
-            split_txt.remove(*line_number as usize);
-        }
-        self.line_to_delete = Vec::new();
-    }
-
-    fn memory_action(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String> {
+    fn memory_action(&mut self, tokens: Vec<&str>, garbage: &str) -> Option<String> {
         let opt_val = self.registers.extract_val(&tokens[2]);
         if opt_val.is_some() {
             let val = opt_val.unwrap();
+            println!("{}: {}", tokens[2], val);
             match tokens[0] as &str{
                 "add" => {
                     if !self.registers.add_val(tokens[1], val){
                         return Some(format!("add {}, {}", tokens[1], val))
                     }
                 }
-                _ => self.registers.set_val(tokens[1], Some(val))
+                _ => {
+                    if !self.registers.set_val(tokens[1], Some(val)) {
+                        return Some(format!("{} {}, {}", tokens[0], self.get_memory_access(tokens[1], garbage), val))
+                    }
+                }
             }
             return Some(String::new())
         }
+        let res: Option<String>;
+        match self.registers.get_val(tokens[1]) {
+            Some(_) => res = Some(format!("{} {}, {}", tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage))),
+            _ => res = Some(format!("{} {}, {}", tokens[0], self.get_memory_access(tokens[1], garbage), self.get_memory_access(tokens[2], garbage)))
+        }
         self.registers.set_val(tokens[1], None);
-        return None
+        res
     }
 
-    fn mul_inst(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String> {
+    fn get_memory_access(&self, spot: &str, garbage: &str) -> String {
+        if last_char(spot) == ']' {
+            match self.registers.get_val(&spot[0..spot.len()-1]) {
+                Some(val) => return format!("{} {}]", garbage, val),
+                _ => return format!("{} {}", garbage, spot)
+            }
+        }
+        match self.registers.get_val(spot) {
+            Some(val) => return format!("{}", val),
+            _ => return format!("{}", spot)
+        }    
+    }
+
+    fn mul_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
         let val_rax = self.registers.get_val("rax");
         if val_rax.is_some(){
             if self.registers.mul_val(tokens[1], val_rax.unwrap()) {
@@ -107,7 +116,7 @@ impl Tracker {
         }
     }
 
-    fn cmp_inst(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String> {
+    fn cmp_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
         match self.registers.get_val(tokens[1]) {
             Some(val1) => {
                 match self.registers.get_val(tokens[2]) {
@@ -127,30 +136,30 @@ impl Tracker {
         }
     }
 
-    fn push_inst(&mut self, tokens: Vec<&str>, inst_number: u32) -> Option<String> {
-        self.stack.push(Insertion{
-            value: self.registers.get_val(tokens[1]),
-            line: inst_number,
-        });
-        None
+    fn push_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
+        self.stack.push(self.registers.get_val(tokens[1]));
+        return match self.registers.get_val(tokens[1]) {
+            Some(_) => Some(String::new()),
+            _ => None
+        }
     }
 
-    fn pop_inst(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String> {
+    fn pop_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
         let last_insert = self.stack.pop();
-        if last_insert.value.is_some(){
-            self.line_to_delete.push(last_insert.line);
-            return Some(String::from(format!("mov {}, {}", tokens[1], last_insert.value.unwrap())));
+        if last_insert.is_some(){
+            self.registers.set_val(tokens[1], Some(last_insert.unwrap()));
+            return Some(String::new());
         }
         None
     }
 
-    fn xor_inst(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String> {
+    fn xor_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
         self.registers.set_val(tokens[1], Some(0));
         Some(String::new())
     }
 
 
-    fn cond_inst(&mut self, tokens: Vec<&str>, _inst_number: u32) -> Option<String>{
+    fn cond_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String>{
         if !self.last_cmp.is_some() {
             return None
         }
@@ -170,19 +179,19 @@ impl Tracker {
 
 } 
 
-fn tokenise_asm_inst(inst: &str) -> Vec<&str> {
+fn tokenise_asm_inst(inst: &str) -> (Vec<&str>, &str) {
     let split_inst: Vec::<&str> = inst.split(" ").collect();
     match split_inst.len() {
         4 => {
-            match inst.chars().last().unwrap() {
+            match last_char(inst) {
                 ']' => {
-                    return vec!(split_inst[0], &split_inst[1][0..split_inst[1].len()-1], &split_inst[3][0..split_inst[3].len()])
+                    return (vec!(split_inst[0], &split_inst[1][0..split_inst[1].len()-1], &split_inst[3][0..split_inst[3].len()]), split_inst[2])
                 }
-                _ => return vec!(split_inst[0], &split_inst[2][0..split_inst[2].len()-1], split_inst[3]),
+                _ => return (vec!(split_inst[0], &split_inst[2][0..split_inst[2].len()-1], split_inst[3]), split_inst[1]),
             }
         }
-        3 => return vec!(split_inst[0], &split_inst[1][0..split_inst[1].len()-1], split_inst[2]),
-        _ => return split_inst
+        3 => return (vec!(split_inst[0], &split_inst[1][0..split_inst[1].len()-1], split_inst[2]), ""),
+        _ => return (split_inst, "")
     }
 }
 
@@ -198,9 +207,10 @@ impl Registers {
             map: HashMap::<&'static str, Option<i64>>::new(),
             convert: HashMap::<String, &'static str>::new() 
         };
-        res.map.insert("rax", None);
-        res.map.insert("rbx", None);
-        res.map.insert("rdx", None);
+        res.map.insert("rax", Some(0));
+        res.map.insert("rbx", Some(0));
+        res.map.insert("rdx", Some(0));
+        res.map.insert("r15", Some(0));
         res.convert.insert(String::from("rax"), "rax");
         res.convert.insert(String::from("eax"), "rax");
         res.convert.insert(String::from("ax"), "rax");
@@ -210,6 +220,8 @@ impl Registers {
         res.convert.insert(String::from("rdx"), "rdx");
         res.convert.insert(String::from("edx"), "rdx");
         res.convert.insert(String::from("dx"), "rdx");
+        res.convert.insert(String::from("r15"), "r15");
+        res.convert.insert(String::from("r15b"), "r15");
         res
     }
 
@@ -220,10 +232,13 @@ impl Registers {
         None
     }
 
-    pub fn set_val(&mut self, register: &str, val: Option<i64>) {
+    pub fn set_val(&mut self, register: &str, val: Option<i64>) -> bool {
         if self.is_followed(register){
+            println!("{}", val.unwrap());
             *self.convert_mut(register) = val;
+            return true
         }
+        return false
     }
 
     pub fn add_val(&mut self, register: &str, val: i64) -> bool{
@@ -267,6 +282,7 @@ impl Registers {
                 if self.is_followed(elt) {
                     return self.get_val(elt)
                 }
+                println!("{elt}");
                 None
             }
         }
