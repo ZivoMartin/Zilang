@@ -754,7 +754,7 @@ pub mod hammer{
                         }
                         for j in 0..val_vec.len() as u32{
                             put_res_in_rax(hammer, val_vec[j as usize].trim().to_string(), type_var.stars)?;
-                            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", i*s*data_square.0 + data_square.1 + s*j, hammer.size[&s].register), false);
+                            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", i*s*data_square.0 + data_square.1 + s*j, hammer.size[&s].register), !hammer.debug);
                         }
                         i += 1;
                     }
@@ -799,7 +799,7 @@ pub mod hammer{
                             size = type_var.size as u32;
                         }
                         for j in 0..previous_data.0{
-                            hammer.push_txt(&format!("mov {}[_stack+r15+ {}], {}\n", hammer.size[&size].long, previous_data.1+size*j, hammer.stack_index), false);
+                            hammer.push_txt(&format!("mov {}[_stack+r15+ {}], {}\n", hammer.size[&size].long, previous_data.1+size*j, hammer.stack_index), !hammer.debug);
                             hammer.stack_index += size*tab_size;
                         }
                         if i != var.len()-1 {
@@ -1035,6 +1035,8 @@ pub mod hammer{
             
         }
         hammer.push_txt("pop rax\n", !hammer.debug);
+        hammer.replace_txt("push rax\npop rax\n", "");
+        hammer.replace_txt("push rax\npop r11\n", "mov r11, rax\n");
         Ok(())
     }
     
@@ -1043,7 +1045,7 @@ pub mod hammer{
         let mut stars = var_def.type_var.stars as i32 - var.nb_stars;
         hammer.push_txt(&format!("mov rbx, {}\nadd rbx, r15\n", var.val), !hammer.debug);
         for vec in var.squares.as_ref().unwrap().iter() {
-            hammer.push_txt("push rbx\n", true);
+            hammer.push_txt("push rbx\n", !hammer.debug);
             evaluate_exp(hammer, vec)?;
             hammer.push_txt("pop rbx\n_deref 1\nmov rcx, 4\nmul rcx\nadd rbx, rax\n", !hammer.debug);
             stars -= 1
@@ -1069,7 +1071,7 @@ pub mod hammer{
             return Err(format!("{} You can't use the break keyword outside of a loop bloc.", hammer.error_msg()));
         }
         let loop_index = *hammer.loop_index_stack().val();
-        hammer.push_txt(&format!("jmp _end_loop_{}\n", loop_index), false);
+        hammer.push_txt(&format!("jmp _end_loop_{}\n", loop_index), !hammer.debug);
         Ok(())
     }
 
@@ -1079,7 +1081,7 @@ pub mod hammer{
             return Err(format!("{} You can't use the continue keyword outside of a loop bloc.", hammer.error_msg()));
         }
         let loop_index = *hammer.loop_index_stack().val();
-        hammer.push_txt(&format!("jmp _loop_{}\n", loop_index), false);
+        hammer.push_txt(&format!("jmp _loop_{}\n", loop_index), !hammer.debug);
         Ok(())
     }
 
@@ -1089,7 +1091,7 @@ pub mod hammer{
         }
         let nb_stars_await = hammer.type_return().as_mut().unwrap().stars;
         put_res_in_rax(hammer, rest_of_line.to_string(), nb_stars_await)?;
-        hammer.push_txt("ret\n", false);
+        hammer.push_txt("ret\n", !hammer.debug);
         Ok(())
     }
 
@@ -1154,7 +1156,7 @@ pub mod hammer{
 
         jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
         handle_instruction(hammer, split_exp[0].clone())?;
-        hammer.push_txt(&format!("jmp _loop_{}_end_start_inst\n", hammer.blocs_index-1), false);
+        hammer.push_txt(&format!("jmp _loop_{}_end_start_inst\n", hammer.blocs_index-1), !hammer.debug);
         new_loop(hammer, hammer.blocs_index - 1);
         handle_instruction(hammer, split_exp[2].to_string())?;
         hammer.push_txt(&format!("_loop_{}_end_start_inst:\n", hammer.blocs_index-1), false);
@@ -1178,10 +1180,17 @@ pub mod hammer{
     }
 
     fn end_of_func(hammer: &mut Hammer, func_name: String) {
+        let len: usize = hammer.txt_stack().val().split("\n").count(); 
+        if hammer.txt_stack().val().split("\n").nth(len-2) != Some("ret"){
+            hammer.push_txt("ret\n", !hammer.debug); 
+        }
         let txt = hammer.pop_current_txt();
-        hammer.push_txt_in_file("functions", &mut format!("{}:\n{}ret\n", func_name, txt));
+        hammer.push_txt_in_file("functions", &mut format!("{}:\n{}", func_name, txt));
         hammer.stack_index = hammer.jumps_stack.val().stack_index;
         hammer.reset_type_return();
+        if !hammer.debug {
+            hammer.tracker.new_inst("end_func");
+        }
     }
 
     fn func_keyword(hammer: &mut Hammer, line: &String) -> Result<(), String> {
@@ -1225,6 +1234,9 @@ pub mod hammer{
         hammer.blocs_index += 1;
         for elt in &args {
             hammer.define_new_var(elt.name.clone(), elt.type_var.clone());
+        }
+        if !hammer.debug {
+            hammer.tracker.new_inst(&format!("func {}", func_name));
         }
         hammer.define_new_function(String::from(func_name), args, hammer.type_exists(&mut split_arrow[1].trim().to_string())?)?;
         Ok(())

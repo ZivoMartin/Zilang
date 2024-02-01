@@ -224,4 +224,23 @@ pub mod tools{
     pub fn last_char(s: &str) -> char {
         s.chars().last().unwrap()
     }
+
+    pub fn operation(val1: i64, val2: i64, operator: u8) -> i64 {
+        return match operator as char {
+            '@' => (val1 != val2) as i64,
+            ';' => (val1 <= val2) as i64,
+            '?' => (val1 >= val2) as i64,
+            '&' => (val1 != 0 && val2 != 0) as i64,
+            '|' => (val1 != 0 || val2 != 0) as i64,
+            '<' => (val1 < val2) as i64,
+            '>' => (val1 > val2) as i64,
+            '=' => (val1 == val2) as i64,
+            '+' => (val1 + val2),
+            '-'=> (val1 - val2),
+            '*'=> (val1 * val2),
+            '/'=> (val1 / val2),
+            '%'=> (val1 % val2),
+            _ => panic!("You forgot this operator: {}", operator)
+        }
+    }
 }

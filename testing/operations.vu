@@ -1,6 +1,9 @@
 
+func f() -> int {
+    return 2;
+}
 
-int elt = 2;
+int elt = f();
 
 
 !dn(elt);
