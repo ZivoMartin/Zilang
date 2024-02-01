@@ -61,7 +61,6 @@ impl Tracker {
         let opt_val = self.registers.extract_val(&tokens[2]);
         if opt_val.is_some() {
             let val = opt_val.unwrap();
-            println!("{}: {}", tokens[2], val);
             match tokens[0] as &str{
                 "add" => {
                     if !self.registers.add_val(tokens[1], val){
@@ -70,7 +69,10 @@ impl Tracker {
                 }
                 _ => {
                     if !self.registers.set_val(tokens[1], Some(val)) {
-                        return Some(format!("{} {}, {}", tokens[0], self.get_memory_access(tokens[1], garbage), val))
+                        match str::parse::<i64>(tokens[2]) {
+                            Ok(_) => return Some(format!("{} {}, {}", tokens[0], self.get_memory_access(tokens[1], garbage), val)),
+                            _ => return Some(format!("mov {}, {}\n{} {}, {}", tokens[2], val, tokens[0], self.get_memory_access(tokens[1], garbage), tokens[2]))
+                        }
                     }
                 }
             }
@@ -214,9 +216,9 @@ impl Registers {
         res.convert.insert(String::from("rax"), "rax");
         res.convert.insert(String::from("eax"), "rax");
         res.convert.insert(String::from("ax"), "rax");
-        res.convert.insert(String::from("rbx"), "rax");
-        res.convert.insert(String::from("ebx"), "rax");
-        res.convert.insert(String::from("bx"), "rax");
+        res.convert.insert(String::from("rbx"), "rbx");
+        res.convert.insert(String::from("ebx"), "rbx");
+        res.convert.insert(String::from("bx"), "rbx");
         res.convert.insert(String::from("rdx"), "rdx");
         res.convert.insert(String::from("edx"), "rdx");
         res.convert.insert(String::from("dx"), "rdx");
@@ -229,12 +231,14 @@ impl Registers {
         if self.is_followed(register){
             return self.convert(register).clone()
         }
-        None
+        return match str::parse::<i64>(register) {
+            Ok(nb) => Some(nb),
+            _ => None
+        }
     }
 
     pub fn set_val(&mut self, register: &str, val: Option<i64>) -> bool {
         if self.is_followed(register){
-            println!("{}", val.unwrap());
             *self.convert_mut(register) = val;
             return true
         }
@@ -282,7 +286,6 @@ impl Registers {
                 if self.is_followed(elt) {
                     return self.get_val(elt)
                 }
-                println!("{elt}");
                 None
             }
         }
