@@ -220,6 +220,7 @@ impl Tracker {
     fn func_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String>{
         self.registers_map.insert(String::from(tokens[1]), Registers::new());
         self.current_register_zone = String::from(tokens[1]);
+        self.registers_mut().set_val("r15", None);
         None
     }
 
@@ -248,6 +249,7 @@ impl Tracker {
             }
             _ => self.switch_register(tokens[1])
         }
+        self.registers_mut().set_val("r15", Some(0));
         if res.is_some() && res.clone().unwrap() != String::new() {
             self.registers_mut().set_val("rax", None);
         }

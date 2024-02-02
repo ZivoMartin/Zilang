@@ -629,16 +629,16 @@ pub mod hammer{
         if line.pop() != Some(')'){
             return Err(format!("{} Syntax error.", hammer.error_msg()));   
         }
-        let mut split_par = line.split("(");
-        let mut name = String::from(split_par.next().unwrap());
+        let mut split_par: Vec<_> = line.split("(").collect();
+        let mut name = String::from(split_par.remove(0));
         name = name.trim().to_string();
         if !hammer.macro_exists(&name){
             return Err(format!("{} The macro {} doesn't exists.", hammer.error_msg(), name));
         }
-        line = match split_par.next() {
-            Some(rest_of_line)=> String::from(rest_of_line),
-            _ => return Err(format!("{} Parenthesis missing.", hammer.error_msg()))
-        };
+        if split_par.len() == 0 {
+            return Err(format!("{} Parenthesis missing.", hammer.error_msg()))
+        }
+        line = split_par.join("(");
         let mut args = Vec::<Vec::<Token>>::new();
         line = line.replace(" ", "");
         for arg in line.split(","){
@@ -853,6 +853,8 @@ pub mod hammer{
         }
         string_exp = string_exp.replace("(", "µ(µ");
         string_exp = string_exp.replace(")", "µ)µ");
+        string_exp = string_exp.replace("[", "µ[µ");
+        string_exp = string_exp.replace("]", "µ]µ");
         while string_exp.contains("µµ") {
             string_exp = string_exp.replace("µµ", "µ");
         }
@@ -863,7 +865,7 @@ pub mod hammer{
 
     fn build_aff_vec(hammer: &Hammer, mut string_exp: String, nb_stars_await: u32) -> Result<Vec::<Token>, String>{
         string_exp = string_exp.trim().to_string();
-        if string_exp == String::from("") || string_exp.contains("_") && is_in_a_string(&string_exp, "_".to_string()){
+        if string_exp == String::from("") || string_exp.contains("ù") && is_in_a_string(&string_exp, "_".to_string()){
             return Err(format!("{} Syntax error.", hammer.error_msg()));
         }
         string_exp = format_string_exp(hammer, string_exp);
@@ -878,17 +880,23 @@ pub mod hammer{
     }
 
     fn tokenize_expression(hammer: &Hammer, exp: Vec::<String>) -> Result<Vec<String>, String> {
-        let mut exp_res = Vec::<String>::new();
-        let mut func_dec = String::new();
-        let mut cant_be_op = true;
-        let mut neg_count: u32 = 0;
-        let mut looking_for_function = -1;
-        let mut par_count = 0;
+        let mut exp_res = Vec::<String>::new();  // Store all tokens
+        let mut current_token = String::new();  // If we have found a function, we will temporarily store the token function in this string and then push it into exp
+        let mut cant_be_op = true;  // If we find an operator, this Boolean will change to true, then if we find something that isn't an operator, it will change to false.
+        let mut neg_count: u32 = 0; // If cant be op is true and we've found a -, we don't return an error, because the - is the sign of the next token, so we simply count the number of -.
+        let mut par_count = 0; // Here we are gonna stock the dyck word algorithm, when we found a ( we increment 1 when we found ) we decrement 1. This var has to be at 0 at the end of the loop
+        let mut brack_count = 0; // Do the same job as par_count but with the brackets.
+        let mut looking_for_big_token = (-1, 0);  // when we find a function or an array bracket, we assign par_count or brack_count to this variable, then as soon as par_count.brack_count has returned to its original value, 
+                                                              // we know we've finished tokenizing the function. The second element simply design if the current token is an array or a func
         for i in 0..exp.len(){
             let word = exp[i].trim().to_string();
             if word != "" {
                 par_count += (word == "(") as i32 - (word == ")") as i32; 
-                if looking_for_function == -1 {
+                brack_count += (word == "[") as i32 - (word == "]") as i32; 
+                if par_count < 0 || brack_count < 0 {
+                    return Err(format!("{} To many closing bracket in a given moment of the expression.", hammer.error_msg()));
+                }
+                if looking_for_big_token.0 == -1 {
                     let is_op = hammer.tools.is_operator(&word); 
                     if is_op || hammer.tools.is_separator(&word){
                         neg_count *= (is_op && cant_be_op) as u32; 
@@ -903,14 +911,18 @@ pub mod hammer{
                                 cant_be_op = true;
                             }
                         }else {
-
                             exp_res.push(word);
                             cant_be_op = false;
                         }
                     }else{
                         if hammer.func_exists(&word) {
-                            func_dec = word;
-                            looking_for_function = par_count;
+                            current_token = word;
+                            looking_for_big_token.0 = par_count;
+                            looking_for_big_token.1 = 0;
+                        }else if i !=  exp.len()-1 && exp[i+1] == "[" {
+                            current_token = word;
+                            looking_for_big_token.0 = brack_count;
+                            looking_for_big_token.1 = 1;
                         }else{
                             if neg_count % 2 == 0 {
                                 exp_res.push(word);
@@ -923,16 +935,19 @@ pub mod hammer{
                         cant_be_op = false;
                     }
                 }else{
-                    func_dec.push_str(&word);
-                    if looking_for_function == par_count {
-                        exp_res.push(func_dec);
-                        func_dec = String::new();
-                        looking_for_function = -1;
+                    current_token.push_str(&word);
+                    if ( looking_for_big_token.1 == 0 && looking_for_big_token.0 == par_count ) || ( looking_for_big_token.1 == 1 && looking_for_big_token.0 == brack_count ) {
+                        exp_res.push(current_token);
+                        current_token = String::new();
+                        looking_for_big_token.0 = -1;
                     }                                       
                 }
             }
         }
-        if par_count != 0 {
+        if current_token != String::new() {
+            exp_res.push(current_token);
+        }
+        if par_count != 0 || brack_count != 0 {
             return Err(format!("{} The number of opening brackets is not the same as the number of closing brackets", hammer.error_msg()));
         }
         Ok(exp_res)
@@ -1061,8 +1076,8 @@ pub mod hammer{
         Ok(stars as u32)
     }
 
-    fn is_valid_address(hammer: &mut Hammer) {
-        hammer.push_txt(&format!("mov rdx, r15\nadd rdx, {}\ncmp rax, rdx\njg _invalid_address\n", hammer.stack_index), !hammer.debug);
+    fn is_valid_address(_hammer: &mut Hammer) {
+        //hammer.push_txt(&format!("mov rdx, r15\nadd rdx, {}\ncmp rax, rdx\njg _invalid_address\n", hammer.stack_index), !hammer.debug);
     }
     
     fn break_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
