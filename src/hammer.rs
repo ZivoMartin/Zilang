@@ -19,7 +19,7 @@ pub mod hammer{
     }
 
     impl Type{
-        pub fn clone(&self) -> Type{
+        fn clone(&self) -> Type{
             Type{
                 name: self.name.clone(),
                 id: self.id,
@@ -36,7 +36,7 @@ pub mod hammer{
 
     impl Function {
 
-        pub fn clone(&self) -> Function {
+        fn clone(&self) -> Function {
             let mut args_cloned = Vec::<VariableDefinition>::new();
             for elt in self.args.iter() {
                 args_cloned.push(elt.clone());
@@ -62,7 +62,7 @@ pub mod hammer{
     }
     
     impl VariableDefinition {
-        pub fn clone(&self) -> VariableDefinition {
+        fn clone(&self) -> VariableDefinition {
             VariableDefinition {
                 name: self.name.clone(),
                 type_var: self.type_var.clone()
@@ -111,13 +111,13 @@ pub mod hammer{
     
     impl Token {
 
-        pub fn new_val(val: i32) -> Token{
+        fn new_val(val: i32) -> Token{
             Token{val: val, squares: None, func_dec: None, nb_stars: 0, interp: Interp::Value}
         }
-        pub fn new_op(op: i32) -> Token {
+        fn new_op(op: i32) -> Token {
             Token{val: op, squares: None, func_dec: None, nb_stars: 0, interp: Interp::Operator}
         }
-        pub fn new_func(func: String) -> Token {
+        fn new_func(func: String) -> Token {
             Token{val: 0, squares: None, func_dec: Some(func), nb_stars: 0, interp: Interp::Function}
         }
     }
@@ -134,7 +134,7 @@ pub mod hammer{
     }
 
     impl Program {
-        pub fn new(prog_name: String, txt: String) -> Program{
+        fn new(prog_name: String, txt: String) -> Program{
             Program {
                 inst_vec: split(&txt, ";"),
                 txt_stack: Stack::init(String::new()),
@@ -163,16 +163,16 @@ pub mod hammer{
             *self.len_stack.val_mut() += txt.matches('\n').count() as u32;
         }
 
-        pub fn get_len_txt(&self) -> u32 {
+        fn get_len_txt(&self) -> u32 {
             *self.len_stack.val()
         }
 
-        pub fn pop_current_txt(&mut self) -> String {
+        fn pop_current_txt(&mut self) -> String {
             self.len_stack.pop();
             self.txt_stack.pop()
         }
 
-        pub fn new_txt_on_stack(&mut self) {
+        fn new_txt_on_stack(&mut self) {
             self.txt_stack.push(String::new());
             self.len_stack.push(0);
         }
@@ -219,7 +219,7 @@ pub mod hammer{
     }
 
     impl Hammer{
-        pub fn new(prog_name: String, txt: String, debug: bool)->Hammer{
+        fn new(prog_name: String, txt: String, debug: bool)->Hammer{
             let mut res = Hammer{
                 tools: Tools::new(),
                 asm_files: HashMap::<&'static str, TextFile>::new(),
@@ -318,7 +318,7 @@ pub mod hammer{
             self.macro_list.insert(String::from("exit"), 1);
         }
 
-        pub fn init_dispo_keyword(&mut self) {
+        fn init_dispo_keyword(&mut self) {
             self.keyword_list.insert(String::from("break"), break_keyword);
             self.keyword_list.insert(String::from("continue"), continue_keyword);
             self.keyword_list.insert(String::from("if"), if_keyword);
@@ -332,7 +332,7 @@ pub mod hammer{
             self.keyword_list.insert(String::from("import"), import_keyword);
         }
 
-        pub fn jump_out(&mut self){
+        fn jump_out(&mut self){
             let last_jump = self.jumps_stack.val();
             self.prog_stack.val_mut().jump_out(last_jump.bloc_index);
             self.stack_index = last_jump.stack_index;
@@ -440,44 +440,44 @@ pub mod hammer{
             self.top_prog_mut().inc_ln(x)
         }
         
-        pub fn var_exists(&self, name: &str) -> bool{
+        fn var_exists(&self, name: &str) -> bool{
             self.defined_var_list.contains_key(name)
         }
 
-        pub fn macro_exists(&self, name: &str) -> bool{
+        fn macro_exists(&self, name: &str) -> bool{
             self.macro_list.contains_key(name)
         }
 
-        pub fn keyword_exists(&self, name: &str) -> bool {
+        fn keyword_exists(&self, name: &str) -> bool {
             self.keyword_list.contains_key(name)
         }
 
-        pub fn call_keyword(&mut self, name: &str, rest_of_line: &String) -> Result<(), String> {
+        fn call_keyword(&mut self, name: &str, rest_of_line: &String) -> Result<(), String> {
             self.keyword_list[name](self, rest_of_line)
         }
 
-        pub fn get_addr(&self, name: &str) -> u32{
+        fn get_addr(&self, name: &str) -> u32{
             *self.defined_var_list[name].val()
         }
 
-        pub fn get_var_def_by_name(&self, name: &str) -> &VariableDefinition{
+        fn get_var_def_by_name(&self, name: &str) -> &VariableDefinition{
             &self.addr_list[&self.get_addr(name)].val()
         }
 
-        pub fn get_var_def_i32(&self, addr: i32) -> &VariableDefinition {
+        fn get_var_def_i32(&self, addr: i32) -> &VariableDefinition {
             self.get_var_def(addr as u32)
         }
 
-        pub fn get_var_def(&self, addr: u32) -> &VariableDefinition {
+        fn get_var_def(&self, addr: u32) -> &VariableDefinition {
             &self.addr_list[&addr].val()
         }
 
-        pub fn new_txt_on_stack(&mut self) {
+        fn new_txt_on_stack(&mut self) {
             self.top_prog_mut().new_txt_on_stack();
         }
 
 
-        pub fn define_new_var(&mut self, name: String, type_var: Type){
+        fn define_new_var(&mut self, name: String, type_var: Type){
             let addr = self.stack_index;
             self.stack_index += type_var.size;
             let var_def = VariableDefinition{
@@ -497,11 +497,11 @@ pub mod hammer{
         }
 
         
-        pub fn get_size_def(&self, addr: u32) -> &AsmType{
+        fn get_size_def(&self, addr: u32) -> &AsmType{
             &self.size[&(self.addr_list[&addr].val().type_var.size as u32)]
         }
 
-        pub fn is_valid_name(&self, name: &str) -> Result<(), String>{
+        fn is_valid_name(&self, name: &str) -> Result<(), String>{
             if name != "" && name.chars().nth(0).unwrap() == '_'{
                 return Err(String::from("A name can't start with '_' it's a vulcain private use."));
             }else if !self.tools.is_valid_name(name){
@@ -510,27 +510,27 @@ pub mod hammer{
             Ok(())
         }
 
-        pub fn txt_stack(&mut self) -> &mut Stack<String> {
+        fn txt_stack(&mut self) -> &mut Stack<String> {
             &mut self.top_prog_mut().txt_stack
         }
 
-        pub fn loop_index_stack(&mut self) -> &mut Stack<u32> {
+        fn loop_index_stack(&mut self) -> &mut Stack<u32> {
             &mut self.top_prog_mut().loop_index_stack
         }
 
-        pub fn cond_index_stack(&mut self) -> &mut Stack<u32> {
+        fn cond_index_stack(&mut self) -> &mut Stack<u32> {
             &mut self.top_prog_mut().cond_index_stack
         }
 
-        pub fn in_func(&self) -> bool {
+        fn in_func(&self) -> bool {
             self.top_prog().type_return.is_some()
         }
 
-        pub fn type_return(&mut self) -> &mut Option<Type> {
+        fn type_return(&mut self) -> &mut Option<Type> {
             &mut self.top_prog_mut().type_return
         }
 
-        pub fn reset_type_return(&mut self) {
+        fn reset_type_return(&mut self) {
             self.top_prog_mut().type_return = None
         }
 
@@ -1022,8 +1022,12 @@ pub mod hammer{
         for j in 0..i {
             macro_call_line.push_str(&format!("[_stack+r15+ {}] ", hammer.stack_index + j*8));
         }
-        hammer.push_txt(&format!("{}\n", macro_call_line), false);
-        hammer.tracker.new_inst(&format!("macro_call {}", macro_call_line));
+        if !hammer.debug {  
+            let opt_inst = hammer.tracker.new_inst(&format!("macro_call {}", macro_call_line));
+            hammer.push_txt(&opt_inst, false);
+        }else{
+            hammer.push_txt(&format!("{}\n", macro_call_line), false);
+        }
         Ok(())
     }
 
