@@ -535,7 +535,9 @@ pub mod hammer{
         }
 
     }
-
+    
+    /// This function takes as parameters the program name, the text you want to compile and a Boolean indicating whether you want the 
+    /// the compiler to optimize for you. The function places the asm text in the files in the asm directory and simply returns a result.
     pub fn compile_txt(prog_name: String, input: String, debug: bool) -> Result<(), String>{
         let mut hammer: Hammer = Hammer::new(prog_name, input, debug);
         instruct_loop(&mut hammer)?;
@@ -981,12 +983,13 @@ pub mod hammer{
                             return Err(format!("{} The two types are incompatibles.", hammer.error_msg()));
                         }
                         nb_stars -= tab_vec.len() as i32;
-                        exp.push(Token{val: hammer.get_addr(&element) as i32, squares: Some(tab_vec), func_dec: None, nb_stars: nb_stars, interp: Interp::Variable});
+                        exp.push(Token{val: hammer.get_addr(&element) as i32, squares: Some(tab_vec), func_dec: None, nb_stars, interp: Interp::Variable});
                     }else if hammer.func_exists(element.split("(").next().unwrap()){
                         let return_type = &hammer.func_list[element.split("(").next().unwrap()].return_type;
-                        if return_type.stars == nb_stars_await && nb_stars_await != MAX_STARS+1 && return_type.name != "void" {
+                        if (return_type.stars == nb_stars_await || nb_stars_await == MAX_STARS+1 ) && return_type.name != "void" {
                             exp.push(Token::new_func(element));
                         }else{
+                            println!("await: {nb_stars_await}, found: {}", return_type.stars);
                             return Err(format!("{} The two types are incompatibles.", hammer.error_msg()));
                         }
                     }else{
@@ -1015,11 +1018,12 @@ pub mod hammer{
             hammer.push_txt(&format!("mov [_stack+r15+ {}], rax\n", hammer.stack_index + i*8), !hammer.debug);
             i += 1;
         }
-        hammer.push_txt(&format!("{} ", macro_call.macro_name), false);
+        let mut macro_call_line = format!("{} ", macro_call.macro_name); 
         for j in 0..i {
-            hammer.push_txt(&format!("[_stack+r15+ {}] ", hammer.stack_index + j*8), false);
+            macro_call_line.push_str(&format!("[_stack+r15+ {}] ", hammer.stack_index + j*8));
         }
-        hammer.push_txt("\n", false);
+        hammer.push_txt(&format!("{}\n", macro_call_line), false);
+        hammer.tracker.new_inst(&format!("macro_call {}", macro_call_line));
         Ok(())
     }
 
