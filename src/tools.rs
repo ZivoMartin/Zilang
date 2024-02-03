@@ -235,11 +235,11 @@ pub mod tools{
             '<' => (val1 < val2) as i64,
             '>' => (val1 > val2) as i64,
             '=' => (val1 == val2) as i64,
-            '+' => (val1 + val2),
-            '-'=> (val1 - val2),
-            '*'=> (val1 * val2),
-            '/'=> (val1 / val2),
-            '%'=> (val1 % val2),
+            '+' => val1 + val2,
+            '-'=> val1 - val2,
+            '*'=> val1 * val2,
+            '/'=> val1 / val2,
+            '%'=> val1 % val2,
             _ => panic!("You forgot this operator: {}", operator)
         }
     }

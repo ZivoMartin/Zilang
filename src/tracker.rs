@@ -39,12 +39,12 @@ impl Tracker {
         self.inst_map.insert(String::from("cmp"), Tracker::cmp_inst);
         self.inst_map.insert(String::from("jg"), Tracker::cond_inst);
         self.inst_map.insert(String::from("je"), Tracker::cond_inst);
-        self.inst_map.insert(String::from("_deref"), Tracker::_deref_inst);
         self.inst_map.insert(String::from("call"), Tracker::call_inst);
         self.inst_map.insert(String::from("func"), Tracker::func_inst);
         self.inst_map.insert(String::from("ret"), Tracker::ret_inst);
         self.inst_map.insert(String::from("jmp"), Tracker::jump_inst);
         self.inst_map.insert(String::from("end_func"), Tracker::end_func_inst);
+        self.inst_map.insert(String::from("_deref"), Tracker::deref);
         self.inst_map.insert(String::from("macro_call"), Tracker::macro_call_inst);
     }
 
@@ -222,17 +222,7 @@ impl Tracker {
         }
         return Some(String::new())
     }
-    
 
-    fn _deref_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String>{
-        match self.registers().get_val("rbx") {
-            Some(val) => {
-                self.registers_mut().set_val("rbx", None);
-                return Some(format!("mov rbx, {}     ;out of the tracker\n_deref {}", val, tokens[1]))
-            }
-            _ => return None
-        }
-    }
 
     fn func_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String>{
         self.registers_map.insert(String::from(tokens[1]), Registers::new());
@@ -296,13 +286,29 @@ impl Tracker {
         None
     } 
 
-    fn macro_call_inst(&mut self, _tokens: Vec<&str>, _garbage: &str) -> Option<String>{
-        if self.nb_ret > 1 {
-            self.registers_mut().reset();
+    fn deref(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String>{
+        match self.registers().get_val("rbx") {
+            Some(val) => {
+                self.registers_mut().set_val("rbx", None);
+                return Some(format!("mov rbx, {}     ;out of the tracker\n_deref {}", val, tokens[1]))
+            }
+            _ => return None
         }
-        self.current_register_zone = String::from("global");
-        self.nb_ret = 0;
-        None
+    }
+
+    fn macro_call_inst(&mut self, tokens: Vec<&str>, garbage: &str) -> Option<String>{
+        match tokens[1] {
+                "_deref" => self.deref(tokens, garbage),
+                _ => {
+                    let mut i = 2;
+                    let mut res = Vec::<String>::new();
+                    while i<tokens.len() {
+                        res.push(self.get_memory_access(tokens[i+1], tokens[i]));
+                        i += 2;   
+                    }
+                    Some(res.join(" "))
+                }
+            }
     } 
 }
 
