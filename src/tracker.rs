@@ -52,16 +52,9 @@ impl Tracker {
     pub fn new_inst(&mut self, inst: &str) -> String {
         let tokens = tokenise_asm_inst(inst);
         if last_char(tokens.0[0]) != ':' {
-            println!("{inst}\n{tokens:?}");
             return match self.inst_map.get(tokens.0[0]).unwrap()(self, tokens.0, tokens.1) {
-                Some(new_inst) => {
-                    println!("new inst: {}\n", new_inst);
-                    new_inst
-                }
-                _ => {
-                    println!("stay the same: {}\n", inst);
-                    String::from(inst)
-                }
+                Some(new_inst) => new_inst,
+                _ => String::from(inst)
             }
         }
         String::from(inst)
@@ -90,10 +83,10 @@ impl Tracker {
                     }
                 }
                 _ => {
-                    if !self.registers_mut().set_val(tokens[1], Some(val)) {
+                    if !self.set_val(tokens[1], Some(val)) {
                         match str::parse::<i64>(tokens[2]) {
                             Ok(_) => return Some(format!("{} {}, {}", tokens[0], self.get_memory_access(tokens[1], garbage), val)),
-                            _ => return Some(format!("mov {}, {}        ;out of the tracker\n{} {}, {}", tokens[2], val, tokens[0], self.get_memory_access(tokens[1], garbage), tokens[2]))
+                            _ => return Some(format!("{}\n{} {}, {}", self.put_in_asm(tokens[2]), tokens[0], self.get_memory_access(tokens[1], garbage), tokens[2]))
                         }
                     }
                 }
@@ -101,27 +94,27 @@ impl Tracker {
             return Some(String::new())
         }
         let res: Option<String>;
-        match self.registers().get_val(tokens[1]) {
+        match self.get_val(tokens[1]) {
             Some(_) => {
                 match tokens[0] {
-                    "add" => res = Some(format!("mov {}, {}        ;out of the tracker\n{} {}, {}", tokens[1], self.registers().get_val(tokens[1]).unwrap(), tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage))),
+                    "add" => res = Some(format!("{}\n{} {}, {}", self.put_in_asm(tokens[1]), tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage))),
                     _ => res = Some(format!("{} {}, {}", tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage)))
                 }
             },
             _ => res = Some(format!("{} {}, {}", tokens[0], self.get_memory_access(tokens[1], garbage), self.get_memory_access(tokens[2], garbage)))
         }
-        self.registers_mut().set_val(tokens[1], None);
+        self.set_val(tokens[1], None);
         res
     }
 
     fn get_memory_access(&self, spot: &str, garbage: &str) -> String {
         if last_char(spot) == ']' {
-            match self.registers().get_val(&spot[0..spot.len()-1]) {
+            match self.get_val(&spot[0..spot.len()-1]) {
                 Some(val) => return format!("{} {}]", self.garbage_analyse(garbage), val),
                 _ => return format!("{} {}", self.garbage_analyse(garbage), spot)
             }
         }
-        match self.registers().get_val(spot) {
+        match self.get_val(spot) {
             Some(val) => return format!("{}", val),
             _ => return format!("{}", spot)
         }    
@@ -130,7 +123,7 @@ impl Tracker {
     fn garbage_analyse(&self, garbage: &str) -> String {
         let mut res: Vec<String> = garbage.split("+").map(String::from).collect();
         if res[1] == "r15" {
-            let r15_val = self.registers().get_val("r15");
+            let r15_val = self.get_val("r15");
             if r15_val.is_some() {
                 res[1] = format!("{}", r15_val.unwrap());
             } 
@@ -139,17 +132,17 @@ impl Tracker {
     }
 
     fn mul_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
-        let val_rax = self.registers().get_val("rax");
+        let val_rax = self.get_val("rax");
         if val_rax.is_some(){
             if self.registers_mut().mul_val(tokens[1], val_rax.unwrap()) {
                 return Some(String::new())
             }else{
-                return Some(format!("mov rax, {}        ;out of the tracker\nmul {}", val_rax.unwrap(), tokens[1]))
+                return Some(format!("{}\nmul {}", self.put_in_asm("rax"), tokens[1]))
             }   
         }else{
-            let val_token = self.registers().get_val(tokens[1]);
+            let val_token = self.get_val(tokens[1]);
             if val_token.is_some(){
-                return Some(format!("mov {}, {}     ;out of the tracker\nmul {}", tokens[1], val_token.unwrap(), tokens[1]))
+                return Some(format!("{}\nmul {}", self.put_in_asm(tokens[1]), tokens[1]))
             }else{
                 return None
             }   
@@ -158,9 +151,9 @@ impl Tracker {
 
     fn cmp_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
         let res: Option<String>;
-        match self.registers().get_val(tokens[1]) {
+        match self.get_val(tokens[1]) {
             Some(val1) => {
-                match self.registers().get_val(tokens[2]) {
+                match self.get_val(tokens[2]) {
                     Some(val2) => {
                         self.last_cmp = Some((val1, val2));
                         res = Some(String::new())
@@ -169,7 +162,7 @@ impl Tracker {
                 }
             }
             _ => {
-                match self.registers().get_val(tokens[2]) {
+                match self.get_val(tokens[2]) {
                     Some(val2) => res = Some(format!("cmp {}, {}", tokens[1], val2)),
                     _ => res = None
                 }
@@ -182,8 +175,8 @@ impl Tracker {
     }
 
     fn push_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
-        self.stack.push(self.registers().get_val(tokens[1]));
-        return match self.registers().get_val(tokens[1]) {
+        self.stack.push(self.get_val(tokens[1]));
+        return match self.get_val(tokens[1]) {
             Some(_) => Some(String::new()),
             _ => None
         }
@@ -192,15 +185,15 @@ impl Tracker {
     fn pop_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
         let last_insert = self.stack.pop();
         if last_insert.is_some(){
-            self.registers_mut().set_val(tokens[1], Some(last_insert.unwrap()));
+            self.set_val(tokens[1], Some(last_insert.unwrap()));
             return Some(String::new());
         }
-        self.registers_mut().set_val(tokens[1], None);
+        self.set_val(tokens[1], None);
         None
     }
 
     fn xor_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String> {
-        self.registers_mut().set_val(tokens[1], Some(0));
+        self.set_val(tokens[1], Some(0));
         Some(String::new())
     }
 
@@ -227,27 +220,27 @@ impl Tracker {
     fn func_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String>{
         self.registers_map.insert(String::from(tokens[1]), RegistersData::new());
         self.current_register_zone = String::from(tokens[1]);
-        self.registers_mut().set_val("r15", None);
+        self.set_val("r15", None);
         None
     }
 
     fn call_inst(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String>{
         let mut res: String = String::new();
-        let r15_val = self.registers().get_val("r15");
+        let r15_val = self.get_val("r15");
         match tokens[1] {
             "_operation" => {
-                let r12 = self.registers().get_val("r12").unwrap() as u8;
-                match self.registers().get_val("r11") {
+                let r12 = self.get_val("r12").unwrap() as u8;
+                match self.get_val("r11") {
                     Some(r11) => {
-                        match self.registers().get_val("r10") {
-                            Some(r10) => {self.registers_mut().set_val("rax", Some(operation(r10, r11, r12)));}
-                            _ => res.push_str(&format!("mov r11, {}\nmov r12, {}\n", r11, r12))
+                        match self.get_val("r10") {
+                            Some(r10) => {self.set_val("rax", Some(operation(r10, r11, r12)));}
+                            _ => res.push_str(&format!("{}\n{}\n", self.put_in_asm("r11"), self.put_in_asm("r12")))
                         }        
                     }
                     _ => {
-                        match self.registers().get_val("r10") {
-                            Some(_) => res.push_str(&format!("{}\n{}\n", self.registers().put_in_asm("r11"), self.registers().put_in_asm("r12"))),
-                            _ => res.push_str(&format!("{}\n", self.registers().put_in_asm("r12")))
+                        match self.get_val("r10") {
+                            Some(_) => res.push_str(&format!("{}\n{}\n", self.put_in_asm("r11"), self.put_in_asm("r12"))),
+                            _ => res.push_str(&format!("{}\n", self.put_in_asm("r12")))
                         }
                     }
                 }
@@ -255,11 +248,11 @@ impl Tracker {
             _ => self.switch_register(tokens[1])
         }
         if res != String::new() {
-            self.registers_mut().set_val("rax", None);
+            self.set_val("rax", None);
         }else if tokens[1] != "_operation"{
             match r15_val {
                 Some(val) => {
-                    self.registers_mut().set_val("r15", Some(0));
+                    self.set_val("r15", Some(0));
                     res.push_str(&format!("mov r15, {}\n", val));
                 }
                 _ => ()
@@ -275,8 +268,8 @@ impl Tracker {
     }
 
     fn ret_inst(&mut self, _tokens: Vec<&str>, _garbage: &str) -> Option<String>{
-        let res = match self.registers().get_val("rax") {
-            Some(_) => Some(format!("{}\nret", self.registers().put_in_asm("rbx"))),
+        let res = match self.get_val("rax") {
+            Some(_) => Some(format!("{}\nret", self.put_in_asm("rbx"))),
             _ => None
         };
         self.nb_ret += 1;
@@ -293,10 +286,10 @@ impl Tracker {
     } 
 
     fn deref(&mut self, tokens: Vec<&str>, _garbage: &str) -> Option<String>{
-        match self.registers().get_val("rbx") {
+        match self.get_val("rbx") {
             Some(_) => {
-                self.registers_mut().set_val("rbx", None);
-                return Some(format!("{}\n_deref {}", self.registers().put_in_asm("rbx"), tokens[1]))
+                self.set_val("rbx", None);
+                return Some(format!("{}\n_deref {}", self.put_in_asm("rbx"), tokens[1]))
             }
             _ => return None
         }
@@ -317,6 +310,19 @@ impl Tracker {
                 }
             }
     } 
+
+    fn put_in_asm(&self, reg: &str) -> String {
+        self.registers().put_in_asm(reg)
+    }
+
+    fn get_val(&self, reg: &str) -> Option<i64> {
+        self.registers().get_val(reg)
+    }
+
+    fn set_val(&mut self, reg: &str, val: Option<i64>) -> bool{
+        self.registers_mut().set_val(reg, val)
+    }
+    
 }
 
 fn tokenise_asm_inst(inst: &str) -> (Vec<&str>, &str) {
@@ -376,6 +382,7 @@ impl RegistersData {
         };
         res.map.insert("rax", Register::new());
         res.map.insert("rbx", Register::new());
+        res.map.insert("rcx", Register::new());
         res.map.insert("rdx", Register::new());
         res.map.insert("r15", Register::new());
         res.map.insert("r10", Register::new());
@@ -387,6 +394,9 @@ impl RegistersData {
         res.convert.insert(String::from("rbx"), "rbx");
         res.convert.insert(String::from("ebx"), "rbx");
         res.convert.insert(String::from("bx"), "rbx");
+        res.convert.insert(String::from("rcx"), "rcx");
+        res.convert.insert(String::from("ecx"), "rcx");
+        res.convert.insert(String::from("cx"), "rcx");
         res.convert.insert(String::from("rdx"), "rdx");
         res.convert.insert(String::from("edx"), "rdx");
         res.convert.insert(String::from("dx"), "rdx");
@@ -462,11 +472,11 @@ impl RegistersData {
     }
     
 
-    fn mul_val(&mut self, register: &str, val: i64) -> bool{
+    pub fn mul_val(&mut self, register: &str, val_rax: i64) -> bool{
         if self.is_followed(register){
-            let previous_val = self.convert(register).val;
-            if previous_val.is_some(){
-                self.set_val(register, Some(val*previous_val.unwrap()));
+            let reg_val = self.convert(register).val;
+            if reg_val.is_some(){
+                self.set_val("rax", Some(val_rax*reg_val.unwrap()));
                 return true
             }
         }

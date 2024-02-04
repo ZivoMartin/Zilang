@@ -7,29 +7,47 @@ mod stack;
 mod tracker;
 use std::process::{Command, exit};
 
+
+
+
+
 fn main() -> Result<(), String> {
-    let mut args: Vec<String> = env::args().collect();
-    args.remove(0);
-    match args.len(){
-        3 => {
-            let operation = args.remove(1);
-            if operation == String::from("-o") {
-                    compile(&args[0], &args[1], false)?;
-            }else{  
-                return Err(format!("{} is unknow in second argument", operation));
+    let args: Vec<String> = env::args().collect();
+    let operations: Vec<&str> = vec!("-o");
+    let parameters: Vec<&str> = vec!("-g");
+    
+    let mut operation: Option<&str> = None;
+    let mut debug = false;
+    let mut input: Option<&str> = None;
+    let mut output: Option<&str> = None;
+    for elt in args.iter().skip(1) {
+        if operations.contains(&(elt as &str)) {
+            if operation.is_some() {
+                return Err(String::from("There is two convert operator in the command line."))
             }
-        },
-        4 => {
-            let debug = args.remove(1) == "-g";
-            let operation = args.remove(1);
-            if operation == String::from("-o") {
-                    compile(&args[0], &args[1], debug)?;
-            }else{  
-                return Err(format!("{} is unknow in second argument", operation));
+            operation = Some(elt);
+        }else if parameters.contains(&(elt as &str)) {
+            match elt as &str {
+                "-g" => debug = true,
+                _ => return Err(format!("Unknow parameter in the command line: {}", elt))
             }
+        }else if input.is_none() {
+            input = Some(elt)
+        }else{
+            if output.is_some() {
+                return Err(format!("We found an invalid parameter in the command line: {}", elt));
+            }
+            output = Some(elt)
         }
-        _ => return Err(String::from("Bad arguments"))
+    } 
+    if input.is_none() {
+        return Err(String::from("Expected a file name to compile..."));
+    }else if output.is_none() {
+        return Err(String::from("Expected a file name for the output..."));
+    }else if operation.is_none() {
+        return Err(String::from("You didn't indicate the convert operator..."));
     }
+    compile(input.unwrap(), output.unwrap(), debug)?;
     Ok(())
 }
 

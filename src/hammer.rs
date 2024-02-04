@@ -655,7 +655,7 @@ pub mod hammer{
         }
         insert_macro_call_in_txt(hammer, MacroCall{
             macro_name: name,
-            args: args 
+            args 
         })?;
         Ok(())
     }
@@ -880,79 +880,81 @@ pub mod hammer{
         }
         Ok(res)
     }
-
     fn tokenize_expression(hammer: &Hammer, exp: Vec::<String>) -> Result<Vec<String>, String> {
-        let mut exp_res = Vec::<String>::new();  // Store all tokens
-        let mut current_token = String::new();  // If we have found a function, we will temporarily store the token function in this string and then push it into exp
-        let mut cant_be_op = true;  // If we find an operator, this Boolean will change to true, then if we find something that isn't an operator, it will change to false.
-        let mut neg_count: u32 = 0; // If cant be op is true and we've found a -, we don't return an error, because the - is the sign of the next token, so we simply count the number of -.
-        let mut par_count = 0; // Here we are gonna stock the dyck word algorithm, when we found a ( we increment 1 when we found ) we decrement 1. This var has to be at 0 at the end of the loop
-        let mut brack_count = 0; // Do the same job as par_count but with the brackets.
-        let mut looking_for_big_token = (-1, 0);  // when we find a function or an array bracket, we assign par_count or brack_count to this variable, then as soon as par_count.brack_count has returned to its original value, 
-                                                              // we know we've finished tokenizing the function. The second element simply design if the current token is an array or a func
-        for i in 0..exp.len(){
-            let word = exp[i].trim().to_string();
-            if word != "" {
-                par_count += (word == "(") as i32 - (word == ")") as i32; 
-                brack_count += (word == "[") as i32 - (word == "]") as i32; 
-                if par_count < 0 || brack_count < 0 {
-                    return Err(format!("{} To many closing bracket in a given moment of the expression.", hammer.error_msg()));
-                }
-                if looking_for_big_token.0 == -1 {
-                    let is_op = hammer.tools.is_operator(&word); 
-                    if is_op || hammer.tools.is_separator(&word){
-                        neg_count *= (is_op && cant_be_op) as u32; 
-                        if is_op {
-                            if cant_be_op{
-                                match &word as &str{
-                                    "-" => neg_count += 1,
-                                    _ => return Err(format!("{} There is a bad operator in your expression.", hammer.error_msg()))
-                                }   
-                            }else{
+        
+        unsafe{
+            let mut exp_res = Vec::<String>::new();  // Store all tokens
+            let mut current_token = String::new();  // If we have found a function, we will temporarily store the token function in this string and then push it into exp
+            let mut par_count = 0; // Here we are gonna stock the dyck word algorithm, when we found a ( we increment 1 when we found ) we decrement 1. This var has to be at 0 at the end of the loop
+            let mut brack_count = 0; // Do the same job as par_count but with the brackets.
+            let mut cant_be_op = true;  // If we find an operator, this Boolean will change to true, then if we find something that isn't an operator, it will change to false.
+            let mut neg_count: u32 = 0; // If cant be op is true and we've found a -, we don't return an error, because the - is the sign of the next token, so we simply count the number of -.
+            let mut looking_for_big_token: (i32, *mut i32) = (-1, &mut par_count as *mut i32);  // when we find a function or an array bracket, we assign par_count or brack_count to this variable, then as soon as par_count.brack_count has returned to its original value, 
+                                                                // we know we've finished tokenizing the function. The second element simply design if the current token is an array or a func
+            for i in 0..exp.len(){
+                let word = exp[i].trim().to_string();
+                if word != "" {
+                    par_count += (word == "(") as i32 - (word == ")") as i32; 
+                    brack_count += (word == "[") as i32 - (word == "]") as i32; 
+                    if par_count < 0 || brack_count < 0 {
+                        return Err(format!("{} To many closing bracket in a given moment of the expression.", hammer.error_msg()));
+                    }
+                    if looking_for_big_token.0 == -1 {
+                        let is_op = hammer.tools.is_operator(&word); 
+                        if is_op || hammer.tools.is_separator(&word){
+                            neg_count *= (is_op && cant_be_op) as u32; 
+                            if is_op {
+                                if cant_be_op{
+                                    match &word as &str{
+                                        "-" => neg_count += 1,
+                                        _ => return Err(format!("{} There is a bad operator in your expression.", hammer.error_msg()))
+                                    }   
+                                }else{
+                                    exp_res.push(word);
+                                    cant_be_op = true;
+                                }
+                            }else {
                                 exp_res.push(word);
-                                cant_be_op = true;
+                                cant_be_op = false;
                             }
-                        }else {
-                            exp_res.push(word);
+                        }else{
+                            if hammer.func_exists(&word) {
+                                current_token = word;
+                                looking_for_big_token.0 = par_count;
+                                looking_for_big_token.1 = &mut par_count as *mut i32;
+                            }else if i !=  exp.len()-1 && exp[i+1] == "[" {
+                                current_token = word;
+                                looking_for_big_token.0 = brack_count;
+                                looking_for_big_token.1 = &mut brack_count as *mut i32;
+                            }else{
+                                if neg_count % 2 == 0 {
+                                    exp_res.push(word);
+                                }else{
+                                    exp_res.push(String::from("-1"));
+                                    exp_res.push(String::from("*"));
+                                    exp_res.push(word);
+                                }
+                            }
                             cant_be_op = false;
                         }
                     }else{
-                        if hammer.func_exists(&word) {
-                            current_token = word;
-                            looking_for_big_token.0 = par_count;
-                            looking_for_big_token.1 = 0;
-                        }else if i !=  exp.len()-1 && exp[i+1] == "[" {
-                            current_token = word;
-                            looking_for_big_token.0 = brack_count;
-                            looking_for_big_token.1 = 1;
-                        }else{
-                            if neg_count % 2 == 0 {
-                                exp_res.push(word);
-                            }else{
-                                exp_res.push(String::from("-1"));
-                                exp_res.push(String::from("*"));
-                                exp_res.push(word);
-                            }
-                        }
-                        cant_be_op = false;
+                        current_token.push_str(&word);
+                        if *looking_for_big_token.1 == looking_for_big_token.0  {
+                            exp_res.push(current_token);
+                            current_token = String::new();
+                            looking_for_big_token.0 = -1;
+                        }                                       
                     }
-                }else{
-                    current_token.push_str(&word);
-                    if ( looking_for_big_token.1 == 0 && looking_for_big_token.0 == par_count ) || ( looking_for_big_token.1 == 1 && looking_for_big_token.0 == brack_count ) {
-                        exp_res.push(current_token);
-                        current_token = String::new();
-                        looking_for_big_token.0 = -1;
-                    }                                       
                 }
             }
+            if current_token != String::new() {
+                exp_res.push(current_token);
+            }
+            if par_count != 0 || brack_count != 0 {
+                return Err(format!("{} The number of opening brackets is not the same as the number of closing brackets", hammer.error_msg()));
+            }
+            Ok(exp_res)
         }
-        if current_token != String::new() {
-            exp_res.push(current_token);
-        }
-        if par_count != 0 || brack_count != 0 {
-            return Err(format!("{} The number of opening brackets is not the same as the number of closing brackets", hammer.error_msg()));
-        }
-        Ok(exp_res)
     }
 
 
@@ -989,7 +991,6 @@ pub mod hammer{
                         if (return_type.stars == nb_stars_await || nb_stars_await == MAX_STARS+1 ) && return_type.name != "void" {
                             exp.push(Token::new_func(element));
                         }else{
-                            println!("await: {nb_stars_await}, found: {}", return_type.stars);
                             return Err(format!("{} The two types are incompatibles.", hammer.error_msg()));
                         }
                     }else{

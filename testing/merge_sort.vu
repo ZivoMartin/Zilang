@@ -1,4 +1,3 @@
-import testing/functions.vu;
 
 func merge(int* t, int start, int mid, int end) -> void {
     int n = end-start;
