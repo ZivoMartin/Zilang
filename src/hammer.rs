@@ -951,6 +951,10 @@ pub mod hammer{
                                     auth_elt.sep = false;
                                 }
                                 auth_elt.op = true;
+                                auth_elt.sep = true;
+                                if i < exp.len()-1 && exp[i+1] == "(" {
+                                    return Err(format!("{} There is a bad separator in your expression: (", hammer.error_msg())) 
+                                }
                             }else{
                                 let mut bad_token = String::from("number");
                                 if hammer.func_exists(&current_token) {

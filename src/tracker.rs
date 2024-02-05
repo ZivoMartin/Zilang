@@ -96,14 +96,22 @@ impl Tracker {
         let res: Option<String>;
         match self.get_val(tokens[1]) {
             Some(_) => {
-                match tokens[0] {
-                    "add" => res = Some(format!("{}\n{} {}, {}", self.put_in_asm(tokens[1]), tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage))),
-                    _ => res = Some(format!("{} {}, {}", tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage)))
+                if garbage != "" {
+                    if tokens[0] != "add" {
+                            self.set_val(tokens[1], Some(0));
+                    }
+                    self.set_static_reg(tokens[1], tokens[2]);
+                    res = Some(String::new())
+                }else{
+                    match tokens[0] {
+                        "add" => res = Some(format!("{}\n{} {}, {}", self.put_in_asm(tokens[1]), tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage))),
+                        _ => res = Some(format!("{} {}, {}", tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage)))
+                    }
+                    self.set_val(tokens[1], None);
                 }
             },
             _ => res = Some(format!("{} {}, {}", tokens[0], self.get_memory_access(tokens[1], garbage), self.get_memory_access(tokens[2], garbage)))
         }
-        self.set_val(tokens[1], None);
         res
     }
 
@@ -322,6 +330,10 @@ impl Tracker {
     fn set_val(&mut self, reg: &str, val: Option<i64>) -> bool{
         self.registers_mut().set_val(reg, val)
     }
+
+    fn set_static_reg(&mut self, reg1: &str, reg2: &str) {
+        self.registers_mut().set_static_reg(reg1, reg2)
+    }
     
 }
 
@@ -344,7 +356,7 @@ fn tokenise_asm_inst(inst: &str) -> (Vec<&str>, &str) {
 
 struct Register{
     val: Option<i64>,
-    static_register: Option<&'static str>
+    static_register: Option<String>
 }
 
 impl Register{
@@ -354,6 +366,18 @@ impl Register{
             val: Some(0),
             static_register: None
         }
+    }
+
+    fn lost_static_register_information(&mut self) {
+        self.static_register = None
+    }
+
+    fn is_good_reg(&self, reg: &str) -> bool {
+        self.static_register.is_some() && self.static_register.clone().unwrap() == reg
+    }
+
+    fn set_static_reg(&mut self, reg: &str) {
+        self.static_register = Some(String::from(reg));
     }
 
 }
@@ -422,6 +446,18 @@ impl RegistersData {
         self.set_val("r15", None);
     }
 
+    fn actualise_registers(&mut self, reg: &str) -> String {
+        let mut res = String::new();
+        for (key, val) in &mut self.map {
+            if key != &reg && val.is_good_reg(reg){
+                val.lost_static_register_information();
+                res.push_str(&format!("mov, {}, {}", key, reg))
+            }
+        }
+        res
+    }
+
+
     fn get_val(&self, register: &str) -> Option<i64> {
         if self.is_followed(register){
             return self.convert(register).val.clone()
@@ -432,7 +468,7 @@ impl RegistersData {
         }
     }
 
-    fn get_static_reg(&self, register: &str) -> Option<&'static str> {
+    fn get_static_reg(&self, register: &str) -> Option<String> {
         if self.is_followed(register){
             return self.convert(register).static_register.clone()
         }
@@ -442,9 +478,23 @@ impl RegistersData {
     fn set_val(&mut self, register: &str, val: Option<i64>) -> bool {
         if self.is_followed(register){
             self.convert_mut(register).val = val;
+            self.actualise_registers(register);
             return true
         }
         return false
+    }
+
+    fn set_static_reg(&mut self, reg1: &str, reg2: &str) {
+        if self.is_followed(reg1) && self.is_followed(reg2) {
+            self.map.get_mut(reg1).unwrap().set_static_reg(reg2);
+        }else{
+            if !self.is_followed(reg1) {
+                panic!("The register {reg1} isn't follow.")
+            }else{
+                panic!("The register {reg2} isn't follow.")
+            }
+        }
+        
     }
 
     fn add_val(&mut self, register: &str, val: i64) -> bool{
@@ -466,7 +516,7 @@ impl RegistersData {
         }
         let static_reg = self.get_static_reg(register);
         if static_reg.is_some() {
-            res.push_str(&format!("\nadd {}, {}", register, static_reg.unwrap()));
+            res.push_str(&format!("\nadd {}, {}     ;out of the tracker", register, static_reg.unwrap()));
         }
         res
     }
