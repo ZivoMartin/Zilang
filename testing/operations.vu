@@ -3,9 +3,10 @@ func f() -> int {
     return 2;
 }
 
-int elt = f();
+int elt = 3+(3-1)(2+4);
 
+int a = 2*3-4+f()/2 + 3;
 
-!dn(elt);
+!dn(a);
 
 !exit(0);

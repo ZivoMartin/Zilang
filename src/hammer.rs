@@ -880,69 +880,90 @@ pub mod hammer{
         }
         Ok(res)
     }
+
+    struct AuthorisedToken{
+        sep: bool,
+        op: bool,
+        nb: bool
+    }
+
     fn tokenize_expression(hammer: &Hammer, mut exp: Vec::<String>) -> Result<Vec<String>, String> {
-        println!("{exp:?}");
+        let mut exp_res = Vec::<String>::new();  // Store all tokens
+        let mut current_token = String::new();  // If we have found a function, we will temporarily store the token function in this string and then push it into exp
+        let mut par_count = 0; // Here we are gonna stock the dyck word algorithm, when we found a ( we increment 1 when we found ) we decrement 1. This var has to be at 0 at the end of the loop
+        let mut brack_count = 0; // Do the same job as par_count but with the brackets.
+        let mut auth_elt = AuthorisedToken{sep: true, op: false, nb: true}; // Indicate at a given moment if a given token is authorized
+        let mut neg_count: u32 = 0; // If cant be op is true and we've found a -, we don't return an error, because the - is the sign of the next token, so we simply count the number of -.    
         unsafe{
-            let mut exp_res = Vec::<String>::new();  // Store all tokens
-            let mut current_token = String::new();  // If we have found a function, we will temporarily store the token function in this string and then push it into exp
-            let mut par_count = 0; // Here we are gonna stock the dyck word algorithm, when we found a ( we increment 1 when we found ) we decrement 1. This var has to be at 0 at the end of the loop
-            let mut brack_count = 0; // Do the same job as par_count but with the brackets.
-            let mut cant_be_op = true;  // If we find an operator, this Boolean will change to true, then if we find something that isn't an operator, it will change to false.
-            let mut neg_count: u32 = 0; // If cant be op is true and we've found a -, we don't return an error, because the - is the sign of the next token, so we simply count the number of -.
             let mut looking_for_big_token: (i32, *mut i32) = (-1, &mut par_count as *mut i32);  // when we find a function or an array bracket, we assign par_count or brack_count to this variable, then as soon as par_count.brack_count has returned to its original value, 
                                                                 // we know we've finished tokenizing the function. The second element simply design if the current token is an array or a func
             let mut i = 0;
             while i < exp.len(){
-                let word = exp[i].trim().to_string();
-                if word != "" {
-                    par_count += (word == "(") as i32 - (word == ")") as i32; 
-                    brack_count += (word == "[") as i32 - (word == "]") as i32; 
+                exp[i] = exp[i].trim().to_string();
+                if exp[i] != "" {
+                    par_count += (exp[i] == "(") as i32 - (exp[i] == ")") as i32; 
+                    brack_count += (exp[i] == "[") as i32 - (exp[i] == "]") as i32; 
                     if par_count < 0 || brack_count < 0 {
-                        println!("{}, {:?}", i, exp);
                         return Err(format!("{} To many closing bracket in a given moment of the expression.", hammer.error_msg()));
                     }
                     if looking_for_big_token.0 == -1 {
-                        let is_op = hammer.tools.is_operator(&word); 
-                        if is_op || hammer.tools.is_separator(&word){
-                            neg_count *= (is_op && cant_be_op) as u32; 
+                        current_token = exp[i].clone();
+                        let is_op = hammer.tools.is_operator(&current_token); 
+                        if is_op || hammer.tools.is_separator(&current_token){
+                            neg_count *= (is_op && !auth_elt.op) as u32; 
                             if is_op {
-                                if cant_be_op{
-                                    match &word as &str{
+                                if !auth_elt.op{
+                                    match &current_token as &str{
                                         "-" => neg_count += 1,
                                         _ => return Err(format!("{} There is a bad operator in your expression.", hammer.error_msg()))
                                     }   
                                 }else{
-                                    exp_res.push(word);
-                                    cant_be_op = true;
+                                    exp_res.push(current_token);
+                                    auth_elt.op = false;
                                 }
+                                auth_elt.nb = true;
                             }else {
-                                exp_res.push(word);
-                                cant_be_op = false;
-                            }
-                        }else{
-                            if hammer.func_exists(&word) {
-                                current_token = word;
-                                looking_for_big_token.0 = par_count;
-                                looking_for_big_token.1 = &mut par_count as *mut i32;
-                            }else if i !=  exp.len()-1 && exp[i+1] == "[" {
-                                current_token = word;
-                                looking_for_big_token.0 = brack_count;
-                                looking_for_big_token.1 = &mut brack_count as *mut i32;
-                            }else{
-                                if neg_count % 2 == 0 {
-                                    exp_res.push(word);
+                                if auth_elt.sep {
+                                    auth_elt.nb = "([".contains(&current_token);
+                                    auth_elt.op = !auth_elt.nb;
+                                    auth_elt.sep = auth_elt.nb;
+                                    exp_res.push(current_token);
                                 }else{
-                                    exp_res.push(String::from("-1"));
-                                    exp_res.push(String::from("*"));
-                                    exp_res.push(word);
+                                    return Err(format!("{} There is a bad separator in your expression: {}", hammer.error_msg(), current_token))
                                 }
                             }
-                            cant_be_op = false;
+                            current_token = String::new()
+                        }else{
+                            if auth_elt.nb {
+                                if hammer.func_exists(&current_token) {
+                                    looking_for_big_token.0 = par_count;
+                                    looking_for_big_token.1 = &mut par_count as *mut i32;
+                                }else if i !=  exp.len()-1 && exp[i+1] == "[" {
+                                    looking_for_big_token.0 = brack_count;
+                                    looking_for_big_token.1 = &mut brack_count as *mut i32;
+                                }else{
+                                    if neg_count % 2 == 1 {
+                                        exp_res.push(String::from("-1"));
+                                        exp_res.push(String::from("*"));
+                                    }
+                                    exp_res.push(current_token);
+                                    current_token = String::new();
+                                    auth_elt.sep = false;
+                                }
+                                auth_elt.op = true;
+                            }else{
+                                let mut bad_token = String::from("number");
+                                if hammer.func_exists(&current_token) {
+                                    bad_token = String::from("function")
+                                }
+                                return Err(format!("{} There is a bad {} in your expression.", hammer.error_msg(), bad_token))
+                            }
+                            
                         }
                     }else{
-                        current_token.push_str(&word);
-                        if looking_for_big_token.1 == &mut brack_count as *mut i32 {
-                            if i != exp.len() -2 && exp[i+1] == "[" {
+                        current_token.push_str(&exp[i]);
+                        if looking_for_big_token.1 == &mut brack_count as *mut i32 { 
+                            if i != exp.len() -2 && exp[i+1] == "[" {   // We check if the next element is a ']', then we increment brack_count to not reset the current token
                                 exp.remove(i+1);
                                 brack_count += 1;
                                 current_token.push_str("[");
@@ -952,20 +973,20 @@ pub mod hammer{
                             exp_res.push(current_token);
                             current_token = String::new();
                             looking_for_big_token.0 = -1;
+                            auth_elt.nb = false;
                         }                                       
                     }
                 }
                 i += 1;
             }
-            if current_token != String::new() {
-                exp_res.push(current_token);
-            }
-            if par_count != 0 || brack_count != 0 {
-                return Err(format!("{} The number of opening brackets is not the same as the number of closing brackets", hammer.error_msg()));
-            }
-            println!("res: {exp_res:?}");
-            Ok(exp_res)
         }
+        if current_token != String::new() {
+            exp_res.push(current_token);
+        }
+        if par_count != 0 || brack_count != 0 {
+            return Err(format!("{} The number of opening brackets is not the same as the number of closing brackets", hammer.error_msg()));
+        }
+        Ok(exp_res)
     }
 
 
