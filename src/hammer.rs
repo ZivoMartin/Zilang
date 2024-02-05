@@ -880,8 +880,8 @@ pub mod hammer{
         }
         Ok(res)
     }
-    fn tokenize_expression(hammer: &Hammer, exp: Vec::<String>) -> Result<Vec<String>, String> {
-        
+    fn tokenize_expression(hammer: &Hammer, mut exp: Vec::<String>) -> Result<Vec<String>, String> {
+        println!("{exp:?}");
         unsafe{
             let mut exp_res = Vec::<String>::new();  // Store all tokens
             let mut current_token = String::new();  // If we have found a function, we will temporarily store the token function in this string and then push it into exp
@@ -891,12 +891,14 @@ pub mod hammer{
             let mut neg_count: u32 = 0; // If cant be op is true and we've found a -, we don't return an error, because the - is the sign of the next token, so we simply count the number of -.
             let mut looking_for_big_token: (i32, *mut i32) = (-1, &mut par_count as *mut i32);  // when we find a function or an array bracket, we assign par_count or brack_count to this variable, then as soon as par_count.brack_count has returned to its original value, 
                                                                 // we know we've finished tokenizing the function. The second element simply design if the current token is an array or a func
-            for i in 0..exp.len(){
+            let mut i = 0;
+            while i < exp.len(){
                 let word = exp[i].trim().to_string();
                 if word != "" {
                     par_count += (word == "(") as i32 - (word == ")") as i32; 
                     brack_count += (word == "[") as i32 - (word == "]") as i32; 
                     if par_count < 0 || brack_count < 0 {
+                        println!("{}, {:?}", i, exp);
                         return Err(format!("{} To many closing bracket in a given moment of the expression.", hammer.error_msg()));
                     }
                     if looking_for_big_token.0 == -1 {
@@ -939,13 +941,21 @@ pub mod hammer{
                         }
                     }else{
                         current_token.push_str(&word);
-                        if *looking_for_big_token.1 == looking_for_big_token.0  {
+                        if looking_for_big_token.1 == &mut brack_count as *mut i32 {
+                            if i != exp.len() -2 && exp[i+1] == "[" {
+                                exp.remove(i+1);
+                                brack_count += 1;
+                                current_token.push_str("[");
+                            }
+                        }
+                        if *looking_for_big_token.1 == looking_for_big_token.0  {    
                             exp_res.push(current_token);
                             current_token = String::new();
                             looking_for_big_token.0 = -1;
                         }                                       
                     }
                 }
+                i += 1;
             }
             if current_token != String::new() {
                 exp_res.push(current_token);
@@ -953,6 +963,7 @@ pub mod hammer{
             if par_count != 0 || brack_count != 0 {
                 return Err(format!("{} The number of opening brackets is not the same as the number of closing brackets", hammer.error_msg()));
             }
+            println!("res: {exp_res:?}");
             Ok(exp_res)
         }
     }
