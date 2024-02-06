@@ -32,9 +32,6 @@ impl Tracker {
         self.inst_map.insert(String::from("xor"), Tracker::xor_inst);
         self.inst_map.insert(String::from("mov"), Tracker::memory_action);
         self.inst_map.insert(String::from("movzx"), Tracker::memory_action);
-        self.inst_map.insert(String::from("movsx"), Tracker::memory_action);
-        self.inst_map.insert(String::from("xor"), Tracker::xor_inst);
-        self.inst_map.insert(String::from("add"), Tracker::memory_action);
         self.inst_map.insert(String::from("mul"), Tracker::mul_inst);
         self.inst_map.insert(String::from("cmp"), Tracker::cmp_inst);
         self.inst_map.insert(String::from("jg"), Tracker::cond_inst);
@@ -51,13 +48,16 @@ impl Tracker {
 
     pub fn new_inst(&mut self, inst: &str) -> String {
         let tokens = tokenise_asm_inst(inst);
+        let mut res = String::from(inst);
         if last_char(tokens.0[0]) != ':' {
-            return match self.inst_map.get(tokens.0[0]).unwrap()(self, tokens.0, tokens.1) {
-                Some(new_inst) => new_inst,
-                _ => String::from(inst)
+            let opt_inst = self.inst_map.get(tokens.0[0]).unwrap()(self, tokens.0, tokens.1); 
+            if opt_inst.is_some() {
+                res = opt_inst.unwrap();
             }
         }
-        String::from(inst)
+        res = self.registers().txt.clone() + &res;
+        self.registers_mut().txt = String::new();
+        res
     }
 
     fn registers_mut(&mut self) -> &mut RegistersData {
@@ -73,9 +73,9 @@ impl Tracker {
     }
 
     fn memory_action(&mut self, tokens: Vec<&str>, garbage: &str) -> Option<String> {
-        let opt_val = self.registers().extract_val(&tokens[2]);
-        if opt_val.is_some() {
-            let val = opt_val.unwrap();
+        let token2_val = self.registers().extract_val(&tokens[2]);
+        if token2_val.is_some() {
+            let val = token2_val.unwrap();
             match tokens[0] as &str{
                 "add" => {
                     if !self.registers_mut().add_val(tokens[1], val){
@@ -93,26 +93,26 @@ impl Tracker {
             }
             return Some(String::new())
         }
-        let res: Option<String>;
+        let res: String;
         match self.get_val(tokens[1]) {
             Some(_) => {
-                if garbage != "" {
+                if garbage == "" {
                     if tokens[0] != "add" {
                             self.set_val(tokens[1], Some(0));
                     }
                     self.set_static_reg(tokens[1], tokens[2]);
-                    res = Some(String::new())
+                    res = String::new()
                 }else{
                     match tokens[0] {
-                        "add" => res = Some(format!("{}\n{} {}, {}", self.put_in_asm(tokens[1]), tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage))),
-                        _ => res = Some(format!("{} {}, {}", tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage)))
+                        "add" => res = format!("{}\n{} {}, {}", self.put_in_asm(tokens[1]), tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage)),
+                        _ => res = format!("{} {}, {}", tokens[0], tokens[1], self.get_memory_access(tokens[2], garbage))
                     }
                     self.set_val(tokens[1], None);
                 }
             },
-            _ => res = Some(format!("{} {}, {}", tokens[0], self.get_memory_access(tokens[1], garbage), self.get_memory_access(tokens[2], garbage)))
+            _ => res = format!("{} {}, {}", tokens[0], self.get_memory_access(tokens[1], garbage), self.get_memory_access(tokens[2], garbage))
         }
-        res
+        Some(res)
     }
 
     fn get_memory_access(&self, spot: &str, garbage: &str) -> String {
@@ -356,7 +356,7 @@ fn tokenise_asm_inst(inst: &str) -> (Vec<&str>, &str) {
 
 struct Register{
     val: Option<i64>,
-    static_register: Option<String>
+    static_register: Option<String>,
 }
 
 impl Register{
@@ -364,7 +364,7 @@ impl Register{
     fn new() -> Register {
         Register{
             val: Some(0),
-            static_register: None
+            static_register: None,
         }
     }
 
@@ -387,7 +387,7 @@ impl Clone for Register {
     fn clone(&self) -> Register {
         Register {
             val: self.val.clone(),
-            static_register: self.static_register.clone()
+            static_register: self.static_register.clone(),
         }
     }
 
@@ -395,14 +395,16 @@ impl Clone for Register {
 
 struct RegistersData {
     map: HashMap<&'static str, Register>,
-    convert: HashMap<String, &'static str>
+    convert: HashMap<String, &'static str>,
+    txt: String
 }
 
 impl RegistersData {
     fn new() -> RegistersData{
         let mut res = RegistersData{
             map: HashMap::<&'static str, Register>::new(),
-            convert: HashMap::<String, &'static str>::new() 
+            convert: HashMap::<String, &'static str>::new(),
+            txt: String::new()
         };
         res.map.insert("rax", Register::new());
         res.map.insert("rbx", Register::new());
@@ -435,7 +437,8 @@ impl RegistersData {
     fn clone(&self) -> RegistersData {
         RegistersData{
             map: self.map.clone(),
-            convert: self.convert.clone()
+            convert: self.convert.clone(),
+            txt: self.txt.clone()
         }
     }
     
@@ -516,7 +519,7 @@ impl RegistersData {
         }
         let static_reg = self.get_static_reg(register);
         if static_reg.is_some() {
-            res.push_str(&format!("\nadd {}, {}     ;out of the tracker", register, static_reg.unwrap()));
+            res.push_str(&format!("\nadd {}, {}     ;out of the tracker", self.convert.get(register).unwrap(), static_reg.unwrap()));
         }
         res
     }
