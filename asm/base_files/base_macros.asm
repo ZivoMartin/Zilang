@@ -19,7 +19,9 @@ section .text
     
     mov rax, 1
     mov rdi, 1
-    mov rsi, %1
+    mov rsi, _ascii
+    sub rbx, 32
+    add rsi, rbx
     mov rdx, 1
     syscall
 
@@ -28,7 +30,7 @@ section .text
 %macro dn 1
     mov rax, %1
     xor r10, r10    
-    cmp rax, 0
+    and rax, rax
     jl %%_neg
     %%_local_label_stock_loop:
         inc r10
@@ -36,16 +38,15 @@ section .text
         mov rcx, 10         
         idiv rcx
         push rdx
-        cmp rax, 0
+        and rax, rax
         jne %%_local_label_stock_loop
 
     %%_local_label_display:
-        cmp r10, 0  
+        and r10, r10  
         je %%_local_label_end_loop_display_number
         pop rbx        
-        mov rsi, _chiffres
-        add rsi, rbx 
-        print_char rsi
+        add rbx, 48
+        print_char rbx
         dec r10
         jmp %%_local_label_display
 

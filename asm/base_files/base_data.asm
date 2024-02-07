@@ -13,7 +13,7 @@ section .data
     _inf_equal: db ';'
     _sup_equal: db '?'
     _diff: db '@'
-    _chiffres: db '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'
+    _ascii db " !", 34, "#$%&", 39, "()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     _newline: db 10
     _seg_fault_msg: db 'Segmentation fault', 10
     _size_seg_fault_msg: equ $-_seg_fault_msg

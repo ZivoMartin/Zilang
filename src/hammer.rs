@@ -316,6 +316,7 @@ pub mod hammer{
         fn init_dispo_macro(&mut self){
             self.macro_list.insert(String::from("dn"), 1);
             self.macro_list.insert(String::from("exit"), 1);
+            self.macro_list.insert(String::from("print_char"), 1);
         }
 
         fn init_dispo_keyword(&mut self) {
