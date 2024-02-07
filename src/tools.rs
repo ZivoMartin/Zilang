@@ -205,11 +205,22 @@ pub mod tools{
     }
     
 
-    pub fn from_char_to_number(chara: &String) -> Option<i8> {
-        if chara.len() != 3 || !chara.ends_with('\'') || !chara.ends_with('\''){
+    pub fn from_char_to_number(chara: &mut String) -> Option<i8> {
+        if chara.len() <= 2 || !chara.starts_with('\'') || !chara.ends_with('\''){
             return None
         }
-        return Some(chara.chars().nth(1).unwrap() as i8)
+        if chara.len() == 4 {
+            match chara.chars().nth(2).unwrap() {
+                '0' => *chara = String::from("'\0'"),
+                'n' => *chara = String::from("'\n'"),
+                'r' => *chara = String::from("'\r'"),
+                _ => return None
+            }
+        }
+        match str::parse::<char>(&chara[1..2]) {
+            Ok(nb) => Some(nb as i8),
+            _ => None
+        }
     }
 
     pub fn extract_end_char(s: &mut String, chara: char) -> u32 {

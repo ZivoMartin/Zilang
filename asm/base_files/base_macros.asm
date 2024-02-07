@@ -20,12 +20,20 @@ section .text
     mov rax, 1
     mov rdi, 1
     mov rsi, _ascii
-    sub rbx, 32
+    mov rbx, %1
     add rsi, rbx
     mov rdx, 1
     syscall
 
 %endmacro
+
+_back_line:
+mov rax, 1
+mov rdi, 1
+mov rsi, _newline
+mov rdx, 1
+syscall
+ret
 
 %macro dn 1
     mov rax, %1
@@ -53,12 +61,12 @@ section .text
     %%_neg:
         neg rax
         push rax
-        print_char _soustr
+        print_char '-'
         pop rax
         jmp %%_local_label_stock_loop
 
     %%_local_label_end_loop_display_number:
-        print_char _newline 
+        call _back_line 
     
     
 %endmacro

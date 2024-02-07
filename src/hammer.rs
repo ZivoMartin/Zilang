@@ -795,12 +795,7 @@ pub mod hammer{
                 match str::parse::<u32>(&var[i][0..var[i].len()-1]) {
                     Ok(tab_size) => {
                         type_var.stars += 1;
-                        let size: u32;
-                        if i != var[i].len()-1 {
-                            size = POINTER_SIZE;
-                        }else{
-                            size = type_var.size as u32;
-                        }
+                        let size: u32 = POINTER_SIZE;
                         for j in 0..previous_data.0{
                             hammer.push_txt(&format!("mov {}[_stack+r15+ {}], {}\n", hammer.size[&size].long, previous_data.1+size*j, hammer.stack_index), !hammer.debug);
                             hammer.stack_index += size*tab_size;
@@ -1031,7 +1026,7 @@ pub mod hammer{
                             return Err(format!("{} The two types are incompatibles.", hammer.error_msg()));
                         }
                     }else{
-                        match from_char_to_number(&element){
+                        match from_char_to_number(&mut element){
                             Some(val) => {
                                 if nb_stars != 0 {
                                     return Err(format!("{} You tried to dereference a character", hammer.error_msg()))
@@ -1108,7 +1103,8 @@ pub mod hammer{
         for vec in var.squares.as_ref().unwrap().iter() {
             hammer.push_txt("push rbx\n", !hammer.debug);
             evaluate_exp(hammer, vec)?;
-            hammer.push_txt("pop rbx\n_deref 1\nmov rcx, 4\nmul rcx\nadd rbx, rax\n", !hammer.debug);
+            let mult = if stars == 1 {var_def.type_var.size}else{4};
+            hammer.push_txt(&format!("pop rbx\n_deref 1\nmov rcx, {}\nmul rcx\nadd rbx, rax\n", mult), !hammer.debug);
             stars -= 1
         }
         if var.nb_stars > 0 {
@@ -1171,7 +1167,7 @@ pub mod hammer{
 
     fn if_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String> {
         put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
-        hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), !hammer.debug);
+        hammer.push_txt(&format!("je _end_condition_{}\n", hammer.blocs_index), !hammer.debug);
         let bloc_index = hammer.blocs_index;
         hammer.cond_index_stack().push(bloc_index);
         jump_in(hammer, format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index));
@@ -1187,7 +1183,7 @@ pub mod hammer{
             let first_word = rest_of_line.split(" ").next().unwrap();
             if first_word == "if"{
                 put_res_in_rax(hammer, String::from(&rest_of_line[2..rest_of_line.len()]), MAX_STARS+1)?;
-                hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), !hammer.debug);
+                hammer.push_txt(&format!("je _end_condition_{}\n", hammer.blocs_index), !hammer.debug);
             } else {
                 return Err(format!("{} We found {} when nothing or the if keyword was attempt.", hammer.error_msg(), first_word))
             }
@@ -1202,7 +1198,7 @@ pub mod hammer{
     fn while_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
         new_loop(hammer, hammer.blocs_index);
         put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
-        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index), !hammer.debug);
+        hammer.push_txt(&format!("je _end_loop_{}\n", hammer.blocs_index), !hammer.debug);
         jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
         Ok(())
     }
@@ -1222,7 +1218,7 @@ pub mod hammer{
         handle_instruction(hammer, split_exp[2].to_string())?;
         hammer.push_txt(&format!("_loop_{}_end_start_inst:\n", hammer.blocs_index-1), false);
         put_res_in_rax(hammer, split_exp[1].clone(), MAX_STARS+1)?;
-        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index-1), !hammer.debug);
+        hammer.push_txt(&format!("je _end_loop_{}\n", hammer.blocs_index-1), !hammer.debug);
         Ok(())
     }
 
