@@ -14,10 +14,10 @@ use std::process::{Command, exit};
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
     let operations: Vec<&str> = vec!("-o");
-    let parameters: Vec<&str> = vec!("-g");
+    let parameters: Vec<&str> = vec!("-t");
     
     let mut operation: Option<&str> = None;
-    let mut debug = false;
+    let mut debug = true;
     let mut input: Option<&str> = None;
     let mut output: Option<&str> = None;
     for elt in args.iter().skip(1) {
@@ -28,7 +28,7 @@ fn main() -> Result<(), String> {
             operation = Some(elt);
         }else if parameters.contains(&(elt as &str)) {
             match elt as &str {
-                "-g" => debug = true,
+                "-t" => debug = false,
                 _ => return Err(format!("Unknow parameter in the command line: {}", elt))
             }
         }else if input.is_none() {

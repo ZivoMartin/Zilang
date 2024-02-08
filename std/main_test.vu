@@ -1,6 +1,12 @@
 import std/stdio.vu;
+import std/str.vu;
 
-char buffer[10] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+char HelloString[14] = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', '\n', '\0'};
 
-print(buffer, 10);
+if contains(HelloString, '!') == 0 {
+    print(HelloString);
+}
+
+print(HelloString);
+
 !exit(0);

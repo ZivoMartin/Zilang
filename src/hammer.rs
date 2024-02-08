@@ -306,6 +306,7 @@ pub mod hammer{
         fn init_dispo_type(&mut self){
             self.new_type(String::from("int"), 4);
             self.new_type(String::from("char"), 1);
+            self.new_type(String::from("bool"), 1);
             self.new_type(String::from("void"), 0);
         }
 
@@ -389,7 +390,7 @@ pub mod hammer{
                 return Err(format!("{} The function {} already exists", self.get_ln(), name))
             }else{
                 self.top_prog_mut().type_return = Some(return_type.clone());
-                self.func_list.insert(name, Function{args: args, return_type: return_type});
+                self.func_list.insert(name, Function{args, return_type});
             }
             Ok(())
         }
@@ -480,10 +481,10 @@ pub mod hammer{
 
         fn define_new_var(&mut self, name: String, type_var: Type){
             let addr = self.stack_index;
-            self.stack_index += type_var.size;
+            self.stack_index += if type_var.stars == 0 {type_var.size}else{POINTER_SIZE};
             let var_def = VariableDefinition{
                 name: name.clone(),
-                type_var: type_var
+                type_var
             };
             match self.addr_list.get_mut(&addr) {
                 Some(stack) => stack.push(var_def),
@@ -545,6 +546,7 @@ pub mod hammer{
         Ok(())
     }
 
+    
     fn instruct_loop(hammer: &mut Hammer) -> Result<(), String>{
         while hammer.get_in() <= hammer.top_prog().inst_vec.len() -1{
             let nb_back_line = hammer.inst().matches('\n').count();
@@ -621,7 +623,8 @@ pub mod hammer{
         let mut decal = 0;
         for (i, exp) in split_virg.iter().enumerate() {
             put_res_in_rax(hammer, exp.to_string(), func.args[i].type_var.stars)?;
-            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", hammer.stack_index + decal, hammer.size[&func.args[i].type_var.size].register), !hammer.debug);
+            let size_var = if func.args[i].type_var.stars == 0 {func.args[i].type_var.size}else{POINTER_SIZE};
+            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", hammer.stack_index + decal, hammer.size[&size_var].register), !hammer.debug);
             decal += func.args[i].type_var.size;
         }
         hammer.push_txt(&format!("push r15\nadd r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name), !hammer.debug);
@@ -944,13 +947,12 @@ pub mod hammer{
                                     }
                                     exp_res.push(current_token);
                                     current_token = String::new();
-                                    auth_elt.sep = false;
+                                    if i < exp.len()-1 && exp[i+1] == "(" {
+                                        return Err(format!("{} There is a bad separator in your expression: (", hammer.error_msg())) 
+                                    }
                                 }
                                 auth_elt.op = true;
                                 auth_elt.sep = true;
-                                if i < exp.len()-1 && exp[i+1] == "(" {
-                                    return Err(format!("{} There is a bad separator in your expression: (", hammer.error_msg())) 
-                                }
                             }else{
                                 let mut bad_token = String::from("number");
                                 if hammer.func_exists(&current_token) {
