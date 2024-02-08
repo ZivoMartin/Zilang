@@ -36,8 +36,8 @@ syscall
 ret
 
 %macro dn 1
-    mov rax, %1
     xor r10, r10    
+    mov rax, %1
     and rax, rax
     jl %%_neg
     %%_local_label_stock_loop:
@@ -59,8 +59,8 @@ ret
         jmp %%_local_label_display
 
     %%_neg:
-        neg rax
         push rax
+        neg rax
         print_char '-'
         pop rax
         jmp %%_local_label_stock_loop

@@ -6,7 +6,6 @@ global _start
 section .text
 
 _operation:
-    xor rcx, rcx
 
     cmp r12b, byte[_addi]
     je _addi_op
@@ -95,16 +94,16 @@ _operation:
         jmp false
 
     _or_op:
-        cmp r10, rcx
+        and r10, r10
         jne true
-        cmp r11, rcx
+        and r11, r11
         jne true
         jmp false
 
     _and_op:
-        cmp r10, rcx
+        and r10, r10
         je false
-        cmp r11, rcx
+        and r10, r10
         je false
         jmp true
 

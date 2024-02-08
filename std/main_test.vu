@@ -3,10 +3,8 @@ import std/str.vu;
 
 char HelloString[14] = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', '\n', '\0'};
 
-if contains(HelloString, '!') == 0 {
-    print(HelloString);
-}
-
 print(HelloString);
+
+!dn(-1);
 
 !exit(0);
