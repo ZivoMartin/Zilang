@@ -376,7 +376,6 @@ pub mod hammer{
                             self.top_prog_mut().push_txt(&optimise_inst);
                         }
                     }
-                    
                  }
             }else{
                 self.top_prog_mut().push_txt(txt);
@@ -680,11 +679,11 @@ pub mod hammer{
             let right_exp = split.join("=").replace(" = ", "=");
             let addr = hammer.get_addr(&var1);
             let struct_addr = Token{val: addr as i32, func_dec: None, squares: Some(tab_vec), nb_stars: nb_stars, interp: Interp::Variable};
-            let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?;
+            let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?; // Put the reference of the left exp in rax
             hammer.push_txt("push rax\n", !hammer.debug);
-            put_res_in_rax(hammer, right_exp, stars_in_left_var as u32)?;
+            put_res_in_rax(hammer, right_exp, stars_in_left_var as u32)?; // The result of the expression in rax
             if stars_in_left_var != 0 {
-                hammer.push_txt("pop rbx\nmov dword[_stack+ rbx], eax\n", !hammer.debug);
+                hammer.push_txt("pop rbx\nmov [_stack+ rbx], eax\n", !hammer.debug);
             }else{
                 hammer.push_txt(&format!("pop rbx\nmov [_stack+ rbx], {}\n", hammer.get_size_def(addr).register), !hammer.debug);
             }
@@ -1079,18 +1078,19 @@ pub mod hammer{
     
     fn handle_variable_dereference(hammer: &mut Hammer, var: &Token) -> Result<u32, String> {
         let var_def = hammer.get_var_def_i32(var.val).clone();
-        let mut stars = var_def.type_var.stars as i32 - var.nb_stars;
+        let mut stars = var_def.type_var.stars as i32;
         hammer.push_txt(&format!("mov rbx, {}\nadd rbx, r15\n", var.val), !hammer.debug);
         for vec in var.squares.as_ref().unwrap().iter() {
             hammer.push_txt("push rbx\n", !hammer.debug);
             evaluate_exp(hammer, vec)?;
-            let mult = if stars == 1 {var_def.type_var.size}else{4};
+            let mult = if stars == 1 {var_def.type_var.size}else{POINTER_SIZE};
             hammer.push_txt(&format!("pop rbx\n_deref 1\nmov rcx, {}\nmul rcx\nadd rbx, rax\n", mult), !hammer.debug);
             stars -= 1
         }
         if var.nb_stars > 0 {
             hammer.push_txt(&format!("\n_deref {}\n", var.nb_stars), !hammer.debug);
         }
+        stars -= var.nb_stars;
         hammer.push_txt("mov rax, rbx\n", !hammer.debug);
         if stars < 0 {
             return Err(format!("{} You tried to dereference the variable {} {} times but you only have the right to dereference it {} times", hammer.error_msg(), var_def.name, var_def.type_var.stars as i32 - stars, var_def.type_var.stars));
