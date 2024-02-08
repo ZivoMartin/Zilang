@@ -36,39 +36,30 @@ syscall
 ret
 
 %macro dn 1
-    xor r10, r10    
     mov rax, %1
-    and rax, rax
-    jl %%_neg
+    and rax, rax    ; For an unknow reason the previous mov don't proke the flags
+    jnl %%_not_neg
+    neg rax 
+    push rax    ; print_char use rax, we have to save it
+    print_char '-'
+    pop rax
+    %%_not_neg:
+    mov rcx, 10    
+    push rcx ; This gonna be the back to line char at the end of the loop
+    mov r10, 1         
     %%_local_label_stock_loop:
         inc r10
         xor rdx, rdx          
-        mov rcx, 10         
-        idiv rcx
+        idiv rcx    ; The rest of the operation rax/rcx go in rdx
+        add rdx, 48 ; We condider rdx as a number 
         push rdx
-        and rax, rax
+        and rax, rax    
         jne %%_local_label_stock_loop
-
     %%_local_label_display:
-        and r10, r10  
-        je %%_local_label_end_loop_display_number
         pop rbx        
-        add rbx, 48
         print_char rbx
         dec r10
-        jmp %%_local_label_display
-
-    %%_neg:
-        push rax
-        neg rax
-        print_char '-'
-        pop rax
-        jmp %%_local_label_stock_loop
-
-    %%_local_label_end_loop_display_number:
-        call _back_line 
-    
-    
+        jg %%_local_label_display
 %endmacro
 
 

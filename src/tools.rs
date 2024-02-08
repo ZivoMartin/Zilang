@@ -175,10 +175,37 @@ pub mod tools{
             return self.operator_ascii_val[op]
         }
 
+        pub fn get_full_op(&self, c1: char, c2: char) -> String {
+            let mut res = String::from(c1);
+            match c1 {
+                '<' | '>' | '=' | '!' => {
+                    if c2 == '=' {
+                        res = format!("{}=", c1);
+                    }
+                }
+                '|' =>  {
+                    if c2 == '|' {
+                        res = String::from("||");
+                    }
+                }
+                '&' =>  {
+                    if c2 == '&' {
+                        res = String::from("&&");
+                    }
+                }
+                _ => ()
+            }
+            res
+        }
+
+        pub fn can_be_operator(&self, c: char) -> bool {
+            "!=|&".contains(c) || self.is_operator(&String::from(c))
+        }
+
     }
 
 
-
+   
 
     pub fn split(string: &str, splitter: &str) -> Vec::<String>{
         string.split(splitter).map(String::from).collect()

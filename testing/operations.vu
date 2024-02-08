@@ -1,11 +1,9 @@
 
-func f() -> int {
-    return 2;
+func f(int a, int b) -> int {
+    return a + b;
 }
 
-int elt = 3+(3-1)(2+4);
-
-int a = 2*3-4+f()/2 + 3;
+int a = 2*---1;
 
 !dn(a);
 
