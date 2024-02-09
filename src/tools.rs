@@ -90,7 +90,6 @@ pub mod tools{
         authorized_char_for_variable: &'static str,
         operators: Vec<&'static str>,
         operator_priority: HashMap<String, u8>,
-        separators: &'static str,
         operator_ascii_val: HashMap<&'static str, i32>
     }
 
@@ -101,16 +100,13 @@ pub mod tools{
                 authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_",
                 operators: vec!{"+", "-", "*", "/", "%", "||", "&&", "==", "!=", "<", ">", "<=", ">="},
                 operator_priority: build_operator_priority(),
-                separators: "(){}[],.",
                 operator_ascii_val: HashMap::<&'static str, i32>::new()
             };
             res.init_ascii_map();
             res
         }
 
-        pub fn get_op_iter(&self) -> std::slice::Iter<'_, &str> {
-            self.operators.iter()
-        }
+
         
         pub fn is_valid_name(&self, name: &str) -> bool{
             for letter in name.chars(){
@@ -152,10 +148,6 @@ pub mod tools{
             result
         }
     
-        
-        pub fn is_separator(&self, s: &String) -> bool{
-            s.len() == 1 && self.separators.contains(s)
-        }   
 
         fn init_ascii_map(&mut self) {
             for op in self.operators.iter(){

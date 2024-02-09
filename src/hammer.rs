@@ -112,7 +112,7 @@ pub mod hammer{
     impl Token {
 
         fn new_val(val: i32) -> Token{
-            Token{val: val, squares: None, func_dec: None, nb_stars: 0, interp: Interp::Value}
+            Token{val, squares: None, func_dec: None, nb_stars: 0, interp: Interp::Value}
         }
         fn new_op(op: i32) -> Token {
             Token{val: op, squares: None, func_dec: None, nb_stars: 0, interp: Interp::Operator}
@@ -163,9 +163,6 @@ pub mod hammer{
             *self.len_stack.val_mut() += txt.matches('\n').count() as u32;
         }
 
-        fn get_len_txt(&self) -> u32 {
-            *self.len_stack.val()
-        }
 
         fn pop_current_txt(&mut self) -> String {
             self.len_stack.pop();
@@ -770,6 +767,9 @@ pub mod hammer{
         Ok(())
     }
 
+    ///This function gonna push a new variable in the memory with the type type_var and for the name the first element of inst_split. 
+    /// Also gonna handle type_dec and return a tupple of value who represent the eventual tab data for the function direct_tab_dec. 
+    /// All the operation like push stack_index are handdle by the function.    
     fn dec_new_var(hammer: &mut Hammer, inst_split: &Vec<String>, type_var: &mut Type) -> Result<(u32, u32), String> {
         if inst_split.len() < 2{
             return Err(format!("{} You should initialise a variable.", hammer.error_msg()))
@@ -785,8 +785,11 @@ pub mod hammer{
         evaluate_exp(hammer, &build_aff_vec(hammer, exp, nb_stars_await)?)
     }
 
+
+    /// This function gonna take a type and a variable who is the definition of a new array, it gonna browse the content of each square of this declaration
+    /// then alloacate the space necessary. 
     fn handle_tab_type_dec(hammer: &mut Hammer, var: &mut Vec<&str>, type_var: &mut Type) -> Result<(u32, u32), String> {
-        let mut previous_data: (u32, u32) = (1, hammer.stack_index);
+        let mut previous_data: (u32, u32) = (1, hammer.stack_index);    // The data of the array
         if var.len() != 1 {
             let tab_addr = hammer.stack_index;
             for i in 1..var.len() {
@@ -817,7 +820,8 @@ pub mod hammer{
         Ok(previous_data)
     }
 
-
+    /// This function take in parameter an variable "call" under a string form, it gonna handle the fact  variable can be an array call and gonna return 
+    /// an array of token vec. An array of token vec represent an expression, one for each potential square.
     fn tab_analyse(hammer: &Hammer, var_s: &mut String) -> Result<Vec::<Vec<Token>>, String>{
         let var: Vec::<&str> = var_s.split("[").collect();
         let mut res = Vec::<Vec<Token>>::new();
@@ -847,7 +851,8 @@ pub mod hammer{
         Ok(count)
     }
 
-
+    /// This function take in parameter a string who represents an expression, the function gonna build a vector of token
+    /// who represent this expression. Also handle the potential syntax error in the expression. 
     fn build_aff_vec(hammer: &Hammer, mut string_exp: String, nb_stars_await: u32) -> Result<Vec::<Token>, String>{
         string_exp = string_exp.trim().to_string();
         if string_exp == String::from("") || string_exp.contains("ù") && is_in_a_string(&string_exp, "_".to_string()){
@@ -868,11 +873,14 @@ pub mod hammer{
         brack_index: usize
     }
     
+    /// This function take in parameter an expression in the string form and tokenise it in a String array with each token in string form.
+    /// This function gonna be called by build_aff_vec for build in a first time a string array, this step is for now necessary.
     fn tokenize_expression(hammer: &Hammer, exp: String) -> Result<Vec<String>, String> {
         let brack_count = &mut [0, 0];
         let mut current_token = String::new();
         let mut res = Vec::<String>::new();
         let mut neg_count = 0;
+        let mut was_op = false;
         if exp.len() == 0 {
             return Ok(res)
         }
@@ -918,6 +926,9 @@ pub mod hammer{
                                 }
                                 let potential_operator = hammer.tools.get_full_op(c, exp.chars().nth(i+1).unwrap());
                                 if c == ')' || hammer.tools.is_operator(&potential_operator) {
+                                    if potential_operator.len() == 2 {
+                                        was_op = true
+                                    }
                                     if current_token.is_empty() { // If the token is empty, there is a big error risk.. The two valid case are, the previous element was a closing separator, or a function/array call.  
                                         if res.is_empty() { 
                                             if c != '-' {
@@ -936,6 +947,15 @@ pub mod hammer{
                                         push_current_token(&mut res, &mut current_token, &mut neg_count);
                                     }
                                     res.push(potential_operator);
+                                    continue;
+                                }else{
+                                    if !was_op {
+                                        if c == '&' && current_token.len() == 0 {   // The token can be the referance operator.
+                                            current_token.push(c)
+                                        }else{
+                                            return Err(format!("{} Syntax error", hammer.error_msg()))
+                                        }
+                                    } // If it was an op we just do nothing and skip the character
                                 }
                             }else{
                                 current_token.push(c);
@@ -949,6 +969,7 @@ pub mod hammer{
                         current_token_info.stop_count = -1;
                     }
                 }
+                was_op = false;
             }
         }
         if brack_count[0] != 0 || brack_count[1] != 0 {
@@ -975,6 +996,7 @@ pub mod hammer{
     }
 
     fn add_element_in_aff_exp(hammer: &Hammer, mut element: String, exp: &mut Vec::<Token>, nb_stars_await: u32) -> Result<(), String>{
+        println!("{}", element);
         if element == ""{
             return Err(format!("{} Syntax error.", hammer.error_msg()));
         }
@@ -1099,8 +1121,8 @@ pub mod hammer{
         Ok(stars as u32)
     }
 
-    fn is_valid_address(_hammer: &mut Hammer) {
-        //hammer.push_txt(&format!("mov rdx, r15\nadd rdx, {}\ncmp rax, rdx\njg _invalid_address\n", hammer.stack_index), !hammer.debug);
+    fn is_valid_address(hammer: &mut Hammer) {
+        hammer.push_txt(&format!("mov rdx, r15\nadd rdx, {}\ncmp rax, rdx\njg _invalid_address\n", hammer.stack_index), !hammer.debug);
     }
     
     fn break_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
@@ -1148,7 +1170,7 @@ pub mod hammer{
 
     fn if_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String> {
         put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
-        hammer.push_txt(&format!("je _end_condition_{}\n", hammer.blocs_index), !hammer.debug);
+        hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), !hammer.debug);
         let bloc_index = hammer.blocs_index;
         hammer.cond_index_stack().push(bloc_index);
         jump_in(hammer, format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index));
@@ -1179,7 +1201,7 @@ pub mod hammer{
     fn while_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
         new_loop(hammer, hammer.blocs_index);
         put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
-        hammer.push_txt(&format!("je _end_loop_{}\n", hammer.blocs_index), !hammer.debug);
+        hammer.push_txt(&format!("cmp rax, 0\nje _end_loop_{}\n", hammer.blocs_index), !hammer.debug);
         jump_in(hammer, format!("jmp _loop_{}\n_end_loop_{}:\n", hammer.blocs_index, hammer.blocs_index));
         Ok(())
     }

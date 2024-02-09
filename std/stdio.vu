@@ -5,12 +5,3 @@ func print(char* s) -> void {
         i += 1;
     }
 }
-
-
-func type_function(int x) -> type {
-    if x == 1 {
-        return int;
-    }else{
-        return char;
-    }
-}
