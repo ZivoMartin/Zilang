@@ -558,15 +558,16 @@ pub mod hammer{
             }else{
                 setup_inst(hammer.inst());
                 let inst = hammer.inst().to_string();
-                handle_instruction(hammer, inst)?;
-                hammer.inc_in(1);
+                if handle_instruction(hammer, inst)? {
+                    hammer.inc_in(1);
+                }
             }
         }
         hammer.jump_out();
         Ok(())
     }
 
-    fn handle_instruction(hammer: &mut Hammer, mut inst: String) -> Result<(), String> {
+    fn handle_instruction(hammer: &mut Hammer, mut inst: String) -> Result<bool, String> {
         let mut line_split = split(&inst, " ");
         if line_split.len() != 0{
             match hammer.type_exists(&mut line_split[0]) {
@@ -574,7 +575,7 @@ pub mod hammer{
                     dec_new_var(hammer, &line_split, &mut type_var)?;
                     if inst.contains("="){
                         line_split.remove(0);
-                        handle_affectation(hammer, line_split.join(" "))?;
+                        return handle_affectation(hammer, line_split.join(" "))
                     }
                 }   
                 _ => {
@@ -586,44 +587,43 @@ pub mod hammer{
                     }else if hammer.keyword_exists(&line_split[0]){
                         hammer.call_keyword(&line_split.remove(0), &line_split.join(" "))?;
                     }else if inst.contains("="){
-                        handle_affectation(hammer, inst)?;
+                        return handle_affectation(hammer, inst)
                     }else if inst != ""{
                         return Err(format!("{} Syntax error", hammer.error_msg()));
                     }
                 }
             }
         } 
-        Ok(())
+        Ok(true)
     }
 
-
+    /// This function take as parameter a func call in a string, and compile in asm the call, i.e init all the param variables, and call the function at the end.
     fn handle_func_call(hammer: &mut Hammer, mut call: String) -> Result<(), String> {
         let mut split_par: Vec::<String> = call.split("(").map(String::from).collect();
         if split_par.len() == 1 {
-            return Err(format!("{} You have to specifie args between parenthesis.", hammer.error_msg()))
+            return Err(format!("{} You have to specifie args between parenthesis.", hammer.error_msg())) 
         }
-        let func_name = split_par.remove(0);
-        let func = &hammer.func_list[&func_name].clone();
+        let func_name = split_par.remove(0);    // We extract the func name
+        let func = &hammer.func_list[&func_name].clone();   // We assume the compiler already defined if the function exists.
         call = split_par.join("(");
         if call.chars().rev().nth(0).unwrap() != ')' {
-            return Err(format!("{} Parenthesis never closes.", hammer.error_msg()));
+            return Err(format!("{} Parenthesis never closes.", hammer.error_msg()));    // The last character of the call has to be  a closing bracket.
         }
-        call = String::from(&call[0..call.len()-1]);
-        let mut split_virg: Vec::<String> = call.split(",").map(String::from).collect();
-        if split_virg.len() == 1 && split_virg[0].trim().to_string() == "" {
+        let mut split_virg: Vec::<String> = call[0..call.len()-1].split(",").map(String::from).collect(); // We build a vector with each expression, splited by a comma.
+        if split_virg.len() == 1 && split_virg[0].trim().to_string() == "" { // We check if the nb of parameter is valid
             split_virg.remove(0);
         }
         if split_virg.len() != func.args.len() {
-            return Err(format!("{} We found {} elements in the call of the function {} but {} takes {} arguments.", hammer.error_msg(), split_virg.len(), func_name, func_name, func.args.len()));
+            return Err(format!("{} We found {} elements in the call of the function {} but {} takes {} arguments.", hammer.error_msg(), split_virg.len(),  func_name, func_name, func.args.len()));
         }
         let mut decal = 0;
         for (i, exp) in split_virg.iter().enumerate() {
-            put_res_in_rax(hammer, exp.to_string(), func.args[i].type_var.stars)?;
+            put_res_in_rax(hammer, exp.to_string(), func.args[i].type_var.stars)?;  // We compute the value of the ith arg and put it in rax.
             let size_var = if func.args[i].type_var.stars == 0 {func.args[i].type_var.size}else{POINTER_SIZE};
-            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", hammer.stack_index + decal, hammer.size[&size_var].register), !hammer.debug);
+            hammer.push_txt(&format!("mov [_stack+r15+ {}], {}\n", hammer.stack_index + decal, hammer.size[&size_var].register), !hammer.debug); // Then we put rax in the memory
             decal += func.args[i].type_var.size;
         }
-        hammer.push_txt(&format!("push r15\nadd r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name), !hammer.debug);
+        hammer.push_txt(&format!("push r15\nadd r15, {}\ncall {}\npop r15\n", hammer.stack_index, func_name), !hammer.debug); // We set r15 at stack_index and call the function
         Ok(())
     }
 
@@ -661,31 +661,48 @@ pub mod hammer{
     }
 
 
-
-    fn handle_affectation(hammer: &mut Hammer, line: String) -> Result<(), String> {
+    /// This function gonna handle the affectations. line has to be this form: var = exp with var a memory spot and exp can be an expression (like 1 + 1 or f(8)*t[i]),
+    /// or a string like "Hello World". If exp is a string, this function can't handle the affectation, so it transform the string in direct array
+    /// like for the string "hey" in {'h', 'e', 'y'} and delegate it to the instruction loop, it gonna call the direct array tab and then allocate the memory. 
+    fn handle_affectation(hammer: &mut Hammer, line: String) -> Result<bool, String> {
 
         let mut split = split(&line, "=");
         if split.len() < 2{
             return Err(format!("{} Invalid syntax.", hammer.error_msg()));
         }
-        let mut var1 = split[0].trim().to_string();
-        split.remove(0);
-        let nb_stars = get_prof_pointer(hammer, &mut var1, false)?;
-        let tab_vec = tab_analyse(hammer, &mut var1)?;
+        let mut var1 = split.remove(0).trim().to_string(); // We extract the name of the variable 
+        let nb_stars = get_prof_pointer(hammer, &mut var1, false)?; // We count the nb of start, it cannot be negative.
+        let tab_vec = tab_analyse(hammer, &mut var1)?;  
         if hammer.var_exists(&var1){
-            let right_exp = split.join("=").replace(" = ", "=");
-            let addr = hammer.get_addr(&var1);
-            let struct_addr = Token{val: addr as i32, func_dec: None, squares: Some(tab_vec), nb_stars: nb_stars, interp: Interp::Variable};
-            let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?; // Put the reference of the left exp in rax
-            hammer.push_txt("push rax\n", !hammer.debug);
-            put_res_in_rax(hammer, right_exp, stars_in_left_var as u32)?; // The result of the expression in rax
-            if stars_in_left_var != 0 {
-                hammer.push_txt("pop rbx\nmov [_stack+ rbx], eax\n", !hammer.debug);
+            let mut right_exp = split.join("=").replace(" = ", "=").trim().to_string();
+            if right_exp.starts_with("\"") {    // We detect a string. Lets transform it.
+                if right_exp.len() == 1 || !(right_exp.pop() != Some('"')){
+                    return Err(format!("{} It seems like you didn't close the quotes.", hammer.error_msg()))
+                }
+                let mut string: Vec<String> = right_exp.chars().map(String::from).collect();
+                string[0] = String::from("{");
+                string[1] = String::from('\'') + &string[1] + &String::from('\'');
+                for elt in string.iter_mut().skip(1) {
+                    *elt = String::from(",\'") + &elt + &String::from('\'');
+                }
+                string.push(String::from("}"));
+                *hammer.inst() = var1 + "=" + &string.join("");
+                println!("{}", hammer.inst());
+                Ok(false)
             }else{
-                hammer.push_txt(&format!("pop rbx\nmov [_stack+ rbx], {}\n", hammer.get_size_def(addr).register), !hammer.debug);
+                let addr = hammer.get_addr(&var1);
+                let struct_addr = Token{val: addr as i32, func_dec: None, squares: Some(tab_vec), nb_stars, interp: Interp::Variable};
+                let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?; // Put the reference of the left exp in rax
+                hammer.push_txt("push rax\n", !hammer.debug);
+                put_res_in_rax(hammer, right_exp, stars_in_left_var as u32)?; // The result of the expression in rax
+                if stars_in_left_var != 0 {
+                    hammer.push_txt("pop rbx\nmov [_stack+ rbx], eax\n", !hammer.debug);
+                }else{
+                    hammer.push_txt(&format!("pop rbx\nmov [_stack+ rbx], {}\n", hammer.get_size_def(addr).register), !hammer.debug);
+                }
+                Ok(true)
             }
             
-            Ok(())
         }else {
             return Err(format!("{} The variable {} doesn't exists.", hammer.error_msg(), var1));
         }
@@ -744,7 +761,7 @@ pub mod hammer{
                 for arr in arrays.iter_mut(){
                     *arr = arr.trim().to_string();
                     if arr != ""{
-                        if arr.pop() != Some('}') && arr.pop() != Some('}') {
+                        if arr.pop() != Some('}') && arr.pop() != Some('}') { // We have to check it two times, because the last element can be a comma who separate two arrays 
                             return Err(format!("{} You forgot to close a bracket.", hammer.error_msg()));
                         }
                         while last_char(arr) == '}' || last_char(arr) == ' '{
@@ -767,7 +784,7 @@ pub mod hammer{
         Ok(())
     }
 
-    ///This function gonna push a new variable in the memory with the type type_var and for the name the first element of inst_split. 
+    /// This function gonna push a new variable in the memory with the type type_var and for the name the first element of inst_split. 
     /// Also gonna handle type_dec and return a tupple of value who represent the eventual tab data for the function direct_tab_dec. 
     /// All the operation like push stack_index are handdle by the function.    
     fn dec_new_var(hammer: &mut Hammer, inst_split: &Vec<String>, type_var: &mut Type) -> Result<(u32, u32), String> {
@@ -881,44 +898,42 @@ pub mod hammer{
         let mut res = Vec::<String>::new();
         let mut neg_count = 0;
         let mut was_op = false;
+        let mut in_string = false;
         if exp.len() == 0 {
             return Ok(res)
         }
         let mut current_token_info = CurrentTokenInfo{stop_count: -1, brack_index: 0};
         for (i, c) in exp.chars().enumerate() {
-            if c != ' ' {
+            if c != ' ' || in_string {
                 brack_count[0] += (c == '(') as i32 - (c == ')') as i32;
                 brack_count[1] += (c == '[') as i32 - (c == ']') as i32;
                 if current_token_info.stop_count == -1 {
                     match c {
                         '(' => {
-                            if hammer.func_exists(&current_token) {
+                            if current_token.is_empty() {
+                                res.push(String::from("("));
+                            }else{
                                 current_token.push(c);
                                 current_token_info.stop_count = brack_count[0]-1;
                                 current_token_info.brack_index = 0;
-                            }else if current_token.is_empty() {
-                                res.push(String::from("("));
-                            }else{
-                                return Err(format!("{} we found this: {} behind a opening bracket.", hammer.error_msg(), current_token))
                             }
                         }
                         '[' => {
-                            let mut is_valid = hammer.var_exists(&current_token); 
-                            if !is_valid && current_token.is_empty() && !res.is_empty() && res.last().unwrap().chars().last() == Some(']') { // We test if the previous token was also an array call. 
+                            if current_token.is_empty() && !res.is_empty() && res.last().unwrap().chars().last() == Some(']') { // We test if the previous token was also an array call. 
                                 current_token = res.pop().unwrap();
-                                is_valid = true;
                             }
-                            if is_valid {
-                                current_token.push(c);
-                                current_token_info.stop_count = brack_count[1]-1;
-                                current_token_info.brack_index = 1;
-                            }else{
-                                return Err(format!("{} we found this: {} behind a opening bracket.", hammer.error_msg(), current_token))
-                            }
+                            current_token.push(c);
+                            current_token_info.stop_count = brack_count[1]-1;
+                            current_token_info.brack_index = 1;
                         } 
                         ']' => return Err(format!("{} We found an invalid ']'.", hammer.error_msg())),
+                        '\'' | '"' => {
+                            current_token.push(c);
+                            in_string = !in_string;
+                            continue;
+                        }
                         _ => {
-                            if hammer.tools.can_be_operator(c) || c == ')' {
+                            if !in_string && (hammer.tools.can_be_operator(c) || c == ')') {
                                 if i == exp.len()-1 {
                                     return Err(format!("{} An expression can't end with an operator", hammer.error_msg()))
                                 }else if brack_count[0] < 0 {
@@ -996,7 +1011,6 @@ pub mod hammer{
     }
 
     fn add_element_in_aff_exp(hammer: &Hammer, mut element: String, exp: &mut Vec::<Token>, nb_stars_await: u32) -> Result<(), String>{
-        println!("{}", element);
         if element == ""{
             return Err(format!("{} Syntax error.", hammer.error_msg()));
         }
@@ -1008,12 +1022,12 @@ pub mod hammer{
                 Err(_e) => {
                     let mut nb_stars = get_prof_pointer(hammer, &mut element, true)?;
                     let var_name = element.split("[").next().unwrap();
-                    if hammer.var_exists(&var_name){
+                    if hammer.var_exists(&var_name){                            
                         let var_def = hammer.get_var_def_by_name(&var_name);
+                        let tab_vec = tab_analyse(hammer, &mut element)?;
                         if (var_def.type_var.stars as i32) < nb_stars {
                             return Err(format!("{} You tried to dereference the variable {} {} times but you only have the right to dereference it {} times", hammer.error_msg(), var_def.name, nb_stars, var_def.type_var.stars));
                         }
-                        let tab_vec = tab_analyse(hammer, &mut element)?;
                         nb_stars += tab_vec.len() as i32;
                         if nb_stars_await != MAX_STARS+1 && var_def.type_var.stars as i32 - nb_stars != nb_stars_await as i32{
                             return Err(format!("{} The two types are incompatibles.", hammer.error_msg()));
@@ -1146,10 +1160,14 @@ pub mod hammer{
     }
 
     fn return_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String> {
+        let type_return = hammer.type_return().as_mut().unwrap().clone();
+        if rest_of_line != "" && type_return.name == "void" {
+            return Err(format!("{} Your tried to return this value: {}, but it has the void type return.", hammer.error_msg(), rest_of_line))
+        }
         if hammer.txt_stack().size() == 1 {
             return Err(format!("{} You can't use the return keyword outside of a function.", hammer.error_msg()));
         }
-        let nb_stars_await = hammer.type_return().as_mut().unwrap().stars;
+        let nb_stars_await = type_return.stars;
         put_res_in_rax(hammer, rest_of_line.to_string(), nb_stars_await)?;
         hammer.push_txt("ret\n", !hammer.debug);
         Ok(())
