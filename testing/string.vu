@@ -1,0 +1,5 @@
+import std/stdio.vu;
+
+char* t = "Hello World!\n\0";
+
+!exit(0);

@@ -6,8 +6,8 @@ int*** d = &c;
 
 int result = $$$d;
 
-int demo = 2 + -- 2 + 2;
 
 !dn(d); 
+
 
 !exit(0); 
