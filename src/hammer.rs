@@ -212,7 +212,9 @@ pub mod hammer{
         prog_stack: Stack<Program>,
         file_compiled: Vec<String>,
         tracker: Tracker, 
-        debug: bool
+        debug: bool,
+        statics_strings: HashMap<String, u32>,
+        static_string_count: u32
     }
 
     impl Hammer{
@@ -233,7 +235,9 @@ pub mod hammer{
                 prog_stack: Stack::init(Program::new(prog_name, txt)),
                 file_compiled: Vec::new(),
                 tracker: Tracker::new(),
-                debug: debug
+                debug,
+                statics_strings: HashMap::<String, u32>::new(),
+                static_string_count: 0
             };
             res.init_asm_file();
             res.init_size();
