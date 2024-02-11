@@ -3,7 +3,9 @@ import std/str.vu;
 
 char HelloString[14] = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', '\n', '\0'};
 
-print(HelloString);
+if contains(HelloString, 'H') {
+    print(HelloString);
+}
 
 !dn(-1);
 

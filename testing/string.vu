@@ -1,7 +1,0 @@
-import std/stdio.vu;
-
-char s[13] = "Hello World\n\0";
-
-print(s);
-
-!exit(0);
