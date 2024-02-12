@@ -1,0 +1,13 @@
+import std/stdio.vu;
+
+char* s = "Hello World!\n\0";
+
+{
+    s = "Nouvelle String !!\n\0";
+    print(s);
+}
+
+pint(s);
+
+
+!exit(0);

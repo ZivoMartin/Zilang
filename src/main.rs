@@ -5,13 +5,19 @@ mod tools;
 mod hammer;
 mod stack;
 mod tracker;
-use std::process::{Command, exit};
+use std::process::{Command, exit, ExitCode};
+
+static OK: i8 = 0;
+static COMPILATION_ERROR: i8 = 1;
+static BAD_OPERATOR: i8 = 2;
+static BAD_PARAMETER: i8 = 3;
+static INPUT_FILE_MISSING: i8 = 4;
+static OUTPUT_FILE_MISSING: i8 = 5;
+static CONVERT_OPERATOR_MISSING: i8 = 6;
+static FILE_DOESNT_EXISTS: i8 = 7;
 
 
-
-
-
-fn main() -> Result<(), String> {
+fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
     let operations: Vec<&str> = vec!("-o");
     let parameters: Vec<&str> = vec!("-t");
@@ -23,43 +29,54 @@ fn main() -> Result<(), String> {
     for elt in args.iter().skip(1) {
         if operations.contains(&(elt as &str)) {
             if operation.is_some() {
-                return Err(String::from("There is two convert operator in the command line."))
+                eprintln!("There is two convert operator in the command line.");
+                exit(BAD_OPERATOR as i32)
             }
             operation = Some(elt);
         }else if parameters.contains(&(elt as &str)) {
             match elt as &str {
                 "-t" => debug = false,
-                _ => return Err(format!("Unknow parameter in the command line: {}", elt))
+                _ => {
+                    eprintln!("Unknow parameter in the command line: {}", elt);
+                    exit(BAD_PARAMETER as i32)
+                }
             }
         }else if input.is_none() {
             input = Some(elt)
         }else{
             if output.is_some() {
-                return Err(format!("We found an invalid parameter in the command line: {}", elt));
+                eprintln!("We found an invalid parameter in the command line: {}", elt);
+                exit(BAD_PARAMETER as i32)
             }
             output = Some(elt)
         }
     } 
     if input.is_none() {
-        return Err(String::from("Expected a file name to compile..."));
+        eprintln!("Expected a file name to compile...");
+        exit(INPUT_FILE_MISSING as i32)
     }else if output.is_none() {
-        return Err(String::from("Expected a file name for the output..."));
+        ("Expected a file name for the output...");
+        exit(OUTPUT_FILE_MISSING as i32)
     }else if operation.is_none() {
-        return Err(String::from("You didn't indicate the convert operator..."));
+        eprintln!("You didn't indicate the convert operator...");
+        exit(CONVERT_OPERATOR_MISSING as i32);
     }
-    compile(input.unwrap(), output.unwrap(), debug)?;
-    Ok(())
+    compile(input.unwrap(), output.unwrap(), debug)
 }
 
 
-fn compile(input: &str, output: &str, debug: bool) -> Result<(), String>{
+fn compile(input: &str, output: &str, debug: bool) -> ExitCode {
     if !file_exists(&input){
-        return Err(format!("File {} don't exist.", input));
+        eprintln!("File {} don't exist.", input);
+        exit(FILE_DOESNT_EXISTS as i32)
     }
-    let mut input_file = TextFile::new(String::from(input))?; 
-    compile_txt(input.to_string(), String::from(input_file.get_text()), debug)?;
+    let mut input_file = TextFile::new(String::from(input)).unwrap();
+    compile_txt(input.to_string(), String::from(input_file.get_text()), debug).unwrap_or_else(|e| {
+        eprintln!("{e}");
+        exit(COMPILATION_ERROR as i32);
+    });
     compile_asm_to_executable("asm/script.asm", output);
-    Ok(())
+    ExitCode::from(OK as u8)
 }
 
 fn compile_asm_to_executable(file_path: &str, output: &str) {

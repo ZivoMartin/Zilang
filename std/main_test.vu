@@ -7,6 +7,4 @@ if contains(HelloString, 'H') {
     print(HelloString);
 }
 
-!dn(-1);
-
 !exit(0);

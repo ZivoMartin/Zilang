@@ -2,19 +2,6 @@
 
 section .text
 
-%macro _deref 1
-    xor r11, r11
-    xor r10, r10
-    mov r11, %1
-    %%_deref_loop:
-        cmp r10, r11
-        je %%_deref_end_loop
-        inc r10
-        movsx rbx, dword[_stack+rbx]
-        jmp %%_deref_loop 
-    %%_deref_end_loop:    
-%endmacro
-
 %macro print_char 1
     
     mov rax, 1
@@ -37,29 +24,38 @@ ret
 
 %macro dn 1
     mov rax, %1
-    and rax, rax    ; For an unknow reason the previous mov don't proke the flags
-    jnl %%_not_neg
-    neg rax 
-    push rax    ; print_char use rax, we have to save it
-    print_char '-'
-    pop rax
-    %%_not_neg:
-    mov rcx, 10    
-    push rcx ; This gonna be the back to line char at the end of the loop
-    mov r10, 1         
+    xor r10, r10    
+    and rax, rax
+    jl %%_neg
     %%_local_label_stock_loop:
         inc r10
         xor rdx, rdx          
-        idiv rcx    ; The rest of the operation rax/rcx go in rdx
-        add rdx, 48 ; We condider rdx as a number 
-        push rdx
-        and rax, rax    
+        mov rcx, 10         
+        idiv rcx
+        push rdx    
+        and rax, rax
         jne %%_local_label_stock_loop
+
     %%_local_label_display:
+        and r10, r10  
+        je %%_local_label_end_loop_display_number
         pop rbx        
+        add rbx, 48
         print_char rbx
         dec r10
-        jg %%_local_label_display
+        jmp %%_local_label_display
+
+    %%_neg:
+        neg rax
+        push rax
+        print_char '-'
+        pop rax
+        jmp %%_local_label_stock_loop
+
+    %%_local_label_end_loop_display_number:
+        call _back_line 
+    
+    
 %endmacro
 
 
@@ -71,3 +67,54 @@ ret
 
 %endmacro   
 
+%macro _deref_byte 1
+    xor r11, r11
+    xor r10, r10
+    mov r11, %1
+    %%_deref_loop:
+        cmp r10, r11
+        je %%_deref_end_loop
+        inc r10
+        movzx rbx, byte[_stack+rbx]
+        jmp %%_deref_loop 
+    %%_deref_end_loop:    
+%endmacro
+
+%macro _deref_word 1
+    xor r11, r11
+    xor r10, r10
+    mov r11, %1
+    %%_deref_loop:
+        cmp r10, r11
+        je %%_deref_end_loop
+        inc r10
+        movsx rbx, word[_stack+rbx]
+        jmp %%_deref_loop 
+    %%_deref_end_loop:    
+%endmacro
+
+%macro _deref_dword 1
+    xor r11, r11
+    xor r10, r10
+    mov r11, %1
+    %%_deref_loop:
+        cmp r10, r11
+        je %%_deref_end_loop
+        inc r10
+        movsx rbx, dword[_stack+rbx]
+        jmp %%_deref_loop 
+    %%_deref_end_loop:    
+%endmacro
+
+%macro _deref_qword 1
+    xor r11, r11
+    xor r10, r10
+    mov r11, %1
+    %%_deref_loop:
+        cmp r10, r11
+        je %%_deref_end_loop
+        inc r10
+        mov rbx, [_stack+rbx]
+        jmp %%_deref_loop 
+    %%_deref_end_loop:    
+%endmacro

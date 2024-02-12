@@ -131,6 +131,7 @@ pub mod hammer{
         type_return: Option<Type>,
         line_number_stack: Stack<(usize, usize)>,
         prog_name: String,
+        can_jump_out: bool
     }
 
     impl Program {
@@ -144,6 +145,7 @@ pub mod hammer{
                 type_return: None,
                 line_number_stack: Stack::init((1, 0)),
                 prog_name: prog_name,
+                can_jump_out: false
             }
         }
 
@@ -400,7 +402,8 @@ pub mod hammer{
         }       
         
         fn error_msg(&self) -> String {
-            format!("Error while compiling the file {}. Line {}:", self.top_prog().prog_name, self.get_ln())
+            eprintln!("Error while compiling the file {}.", self.top_prog().prog_name); 
+            format!("Line {}:", self.get_ln())
         }
 
         fn type_exists(&self, name: &mut String) -> Result<Type, String>{
@@ -549,6 +552,9 @@ pub mod hammer{
             hammer.inc_ln(nb_back_line);
             *hammer.inst() = hammer.inst().replace("\n", "").trim().to_string();
             if hammer.inst().starts_with("}") {
+                if hammer.jumps_stack.is_empty() {  
+                    return Err(format!("{} You've tried to complete a block, but there are currently no blocks in progress.", hammer.error_msg()))
+                }
                 hammer.inst().remove(0);
                 hammer.jump_out();
             } else if hammer.inst().contains("{") {
@@ -661,9 +667,13 @@ pub mod hammer{
     }
 
 
-    /// This function gonna handle the affectations. line has to be this form: var = exp with var a memory spot and exp can be an expression (like 1 + 1 or f(8)*t[i]),
-    /// or a string like "Hello World". If exp is a string, this function can't handle the affectation, so it transform the string in direct array
-    /// like for the string "hey" in {'h', 'e', 'y'} and delegate it to the instruction loop, it gonna call the direct array tab and then allocate the memory. 
+    /// This function handles assignments where the line has to be in this form: var = exp, where var represents a memory spot and exp can be an expression (like 1 + 1 or f(8)*t\[i]),
+    /// or a string like "Hello World". If exp is a string, this function can't handle the assignment directly, so it transforms the string into a direct array
+    /// like for the string "hey" into {'h', 'e', 'y'} and delegates it to the instruction loop. It then calls the direct array tab and allocates the memory. 
+    /// To achieve this, we create a new variable with the same name that will contain the address of this new string. This new variable masks the original one during the block.
+    /// At the end of the block, the new variable disappears with its string, so you can basically define an initial string in 's', then go through a block,
+    /// replace 's' with another string, and at the end of the block, 's' will automatically point to its original string.
+
     fn handle_affectation(hammer: &mut Hammer, line: String) -> Result<bool, String> {
 
         let mut split = split(&line, "=");
@@ -676,18 +686,31 @@ pub mod hammer{
         if hammer.var_exists(&var1){
             let mut right_exp = split.join("=").replace(" = ", "=").trim().to_string();
             if right_exp.starts_with("\"") {    // We detect a string. Lets transform it.
-                if right_exp.len() == 1 || !(right_exp.pop() != Some('"')){
+                
+                if right_exp.len() == 1 || right_exp.pop() != Some('\"'){
                     return Err(format!("{} It seems like you didn't close the quotes.", hammer.error_msg()))
+                }else if nb_stars+tab_vec.len() as i32 != 1 {
+                    return Err(format!("{} You can only affect a string to a char* or a char[].", hammer.error_msg()));
                 }
-                let mut string: Vec<String> = right_exp.chars().map(String::from).collect();
-                string[0] = String::from("{");
-                string[1] = String::from('\'') + &string[1] + &String::from('\'');
-                for elt in string.iter_mut().skip(1) {
-                    *elt = String::from(",\'") + &elt + &String::from('\'');
+
+                let mut res = String::new();
+                res.push('{');
+                let mut iter = right_exp.chars();
+                iter.next();
+                let mut nb_char = 0;
+                while let Some(elt) = iter.next() {
+                    let mut ch = String::from(elt);
+                    if ch == "\\"{
+                        if let Some(next_ch) = iter.next() {
+                            ch = format!("\\{next_ch}");
+                        }
+                    } 
+                    nb_char += 1;
+                    res.push_str(&format!("'{ch}',"));
                 }
-                string.push(String::from("}"));
-                *hammer.inst() = var1 + "=" + &string.join("");
-                println!("{}", hammer.inst());
+                res.pop();
+                res.push('}');
+                *hammer.inst() = format!("char {var1}[{nb_char}] = {res}");
                 Ok(false)
             }else{
                 let addr = hammer.get_addr(&var1);
@@ -1120,11 +1143,13 @@ pub mod hammer{
             hammer.push_txt("push rbx\n", !hammer.debug);
             evaluate_exp(hammer, vec)?;
             let mult = if stars == 1 {var_def.type_var.size}else{POINTER_SIZE};
-            hammer.push_txt(&format!("pop rbx\n_deref 1\nmov rcx, {}\nmul rcx\nadd rbx, rax\n", mult), !hammer.debug);
+            let deref_string = get_deref_string(hammer, var.val as u32, 1);
+            hammer.push_txt(&format!("pop rbx\n{}\nmov rcx, {}\nmul rcx\nadd rbx, rax\n", deref_string, mult), !hammer.debug);
             stars -= 1
         }
         if var.nb_stars > 0 {
-            hammer.push_txt(&format!("\n_deref {}\n", var.nb_stars), !hammer.debug);
+            let deref_string = get_deref_string(hammer, var.val as u32, var.nb_stars as u32);
+            hammer.push_txt(&format!("\n{}\n", deref_string), !hammer.debug);
         }
         stars -= var.nb_stars;
         hammer.push_txt("mov rax, rbx\n", !hammer.debug);
@@ -1133,6 +1158,10 @@ pub mod hammer{
         }
         is_valid_address(hammer);
         Ok(stars as u32)
+    }
+
+    fn get_deref_string(hammer: &mut Hammer, addr: u32, n: u32) -> String{
+        format!("_deref_{} {}\n", hammer.get_size_def(addr).long, n)
     }
 
     fn is_valid_address(hammer: &mut Hammer) {

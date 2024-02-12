@@ -228,16 +228,24 @@ pub mod tools{
         if chara.len() <= 2 || !chara.starts_with('\'') || !chara.ends_with('\''){
             return None
         }
+        let mut chara_iter = chara.chars();
         if chara.len() == 4 {
-            match chara.chars().nth(2).unwrap() {
-                '0' => *chara = String::from("'\0'"),
-                'n' => *chara = String::from("'\n'"),
-                'r' => *chara = String::from("'\r'"),
+            match convert_in_one_char(chara_iter.nth(2).unwrap()){
+                Some(ch) => *chara = format!("'{}'", ch),
                 _ => return None
             }
         }
         match str::parse::<char>(&chara[1..2]) {
             Ok(nb) => Some(nb as i8),
+            _ => None
+        }
+    }
+
+    pub fn convert_in_one_char(ch: char) -> Option<char> {
+        match ch {
+            '0' => Some('\0'),
+            'n' => Some('\n'),
+            'r' => Some('\r'),
             _ => None
         }
     }
