@@ -1,10 +1,11 @@
-use std::env;
-use hammer::hammer::compile_txt;
-use tools::tools::{file_exists, TextFile};
+
 mod tools;
 mod hammer;
-mod stack;
-mod tracker;
+
+use std::env;
+use hammer::compile_txt;
+use tools::textfiles::{TextFile, file_exists};
+
 use std::process::{Command, exit, ExitCode};
 
 static OK: i8 = 0;
