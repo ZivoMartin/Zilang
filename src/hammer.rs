@@ -87,9 +87,9 @@ pub mod hammer{
         fn new(stack_index: u32, action: (fn(&mut Hammer, String), String), bloc_index: u32) -> Self {
             Jump{
                 vars: Vec::new(),
-                stack_index: stack_index,
-                action: action,
-                bloc_index: bloc_index
+                stack_index,
+                action,
+                bloc_index
             }
         }
 
@@ -131,7 +131,6 @@ pub mod hammer{
         type_return: Option<Type>,
         line_number_stack: Stack<(usize, usize)>,
         prog_name: String,
-        can_jump_out: bool
     }
 
     impl Program {
@@ -144,8 +143,7 @@ pub mod hammer{
                 cond_index_stack: Stack::new(),
                 type_return: None,
                 line_number_stack: Stack::init((1, 0)),
-                prog_name: prog_name,
-                can_jump_out: false
+                prog_name
             }
         }
 
@@ -196,6 +194,7 @@ pub mod hammer{
         fn inc_ln(&mut self, x: usize) {
             self.line_number_stack.val_mut().0 += x
         }
+        
     }
 
     struct Hammer{
@@ -235,7 +234,7 @@ pub mod hammer{
                 prog_stack: Stack::init(Program::new(prog_name, txt)),
                 file_compiled: Vec::new(),
                 tracker: Tracker::new(),
-                debug: debug
+                debug,
             };
             res.init_asm_file();
             res.init_size();
@@ -515,6 +514,14 @@ pub mod hammer{
             &mut self.top_prog_mut().txt_stack
         }
 
+        fn push_loop_index_stack(&mut self, index: u32)  {
+            self.loop_index_stack().push(index);
+        }
+
+        fn push_cond_index_stack(&mut self, index: u32) {
+            self.cond_index_stack().push(index);
+        }
+
         fn loop_index_stack(&mut self) -> &mut Stack<u32> {
             &mut self.top_prog_mut().loop_index_stack
         }
@@ -535,6 +542,10 @@ pub mod hammer{
             self.top_prog_mut().type_return = None
         }
 
+        fn jump_count(&mut self) -> usize{
+            self.loop_index_stack().size() + self.cond_index_stack().size() + self.in_func() as usize 
+        }
+
     }
     
     /// This function takes as parameters the program name, the text you want to compile and a Boolean indicating whether you want the 
@@ -552,7 +563,7 @@ pub mod hammer{
             hammer.inc_ln(nb_back_line);
             *hammer.inst() = hammer.inst().replace("\n", "").trim().to_string();
             if hammer.inst().starts_with("}") {
-                if hammer.jumps_stack.is_empty() {  
+                if hammer.jump_count() <= 0 {  
                     return Err(format!("{} You've tried to complete a block, but there are currently no blocks in progress.", hammer.error_msg()))
                 }
                 hammer.inst().remove(0);
@@ -733,6 +744,11 @@ pub mod hammer{
     }
 
     fn end_prog(hammer: &mut Hammer, _s: String) {
+        if hammer.jump_count() > 1 {
+            eprintln!("{} You forgot to close a bracket", hammer.error_msg());
+            println!("{}", hammer.jump_count());
+            std::process::exit(1);
+        }
         let mut txt = hammer.pop_current_txt();
         hammer.push_txt_in_file("script", &mut txt);
         hammer.prog_stack.pop();
@@ -1219,7 +1235,7 @@ pub mod hammer{
         put_res_in_rax(hammer, String::from(rest_of_line), MAX_STARS+1)?;
         hammer.push_txt(&format!("cmp rax, 0\nje _end_condition_{}\n", hammer.blocs_index), !hammer.debug);
         let bloc_index = hammer.blocs_index;
-        hammer.cond_index_stack().push(bloc_index);
+        hammer.push_cond_index_stack(bloc_index);
         jump_in(hammer, format!("jmp _real_end_condition_{}\n_end_condition_{}:\n_real_end_condition_{}:\n", hammer.blocs_index, hammer.blocs_index, hammer.blocs_index));
         Ok(())
     }
@@ -1274,7 +1290,7 @@ pub mod hammer{
 
     fn new_loop(hammer: &mut Hammer, loop_index: u32) {
         hammer.push_txt(&format!("_loop_{}:\n", loop_index), false);
-        hammer.loop_index_stack().push(loop_index);
+        hammer.push_loop_index_stack(loop_index);
     }
 
     fn jump_in(hammer: &mut Hammer, end_txt: String) {
