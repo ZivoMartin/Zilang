@@ -5,7 +5,8 @@ pub struct Tools{
     authorized_char_for_variable: &'static str,
     operators: Vec<&'static str>,
     operator_priority: HashMap<String, u8>,
-    operator_ascii_val: HashMap<&'static str, i32>
+    operator_ascii_val: HashMap<&'static str, i32>,
+    reverse_ascii_map: HashMap::<i32, &'static str>
 }
 
 impl Tools{
@@ -15,7 +16,8 @@ impl Tools{
             authorized_char_for_variable: "azertyuiopqsdfghjklmwxcvbnAZERTYUIOPQSDFGHJKLMWXCVBN1234567890-_",
             operators: vec!{"+", "-", "*", "/", "%", "||", "&&", "==", "!=", "<", ">", "<=", ">="},
             operator_priority: build_operator_priority(),
-            operator_ascii_val: HashMap::<&'static str, i32>::new()
+            operator_ascii_val: HashMap::<&'static str, i32>::new(),
+            reverse_ascii_map: HashMap::<i32, &'static str>::new()
         };
         res.init_ascii_map();
         res
@@ -68,6 +70,7 @@ impl Tools{
         for op in self.operators.iter(){
             if op.len() == 1 {
                 self.operator_ascii_val.insert(&op, op.chars().nth(0).unwrap() as i32);
+                self.reverse_ascii_map.insert(op.chars().nth(0).unwrap() as i32, &op);
             }
         }
         self.operator_ascii_val.insert("==", '=' as i32);
@@ -76,10 +79,20 @@ impl Tools{
         self.operator_ascii_val.insert("!=", '=' as i32 +3);
         self.operator_ascii_val.insert("<=", '<' as i32 -1);
         self.operator_ascii_val.insert(">=", '>' as i32 +1);
+        self.reverse_ascii_map.insert('=' as i32, "==");
+        self.reverse_ascii_map.insert('|' as i32, "||");
+        self.reverse_ascii_map.insert('&' as i32, "&&");
+        self.reverse_ascii_map.insert('=' as i32 +3, "!=");
+        self.reverse_ascii_map.insert('<' as i32 -1, "<=");
+        self.reverse_ascii_map.insert('>' as i32 +1, ">=");
     }
 
     pub fn ascii_val(&self, op: &str) -> i32 {
-        return self.operator_ascii_val[op]
+        self.operator_ascii_val[op]
+    }
+
+    pub fn get_operator_string(&self, op: i32) -> &'static str {
+        self.reverse_ascii_map[&op]
     }
 
     pub fn get_full_op(&self, c1: char, c2: char) -> String {
@@ -176,7 +189,7 @@ pub fn last_char(s: &str) -> char {
 }
 
 pub fn operation(val1: i64, val2: i64, operator: u8) -> i64 {
-    return match operator as char {
+    match operator as char {
         '@' => (val1 != val2) as i64,
         ';' => (val1 <= val2) as i64,
         '?' => (val1 >= val2) as i64,
@@ -193,3 +206,4 @@ pub fn operation(val1: i64, val2: i64, operator: u8) -> i64 {
         _ => panic!("You forgot this operator: {}", operator)
     }
 }
+

@@ -34,12 +34,12 @@ impl<T> Stack<T>{
 
     pub fn val_mut(&mut self) -> &mut T{
         self.vec.last_mut().unwrap_or_else(||{
-            panic!("The stack is empty.");
+            panic!("The stack is empty");
         })
     }
 
     pub fn is_empty(&self) -> bool{
-        return self.vec.len() == 0;
+        self.vec.len() == 0
     }
 
     pub fn size(&self) -> usize{

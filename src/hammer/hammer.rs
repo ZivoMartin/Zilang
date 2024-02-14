@@ -608,7 +608,7 @@ fn handle_affectation(hammer: &mut Hammer, line: String) -> Result<bool, String>
             let addr = hammer.get_addr(&var1);
             let struct_addr = Token{val: addr as i32, func_dec: None, squares: Some(tab_vec), nb_stars, interp: Interp::Variable};
             let stars_in_left_var = handle_variable_dereference(hammer, &struct_addr)?; // Put the reference of the left exp in rax
-            hammer.push_txt("push rax\n", !hammer.debug);
+            hammer.push_txt("push rbx\n", !hammer.debug);
             put_res_in_rax(hammer, right_exp, stars_in_left_var as u32)?; // The result of the expression in rax
             if stars_in_left_var != 0 {
                 hammer.push_txt("pop rbx\nmov [_stack+ rbx], eax\n", !hammer.debug);
@@ -1003,7 +1003,15 @@ fn insert_macro_call_in_txt(hammer: &mut Hammer, macro_call: MacroCall) -> Resul
 fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<Token>) -> Result<(), String>{
     for elt in exp{
         match elt.interp {
-            Interp::Operator => hammer.push_txt(&format!("pop r11\npop r10\nmov r12, {}\ncall _operation\npush rax\n", elt.val), !hammer.debug),
+            Interp::Operator => hammer.push_txt(&format!("
+            
+pop r11             ; Time to do an operation, we recup on the stack our two operand. Here the right one.
+pop r10             ; Here the left one.
+mov r12, {}         ; At the compilation time we know the ascii val of the operator, here its a : {}
+call _operation     ; Now we can do the operation
+push rax            ; We have the result in rax, we push it to continue the algorithm\n",         
+elt.val, hammer.tools.get_operator_string(elt.val)), !hammer.debug),
+            
             Interp::Variable => {
                 let stars = handle_variable_dereference(hammer, &elt)?;
                 match elt.nb_stars{
@@ -1011,14 +1019,29 @@ fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<Token>) -> Result<(), String>{
                     _ => {
                         if stars == 0{
                             let size_def = hammer.get_size_def(elt.val as u32);
-                            hammer.push_txt(&format!("{} rax, {}[_stack+ rax]\npush rax\n", size_def.mov, size_def.long), !hammer.debug);
+                            hammer.push_txt(&format!("
+
+{} rax, {}[_stack+ rbx] ; We have the result of the expression, so now we can get access to the good memory spot
+push rax                ; Lets put our value on the stack.\n"             
+,size_def.mov, size_def.long), !hammer.debug);
+
                         }else{
-                            hammer.push_txt("movsx rax, dword[_stack+ rax]\npush rax\n", !hammer.debug);
+                            hammer.push_txt("
+
+movsx rax, dword[_stack+ rbx]   ; We have the result of the expression, so now we can get access to the good memory spot
+push rax                        ; Lets put our value on the stack.\n",
+!hammer.debug);
+
                         }
                     }
                 }
             }
-            Interp::Value => hammer.push_txt(&format!("mov rax, {}\npush rax\n", elt.val), !hammer.debug),
+            Interp::Value => hammer.push_txt(&format!("
+            
+mov rax, {}     ; We spot a direct value we just put it in rax
+push rax        ; Then we can push this direct value on the top of the stack\n",    
+elt.val), !hammer.debug),
+
             Interp::Function => {
                 handle_func_call(hammer, elt.func_dec.as_ref().unwrap().to_string())?;
                 hammer.push_txt("push rax\n", !hammer.debug);
@@ -1035,34 +1058,57 @@ fn evaluate_exp(hammer: &mut Hammer, exp: &Vec<Token>) -> Result<(), String>{
 fn handle_variable_dereference(hammer: &mut Hammer, var: &Token) -> Result<u32, String> {
     let var_def = hammer.get_var_def_i32(var.val).clone();
     let mut stars = var_def.type_var.stars as i32;
-    hammer.push_txt(&format!("mov rbx, {}\nadd rbx, r15\n", var.val), !hammer.debug);
+    hammer.push_txt(&format!("
+
+mov rbx, {}   ; We are starting the evaluation of a new expression
+add rbx, r15  ; rbx contains an adress so we have to add r15 to get the valid address\n",
+
+        var.val), !hammer.debug);
+
     for vec in var.squares.as_ref().unwrap().iter() {
-        hammer.push_txt("push rbx\n", !hammer.debug);
+        hammer.push_txt("push rbx   ; We are gonne evaluate a new expression, so we have to save rbx.\n", !hammer.debug);
         evaluate_exp(hammer, vec)?;
         let mult = if stars == 1 {var_def.type_var.size}else{POINTER_SIZE};
         let deref_string = get_deref_string(hammer, var.val as u32, 1);
-        hammer.push_txt(&format!("pop rbx\n{}\nmov rcx, {}\nmul rcx\nadd rbx, rax\n", deref_string, mult), !hammer.debug);
+        hammer.push_txt(&format!("
+
+pop rbx         ; The result of our expression is in rax, we just have to recup the previous value of rbx in the stack.
+{}              ; We dereferencing the value in rbx one time
+mov rcx, {}     ; Now we set the factor who depends by the size of our value
+mul rcx         ; We now multiply rax who represent the nb of square we have to move
+add rbx, rax    ; Then we just decall rbx on the valid square in the memory with rax\n",
+
+            deref_string, mult), !hammer.debug);
         stars -= 1
     }
     if var.nb_stars > 0 {
         let deref_string = get_deref_string(hammer, var.val as u32, var.nb_stars as u32);
-        hammer.push_txt(&format!("\n{}\n", deref_string), !hammer.debug);
+        hammer.push_txt(&format!("\n{}  ;We simply dereferencing {} the value\n", deref_string, var.val), !hammer.debug);
     }
     stars -= var.nb_stars;
-    hammer.push_txt("mov rax, rbx\n", !hammer.debug);
     if stars < 0 {
-        return Err(format!("{} You tried to dereference the variable {} {} times but you only have the right to dereference it {} times", hammer.error_msg(), var_def.name, var_def.type_var.stars as i32 - stars, var_def.type_var.stars));
+        return Err(format!("
+        {} You tried to dereference the variable {} {} times but you only have the right to dereference it {} times", 
+        hammer.error_msg(), var_def.name, var_def.type_var.stars as i32 - stars, var_def.type_var.stars));
     }
+
     is_valid_address(hammer);
     Ok(stars as u32)
 }
 
 fn get_deref_string(hammer: &mut Hammer, addr: u32, n: u32) -> String{
-    format!("_deref_{} {}\n", hammer.get_size_def(addr).long, n)
+    format!("_deref_{} {}", hammer.get_size_def(addr).long, n)
 }
 
 fn is_valid_address(hammer: &mut Hammer) {
-    hammer.push_txt(&format!("mov rdx, r15\nadd rdx, {}\ncmp rax, rdx\njg _invalid_address\n", hammer.stack_index), !hammer.debug);
+    hammer.push_txt(&format!("
+
+mov rdx, r15 ; Check if the adress is valid
+add rdx, {}
+cmp rax, rdx
+jg _invalid_address\n", 
+
+        hammer.stack_index), !hammer.debug);
 }
 
 fn break_keyword(hammer: &mut Hammer, rest_of_line: &String) -> Result<(), String>{
