@@ -1,5 +1,5 @@
-import tab_in_vulcain/sort.vu;
-import tab_in_vulcain/display.vu;
+import testing/tab_in_vulcain/sort.vu;
+import testing/tab_in_vulcain/display.vu;
 
 int t[2][3][4] = {
         {
