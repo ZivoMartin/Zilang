@@ -1,0 +1,29 @@
+{
+  "name": "vulcain",
+  "displayName": "Vulcain",
+  "description": "Vscode extension for the Vulcain programming language",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.86.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "vulcain",
+      "aliases": ["Vulcain", "vu"],
+      "extensions": ["vu"],
+      "configuration": "./language-configuration.json",
+      "icon": {
+        "light": "./vscodeicone.png",
+        "dark": "./vscodeicone.png"
+      }
+    }],
+    "grammars": [{
+      "language": "vulcain",
+      "scopeName": "source.vulcain",
+      "path": "./syntaxes/.tmLanguage.json"
+    }]
+  }
+}
