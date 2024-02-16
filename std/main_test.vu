@@ -1,8 +1,7 @@
-import std/stdio.vu;
-import std/str.vu;
+import ../std/stdio.vu;
+import ../std/str.vu;
 
-char HelloString[14] = {'H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', '!', '\n', '\0'};
-
+char HelloString[14] = "Hello World\n\0";
 if contains(HelloString, 'H') {
     print(HelloString);
 }

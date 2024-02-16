@@ -4,9 +4,7 @@ func contains(char* s, char elt) -> bool {
         if s[i] == 'H' {
             return 1;
         }
-        !print_char(s[i]);
         i += 1;
     }
-    !dn(s[i] == 0);
     return 0;
 }
