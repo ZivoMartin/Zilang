@@ -2,6 +2,7 @@ compiler/target
 Compiler/Todo.txt
 .vscode
 Forge/node_modules
+Forge/vulcain_files.vu
 compiler/exe*
 compiler/asm/functions.asm
 compiler/asm/script.asm
