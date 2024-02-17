@@ -1,21 +1,32 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'"
-    />
-    <meta
-      http-equiv="X-Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'"
-    />
-    <link rel="stylesheet" href="style.css">
-    <title>Forge</title>
-  </head>
-  <body>
-    <textarea name="mainInput" id="mainInput" cols="30" rows="10" spellcheck="false"></textarea>
-    <button id="Run">RUN</button>
-  </body>
-  <script src="../src/renderer.js"></script>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'"
+  />
+  <meta
+    http-equiv="X-Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'"
+  />
+  <link rel="stylesheet" href="style.css">
+  <title>Forge</title>
+</head>
+<body>
+  <div id="TypeProject">
+    <button class="TypeProject" id="openProjectButton">Open a Forge project</button>
+    <button class="TypeProject" id="newProjectButton">Create a new Forge project</button>
+  </div>
+  <div>
+    <div id="openProjectDiv" class="HIDE">
+      <p>Open project: Not implemented yet</p>
+    </div>
+    <div id="newProjectDiv" class="HIDE">
+      <input type="text" placeholder="Name of the new project" id="newProjectNameSubmit" class="submitNewProject">
+      <button id="newProjectButtonSubmit" class="submitNewProject">create</button>
+    </div>
+  </div>
+</body>
+<script src="../src/index.js"></script>
 </html>

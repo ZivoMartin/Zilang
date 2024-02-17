@@ -6,14 +6,16 @@ const fs = require('fs');
 
 const { exec } = require('child_process');
 
-const index_path = "view/index.html"
-
+const index_path = "view/index.html";
+const idepath = "view/code.html";
 const compile_command = (path) => "cd ../compiler && cargo run ../Forge/" + path + " -o exe";
 
 const exec_command = "../compiler/exe";
 
 
-const createWindow = () => {
+
+app.whenReady().then(() => {
+  
   const win = new BrowserWindow({
     width: 800,
     height: 600,
@@ -21,12 +23,9 @@ const createWindow = () => {
       preload: repo_path.join(__dirname, 'preload.js')
     }
   })
+  
   win.loadFile(index_path)
-}
 
-
-
-const init_action = () => {
   ipcMain.handle('save', (e, path, new_txt) => fs.writeFile(path, new_txt, (e)=>{if (e) throw e}))
   ipcMain.handle('run', (e, path) => {
     if (path.endsWith(".vu")) {
@@ -49,10 +48,6 @@ const init_action = () => {
     }
   });
   ipcMain.handle("get_content", (e, path) => fs.readFileSync(path, {encoding: 'utf8'}))
-}
-
-
-app.whenReady().then(() => {
-  init_action();
-  createWindow();
+  ipcMain.handle("openide", () => win.loadFile(idepath))
 })
+
