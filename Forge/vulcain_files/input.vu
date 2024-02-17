@@ -1,0 +1,7 @@
+import ../std/stdio.vu;
+
+char* hello = "Hello World !\n\0";
+
+print(hllo);
+
+!exit(0);

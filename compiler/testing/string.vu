@@ -1,4 +1,4 @@
-import std/stdio.vu;
+import ../std/stdio.vu;
 
 char* s = "Hello World!\n\0";
 
@@ -7,7 +7,7 @@ char* s = "Hello World!\n\0";
     print(s);
 }
 
-pint(s);
+print(s);
 
 
 !exit(0);

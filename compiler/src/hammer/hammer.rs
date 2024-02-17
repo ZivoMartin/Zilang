@@ -445,7 +445,7 @@ pub fn instruct_loop(hammer: &mut Hammer) -> Result<(), String>{
         *hammer.inst() = hammer.inst().replace("\n", "").trim().to_string();
         if hammer.inst().starts_with("}") {
             if hammer.jump_count() <= 0 {  
-                return Err(format!("{} You've tried to complete a block, but there are currently no blocks in progress.", hammer.error_msg()))
+                //return Err(format!("{} You've tried to complete a block, but there are currently no blocks in progress.", hammer.error_msg()))
             }
             hammer.inst().remove(0);
             hammer.jump_out();
@@ -573,7 +573,7 @@ fn handle_affectation(hammer: &mut Hammer, line: String) -> Result<bool, String>
         return Err(format!("{} Invalid syntax.", hammer.error_msg()));
     }
     let mut var1 = split.remove(0).trim().to_string(); // We extract the name of the variable 
-    let nb_stars = get_prof_pointer(hammer, &mut var1, false)?; // We count the nb of start, it cannot be negative.
+    let nb_stars = get_prof_pointer(hammer, &mut var1, false)?; // We count the nb of stars, it cannot be negative.
     let tab_vec = tab_analyse(hammer, &mut var1)?;  
     if hammer.var_exists(&var1){
         let mut right_exp = split.join("=").replace(" = ", "=").trim().to_string();
@@ -581,8 +581,6 @@ fn handle_affectation(hammer: &mut Hammer, line: String) -> Result<bool, String>
             
             if right_exp.len() == 1 || right_exp.pop() != Some('\"'){
                 return Err(format!("{} It seems like you didn't close the quotes.", hammer.error_msg()))
-            }else if nb_stars+tab_vec.len() as i32 != 1 {
-                return Err(format!("{} You can only affect a string to a char* or a char[].", hammer.error_msg()));
             }
 
             let mut res = String::new();

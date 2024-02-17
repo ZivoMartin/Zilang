@@ -1,0 +1,17 @@
+{
+  "name": "forge",
+  "version": "1.0.0",
+  "description": "This is the Code Editor for the Vulcain programing language",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Martin Zivojinovic",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "23.1.3"
+  }
+}
+
+
