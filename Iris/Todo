@@ -1,0 +1,16 @@
+- Faire une review du code: l'optimiser, l'améliorer et le commenter.
+
+- Faire une application en ligne de commande qui permet 
+    - De passer un ficheir sql en argument
+    - Lancer l'IDE
+    - De passer une requête directement
+    - D'indiquer la manière dont on veut recevoir le resultat de la requête
+
+- Les reqêtes peuvent avoir le paramêtre -j, cela se couple uniquement avec les requêtes directes, elle indique que le 
+  resultat doit ètre transférer dans un fichier .json (afin de pouvoir faire du cross language).
+
+- Verifier que le moteur n'est pas emplacement dependant.
+
+- Autoriser le passage de String par fichiers.
+
+BONUS: Remplacer ces fichiers text par des fichiers .json.

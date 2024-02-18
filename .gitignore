@@ -9,3 +9,4 @@ compiler/asm/script.asm
 compiler/asm/data.asm
 compiler/asm/macros.asm
 compiler/Todo.txt
+Iris/target
