@@ -214,7 +214,7 @@ impl View{
     }
 
     fn new_request(&mut self, text: String){
-        match self.interpreteur.sqlrequest(text.to_string(), false){
+        match self.interpreteur.sqlrequest(text.to_string(), String::new(), false){
             Ok(res) => {
                 match res{
                     Some(result) => {

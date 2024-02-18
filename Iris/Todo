@@ -1,8 +1,0 @@
-- Faire une review du code: l'optimiser, l'améliorer et le commenter.
-
-- Les reqêtes peuvent avoir le paramêtre -j, cela se couple uniquement avec les requêtes directes, elle indique que le 
-  resultat doit ètre transférer dans un fichier .json (afin de pouvoir faire du cross language).
-
-- Autoriser le passage de String par fichier.
-
-BONUS: Remplacer ces fichiers texte par des fichiers .json.

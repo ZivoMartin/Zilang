@@ -1,7 +1,8 @@
 use crate::system::System;
 use std::collections::HashMap;
 use crate::type_gestion::TypeGestion;
-
+use std::fs::File;
+use std::process::exit;
 pub struct Interpreteur {
     system: System,
     authorized_char_for_variable: &'static str,
@@ -17,7 +18,7 @@ impl Interpreteur {
         }
     }
 
-    pub fn sqlrequest(&mut self, mut req: String, _json: bool) -> Result<Option<HashMap<String, Vec<String>>>, String>{
+    pub fn sqlrequest(&mut self, mut req: String, json_path: String, pretty: bool) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if req != "" {
             req = req.replace(",", " , ");
             while req.contains("  ") {
@@ -36,7 +37,28 @@ impl Interpreteur {
                     }
                 }
                 "DELETE" => self.delete_line(vect_req)?,
-                "SELECT" => return self.select_request(vect_req),
+                "SELECT" =>{
+                    let result = self.select_request(vect_req);
+                    if result.is_ok() && !json_path.is_empty() {
+                        let json_file = File::create(json_path).unwrap_or_else(|e| {
+                            eprintln!("{e}");
+                            exit(1);
+                        });
+                        if pretty {
+                            serde_json::to_writer_pretty(json_file, &result.clone().unwrap()).unwrap_or_else(|e| {
+                                eprintln!("{e}");
+                                exit(1);
+                            });
+                        }else{
+                            serde_json::to_writer(json_file, &result.clone().unwrap()).unwrap_or_else(|e| {
+                                eprintln!("{e}");
+                                exit(1);
+                            });
+                        }
+                        
+                    }
+                    return result
+                }
                 _ => return Err(format!("{} is unnknow by the system.", type_request))
             }
         }

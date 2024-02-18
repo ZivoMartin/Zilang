@@ -16,7 +16,8 @@ static OK: u8 = 0;
 static ERROR: u8 = 1;
 struct RequestParameters {
     request: String,
-    json: bool,
+    json_file: String,
+    pretty: bool,
     file_sql: String,
     ide: bool
 }
@@ -25,7 +26,8 @@ impl RequestParameters {
     fn new() -> RequestParameters {
         RequestParameters{
             request: String::new(),
-            json: false,
+            pretty: false,
+            json_file: String::new(),
             file_sql: String::new(),
             ide: false
         }
@@ -43,7 +45,14 @@ fn main() -> ExitCode{
     let mut iter = args.iter().skip(1);
     while let Some(elt) = iter.next() {
         match &elt as &str {
-            "-j" => req.json = true,
+            "-j" => {
+                if let Some(path) = iter.next() {
+                    req.json_file = path.to_string();
+                }else{
+                    eprintln!("You didn't precise the file path with the '-f' parameter.");
+                    return ExitCode::from(ERROR)
+                }
+            }
             "-ide" => req.ide = true,
             "-f" => {
                 if let Some(path) = iter.next() {
@@ -58,6 +67,7 @@ fn main() -> ExitCode{
                    req.request = request.to_string()
                 }
             }
+            "-p" => req.pretty = true,
             _ => {
                 eprintln!("Unknow parameter: {}", elt);
                 return ExitCode::from(ERROR)
@@ -65,7 +75,7 @@ fn main() -> ExitCode{
         }
     }
     let mut interpreteur = Interpreteur::new();
-    interpreteur.sqlrequest(req.request, req.json).unwrap_or_else(|e| {
+    interpreteur.sqlrequest(req.request, req.json_file, req.pretty).unwrap_or_else(|e| {
         eprintln!("{e}");
         exit(OK as i32)
     });
@@ -79,7 +89,7 @@ fn main() -> ExitCode{
                 let mut all_request: Vec<&str> = f_text.split(";").collect();
                 all_request.pop();
                 for request in all_request{
-                    interpreteur.sqlrequest(request.to_string(), req.json).unwrap_or_else(|e| {
+                    interpreteur.sqlrequest(request.to_string(), String::new(), false).unwrap_or_else(|e| {
                         eprintln!("{e}");
                         eprintln!("During the execution of the file {}", req.file_sql);
                         exit(OK as i32)

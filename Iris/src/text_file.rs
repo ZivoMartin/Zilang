@@ -12,24 +12,28 @@ pub struct TextFile{
     file: File
 }
 
+pub fn get_file(file_path: String) -> File {
+    if !file_exists(&file_path){
+        create_file(&file_path);
+    }
+    let file : File; 
+    match fs::OpenOptions::new().append(true).read(true).open(&file_path){
+        Ok(f) => {
+            file = f;
+        }Err(e) => {
+            println!("Erreur lors de l'ouverture du fichier {}: {}", file_path, e);
+            process::exit(0);
+        }
+    }
+    file
+}
+
 impl TextFile{
 
     pub fn new(file_path: String) -> TextFile {
-        if !file_exists(&file_path){
-            create_file(&file_path);
-        }
-        let file : File; 
-        match fs::OpenOptions::new().append(true).read(true).open(&file_path){
-            Ok(f) => {
-                file = f;
-            }Err(e) => {
-                println!("Erreur lors de l'ouverture du fichier {}: {}", file_path, e);
-                process::exit(0);
-            }
-        }
         TextFile {
             file_path: PathBuf::from(&file_path),
-            file: file
+            file: get_file(file_path)
         }
     }
 

@@ -6,4 +6,3 @@ INSERT INTO Humain (id, the_name, age) VALUES (3, 'Raghid', 17);
 INSERT INTO Humain (id, the_name, age) VALUES (4, 'Dabi', 18);
 INSERT INTO Humain (id, the_name, age) VALUES (5, 'Vico', 18);
 SELECT age, the_name FROM Humain WHERE age>18;
-DELETE FROM Humain WHERE (2!=5 AND 8>7) AND age<19;
