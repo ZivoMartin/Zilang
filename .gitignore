@@ -10,3 +10,4 @@ compiler/asm/data.asm
 compiler/asm/macros.asm
 compiler/Todo.txt
 Iris/target
+Iris/text_files

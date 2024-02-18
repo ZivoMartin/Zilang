@@ -7,13 +7,11 @@ use std::io::BufRead;
 use std::io::Seek;
 use std::process;
 
-#[allow(dead_code)]
 pub struct TextFile{
     file_path: PathBuf,
     file: File
 }
 
-#[allow(dead_code)]
 impl TextFile{
 
     pub fn new(file_path: String) -> TextFile {

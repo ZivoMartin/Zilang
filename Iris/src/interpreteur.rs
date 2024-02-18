@@ -2,14 +2,12 @@ use crate::system::System;
 use std::collections::HashMap;
 use crate::type_gestion::TypeGestion;
 
-#[allow(dead_code)]
 pub struct Interpreteur {
     system: System,
     authorized_char_for_variable: &'static str,
     type_gestion: TypeGestion
 }
 
-#[allow(dead_code)]
 impl Interpreteur {
     pub fn new() -> Interpreteur{
         Interpreteur{
@@ -19,9 +17,13 @@ impl Interpreteur {
         }
     }
 
-    pub fn sqlrequest(&mut self, req: String) -> Result<Option<HashMap<String, Vec<String>>>, String>{
+    pub fn sqlrequest(&mut self, mut req: String, _json: bool) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if req != "" {
-            let mut vect_req: Vec<&str> = req.split(" ").collect();
+            req = req.replace(",", " , ");
+            while req.contains("  ") {
+                req = req.replace("  ", " ");
+            }
+            let mut vect_req: Vec<&str> = req.split(" ").map(str::trim).collect();
             let type_request = vect_req.remove(0);
             match type_request{
                 "DROP" => self.drop_req(vect_req)?,
@@ -34,12 +36,7 @@ impl Interpreteur {
                     }
                 }
                 "DELETE" => self.delete_line(vect_req)?,
-                "SELECT" => {
-                    match self.select_request(vect_req){
-                        Ok(res) => return Ok(res),
-                        Err(e) => return Err(e.to_string())
-                    }
-                }
+                "SELECT" => return self.select_request(vect_req),
                 _ => return Err(format!("{} is unnknow by the system.", type_request))
             }
         }
@@ -56,67 +53,60 @@ impl Interpreteur {
             match vect_req[0]{
                 "TABLE" => {
                     for table_to_drop in vect_req.iter().skip(1){
-                        arguments.insert(":table_name", table_to_drop);
-                        self.system.new_request(arguments.clone())?;
-                        arguments.remove(":table_name");
+                        arguments.insert(":table_name", table_to_drop); // We insert the table to drop
+                        self.system.new_request(arguments.clone())?;    // We drop it
                     }
                 }
                 _ => {}
             }
-            return Ok(());
-        }else{
-            return Err(format!("DROP {} isn't a valid command.", vect_req.join(" ")));
+            return Ok(())
         }
+        Err(format!("DROP {} isn't a valid command.", vect_req.join(" ")))
     }
 
 
 
-    fn select_request(&mut self, vect_req: Vec<&str>) -> Result<Option<HashMap<String, Vec<String>>>, String>{
+    fn select_request(&mut self, mut vect_req: Vec<&str>) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if vect_req.len() >= 3 {
-            let mut tmp = vect_req.join(" ");
-            tmp = tmp.replace(" ,", ",");
-            tmp = tmp.replace(", ", ",");
-            let mut arg: Vec::<&str> = tmp.split_whitespace().collect();
             let mut arguments = HashMap::<String, String>::new();
             let mut result = HashMap::<&str, &str>::new();
             arguments.insert(String::from(":request"), String::from("SELECT"));
             arguments.insert(String::from(":asked"), String::from("*"));
-            match arg[0]{
+            match vect_req[0]{
                 "*" => {
-                    arg.remove(0);
+                    vect_req.remove(0);
                 }
                 _ => {
-                    let mut asked = String::new();
-                    let ask_tab: Vec<&str> = arg.remove(0).split(",").collect();
-                    let mut i = 0;
-                    while i<ask_tab.len() && self.is_correct_name(ask_tab[i]){
-                        asked += ask_tab[i];
-                        asked += "/";
-                        i += 1;
-                    } 
-                    if asked.len() == 0{
-                        return Err(String::from("Nothing selected"));
-                    }else{
-                        asked.pop();
+                    let mut asked = String::new();  
+                    loop {
+                        asked = asked + &vect_req.remove(0).to_string() + "/";
+                        if vect_req[0] != "," {
+                            break;
+                        }
+                        vect_req.remove(0);
                     }
+                    if asked.len() == 1{
+                        return Err(String::from("Nothing selected"));
+                    }
+                    asked.pop();
                     arguments.insert(String::from(":asked"), asked);
                 }
             }
-            if arg.len() > 0{
-                let from_keyword = arg.remove(0);
+            if vect_req.len() > 0{
+                let from_keyword = vect_req.remove(0);
                 match from_keyword{
                     "FROM" => {
-                        let table_name = arg.remove(0);
+                        let table_name = vect_req.remove(0);
                         if self.is_correct_name(table_name){
                             arguments.insert(String::from(":table_name"), table_name.to_string());
-                            if arg.len() > 0{
-                                let keyword = arg.remove(0);
+                            if vect_req.len() > 0{
+                                let keyword = vect_req.remove(0);
                                 match keyword{
                                     "WHERE" => {
-                                        if arg.len() == 0{
+                                        if vect_req.len() == 0{
                                             return Err(String::from("Error: Condition missing."));
                                         }else{
-                                            let condition = arg.join(" ");
+                                            let condition = vect_req.join(" ");
                                             let cleaning = self.clean_the_condition(condition, &mut arguments);
                                             match cleaning{
                                                 Some(condition) => {
@@ -139,14 +129,12 @@ impl Interpreteur {
                             return Err(format!("{} isn't a correct name for a table.", table_name));
                         }
                     },   
-                    _ => return Err(format!("{} found where Frome was expected", from_keyword)),
+                    _ => return Err(format!("{} found where From was expected", from_keyword)),
                 }
-            }else{
-                return Err(String::from("Nothing found where FROM was expected."));
             }
-        }else{
-            return Err(format!("The request 'SELECT {}' isn't valid.", vect_req.join(" ")));
+            return Err(String::from("Nothing found where FROM was expected."))
         }
+        Err(format!("The request 'SELECT {}' isn't valid.", vect_req.join(" ")))
     }
 
 

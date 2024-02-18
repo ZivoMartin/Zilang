@@ -1,4 +1,0 @@
-id INT NOTNULL
-age INT
-vivant BOOL DEFAULT true
-the_name VARCHAR(50)

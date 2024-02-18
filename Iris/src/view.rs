@@ -13,7 +13,6 @@ use crate::interpreteur::Interpreteur;
 use crate::text_file::TextFile;
 use crate::text_file::file_exists;
 
-#[allow(dead_code)]
 pub struct View{
     context: Sdl,
     canvas: WindowCanvas,
@@ -21,7 +20,6 @@ pub struct View{
     interpreteur: Interpreteur,
     cursor_pos: Xy,
     case_size: Xy,
-    size_window: Xy,
     background_color: Color,
     iter: u32,
     char_tab: Vec<String>,
@@ -36,7 +34,7 @@ struct Xy{
 impl Xy {
 
     fn new(x: u32, y: u32) -> Xy{
-        Xy{x: x, y: y}
+        Xy{x, y}
     }
     
     fn change(&mut self, x: u32, y: u32){
@@ -48,7 +46,7 @@ impl Xy {
 
 impl View{
 
-    pub fn new() -> Result<View, String> {
+    pub fn new(interpreteur: Interpreteur) -> Result<View, String> {
         let size_window = Xy::new(1400, 800);
         let case_size = Xy::new(15, 40);
         let sdl_context = sdl2::init()?;
@@ -60,8 +58,6 @@ impl View{
         
         let canvas = window.into_canvas().build().expect("could not make a canvas");
         let texture_creator = canvas.texture_creator();
-        let interpreteur = Interpreteur::new();
-
         let mut char_vec: Vec<String> = Vec::new();
         let height = size_window.y/case_size.y;
         char_vec.push(String::from(">"));
@@ -70,12 +66,11 @@ impl View{
         }
         Ok(View{
             context: sdl_context,
-            canvas: canvas,
-            texture_creator: texture_creator,
-            interpreteur: interpreteur,
+            canvas,
+            texture_creator,
+            interpreteur,
             cursor_pos: Xy::new(1, 0),
-            case_size: case_size,
-            size_window: size_window,
+            case_size,
             background_color: Color::RGB(0, 0, 0),
             iter: 0,
             char_tab: char_vec,
@@ -200,7 +195,7 @@ impl View{
                         let mut all_request: Vec<&str> = f_text.split(";").collect();
                         all_request.pop();
                         for req in all_request{
-                            self.new_request(format!("{};", req));
+                            self.new_request(req.to_string());
                         }
                     }else{
                         self.error_message(r"The file in arguments of \i have to be a sql file.");
@@ -219,7 +214,7 @@ impl View{
     }
 
     fn new_request(&mut self, text: String){
-        match self.interpreteur.sqlrequest(text.to_string()){
+        match self.interpreteur.sqlrequest(text.to_string(), false){
             Ok(res) => {
                 match res{
                     Some(result) => {

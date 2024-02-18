@@ -8,7 +8,6 @@ pub struct System{
     type_gestion: TypeGestion
 }
 
-#[allow(dead_code)]
 impl System{
 
     pub fn new() -> System{
