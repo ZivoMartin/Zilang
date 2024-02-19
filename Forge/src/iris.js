@@ -1,10 +1,22 @@
 const { exec } = require('child_process');
 
-const outputManagment = require('./main.js')
+const outputManagment = (error, stdout, stderr, type_op) => {
+    if (error) {
+      console.error(type_op + ` error: ${error.message}`);
+      return false;
+    }
+    if (stderr) {
+      console.error(type_op + ` stderr: ${stderr}`);
+    }
+    console.log(type_op + ` stdout:\n${stdout}`);      
+    return true;  
+  };
+  
+const vulcainPath = "/home/martin/Travail/Vulcain"
 
-const irisPath = "../Iris/target/debug/iris";
+const irisPath = vulcainPath+"/Iris/target/debug/iris";
 
-const resultJsonPath = "/home/martin/Travail/Vulcain/Forge/database/result.json";
+const resultJsonPath = vulcainPath+"/Forge/database/result.json";
 
 const fs = require('fs');
 
