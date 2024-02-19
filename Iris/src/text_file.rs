@@ -7,7 +7,7 @@ use std::io::BufRead;
 use std::io::Seek;
 use std::process;
 
-pub static SRC_PATH: &str = "/home/martin/Travail/Vulcain/Iris/";
+pub static SRC_PATH: &str = "/net/cremi/mzivojinovic/Travail/Vulcain/Iris/";
 
 pub struct TextFile{
     file_path: PathBuf,

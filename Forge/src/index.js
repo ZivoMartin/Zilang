@@ -10,6 +10,7 @@ const newProjectNameSubmit = document.getElementById("newProjectNameSubmit");
 openProjectButton.addEventListener("click", () => {
     newProjectDiv.style.display = "none"
     openProjectDiv.style.display = "block"
+    window.messsage.getProjects();
 })
 
 newProjectButton.addEventListener("click", () => {
@@ -19,5 +20,5 @@ newProjectButton.addEventListener("click", () => {
 
 newProjectButtonSubmit.addEventListener("click", () => {
     const name = newProjectNameSubmit.value;
-    window.versions.addProject(name);
+    window.messsage.addProject(name);
 })

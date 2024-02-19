@@ -22,12 +22,12 @@ const outputManagment = (error, stdout, stderr, type_op) => {
     console.error(type_op + ` error: ${error.message}`);
     return false;
   }
-  if (stderr) {
-    console.error(type_op + ` stderr: ${stderr}`);
-  }
-  console.log(type_op + ` stdout:\n${stdout}`);      
+  if (stderr) console.error(type_op + ` stderr: ${stderr}`);
+  if (stdout) console.log(type_op + ` stdout:\n${stdout}`);      
   return true;  
 };
+
+
 
 app.whenReady().then(() => {
   
@@ -56,9 +56,9 @@ app.whenReady().then(() => {
   ipcMain.handle("get_content", (e, path) => fs.readFileSync(path, {encoding: 'utf8'}))
   ipcMain.handle("openide", () => win.loadFile(idepath))
   ipcMain.handle("addProject", (e, name) => {
-    iris.execFile("database/init.sql");
-    iris.newRequest("INSERT INTO Projects (p_name) VALUES ("+name+")");
-    iris.newRequest("SELECT * FROM Projects");
+      iris.newRequest("INSERT INTO Projects (p_name) VALUES ("+name+")");
+      win.loadFile(idepath);
   })
-  ipcMain.handle("init", () => iris.execFile("database/init.sql"))
+  ipcMain.handle("init", () => iris.execFile("database/init.sql")),
+  ipcMain.handle("getProjects", () => iris.newRequest("SELECT p_name FROM Projects"))
 })

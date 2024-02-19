@@ -1,2 +1,2 @@
 RESET;
-CREATE TABLE Project(p_name VARCHAR(30));
+CREATE TABLE Projects(p_name VARCHAR(30) PRIMARY KEY);

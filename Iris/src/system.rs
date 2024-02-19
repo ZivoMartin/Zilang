@@ -43,7 +43,12 @@ impl System{
     fn reset_database(&self) {
         let reader = read_dir(src_path() + "text_files").unwrap().map(|p| p.unwrap());
         for file in reader{
-            TextFile::new("text_files/".to_string() + &file.file_name().into_string().unwrap()).erase();
+            let file_name = file.file_name().into_string().unwrap();
+            if file_name == "main_file.txt" {
+                TextFile::new("text_files/".to_string() + &file_name).reset("");
+            }else{
+                TextFile::new("text_files/".to_string() + &file_name).erase();
+            }
         }
     }
     
