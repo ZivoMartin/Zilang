@@ -1,7 +1,7 @@
-use crate::text_file::TextFile;
-use crate::text_file::file_exists;
+use crate::text_file::{src_path, file_exists, TextFile};
 use crate::type_gestion::TypeGestion;
 use std::collections::HashMap;
+use std::fs::read_dir;
 
 pub struct System{
     main_file: TextFile,
@@ -34,11 +34,18 @@ impl System{
                     Err(e) => return Err(e.to_string())
                 }
             }
+            "RESET" => self.reset_database(),
             _ => return Err(format!("The keyword {} isn't valid.", type_request))
         }
         Ok(None)
     }
 
+    fn reset_database(&self) {
+        let reader = read_dir(src_path() + "text_files").unwrap().map(|p| p.unwrap());
+        for file in reader{
+            TextFile::new("text_files/".to_string() + &file.file_name().into_string().unwrap()).erase();
+        }
+    }
     
 
 

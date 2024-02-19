@@ -1,4 +1,3 @@
-DROP TABLE Humain;
 CREATE TABLE Humain(id INT PRIMARY KEY, the_name VARCHAR(50), age INT, vivant BOOL DEFAULT true);
 INSERT INTO Humain (id, the_name, age) VALUES (1, 'Joah', 20);
 INSERT INTO Humain (id, the_name, age) VALUES (2, 'Martin', 19);

@@ -7,30 +7,36 @@ use std::io::BufRead;
 use std::io::Seek;
 use std::process;
 
+pub static SRC_PATH: &str = "/home/martin/Travail/Vulcain/Iris/";
+
 pub struct TextFile{
     file_path: PathBuf,
     file: File
 }
 
 pub fn get_file(file_path: String) -> File {
-    if !file_exists(&file_path){
+    if !file_exists_brut(&file_path){
         create_file(&file_path);
     }
-    let file : File; 
     match fs::OpenOptions::new().append(true).read(true).open(&file_path){
-        Ok(f) => {
-            file = f;
-        }Err(e) => {
+        Ok(f) => f,
+        Err(e) => {
             println!("Erreur lors de l'ouverture du fichier {}: {}", file_path, e);
             process::exit(0);
         }
     }
-    file
 }
 
 impl TextFile{
 
     pub fn new(file_path: String) -> TextFile {
+        TextFile {
+            file_path: PathBuf::from(src_path() + &file_path),
+            file: get_file(src_path() + &file_path)
+        }
+    }
+
+    pub fn new_brut(file_path: String) -> TextFile {
         TextFile {
             file_path: PathBuf::from(&file_path),
             file: get_file(file_path)
@@ -55,7 +61,7 @@ impl TextFile{
     pub fn erase(&self){
         fs::remove_file(&self.file_path)
         .unwrap_or_else(|e| {
-            println!("Le fichier n'a pas été supprimé: {}", e);
+            println!("{:?} Le fichier n'a pas été supprimé: {}", self.file_path, e);
         });
     }
 
@@ -84,13 +90,20 @@ impl TextFile{
     }
 }
 
+pub fn src_path() -> String {
+    SRC_PATH.to_string()
+}
 
 pub fn file_exists(file_path: &str) -> bool {
+    fs::metadata(src_path() + file_path).is_ok()
+}
+
+pub fn file_exists_brut(file_path: &str) -> bool {
     fs::metadata(file_path).is_ok()
 }
 
 fn create_file(file_path: &str){
-    let _ = File::create(&file_path).map_err(|e|{
+    let _ = File::create(file_path).map_err(|e|{
         println!("Erreur lors de la creation du fichier {}: {}", file_path, e);
     });
 }

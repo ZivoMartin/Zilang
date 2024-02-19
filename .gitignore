@@ -3,6 +3,7 @@ Compiler/Todo.txt
 .vscode
 Forge/node_modules
 Forge/vulcain_files.vu
+Forge/*.json
 compiler/exe*
 compiler/asm/functions.asm
 compiler/asm/script.asm
@@ -11,3 +12,4 @@ compiler/asm/macros.asm
 compiler/Todo.txt
 Iris/target
 Iris/text_files
+Iris/*.json

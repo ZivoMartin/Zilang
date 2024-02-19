@@ -19,5 +19,5 @@ newProjectButton.addEventListener("click", () => {
 
 newProjectButtonSubmit.addEventListener("click", () => {
     const name = newProjectNameSubmit.value;
-    window.versions.openide();
+    window.versions.addProject();
 })

@@ -6,14 +6,17 @@ use std::io::Seek;
 use std::fs;
 use std::fs::File;
 
+static SRC_PATH: &str = "/home/martin/Travail/Vulcain/compiler/";
+
 #[allow(dead_code)]
 pub struct TextFile{
     file_path: PathBuf,
-    file: File
+    file: File,
 }
 impl TextFile{
 
-    pub fn new(file_path: String) -> Result<TextFile, String> {
+    pub fn new(mut file_path: String) -> Result<TextFile, String> {
+        file_path = SRC_PATH.to_string() + &file_path;
         if !file_exists(&file_path) {
             create_file(&file_path);
         }

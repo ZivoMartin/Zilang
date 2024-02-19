@@ -1,4 +1,6 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const Iris = require("./iris.js");
+
+const { app, BrowserWindow, ipcMain } = require('electron');
 
 const repo_path = require('node:path')
 
@@ -12,6 +14,7 @@ const compile_command = (path) => "cd ../compiler && cargo run ../Forge/" + path
 
 const exec_command = "../compiler/exe";
 
+const iris = new Iris();
 
 
 app.whenReady().then(() => {
@@ -35,19 +38,19 @@ app.whenReady().then(() => {
           console.error(`error: ${error.message}`);
           return;
         }
-      
         if (stderr) {
           console.error(`stderr: ${stderr}`);
         }
-      
         console.log(`stdout:\n${stdout}`);
-      });
-      
+      }); 
     }else{
       console.log("You can only run .vu files..");
     }
   });
   ipcMain.handle("get_content", (e, path) => fs.readFileSync(path, {encoding: 'utf8'}))
   ipcMain.handle("openide", () => win.loadFile(idepath))
+  ipcMain.handle("addProject", () => {
+    iris.newRequest("SELECT the_name FROM Humain WHERE age>18");
+  })
 })
 

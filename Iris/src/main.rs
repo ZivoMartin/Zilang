@@ -6,7 +6,7 @@ mod view;
 
 
 use interpreteur::Interpreteur;
-use text_file::file_exists;
+use text_file::file_exists_brut;
 use crate::text_file::TextFile;
 use crate::view::View;
 use std::process::{exit, ExitCode};
@@ -14,6 +14,8 @@ use std::env;
 
 static OK: u8 = 0;
 static ERROR: u8 = 1;
+
+
 struct RequestParameters {
     request: String,
     json_file: String,
@@ -49,7 +51,7 @@ fn main() -> ExitCode{
                 if let Some(path) = iter.next() {
                     req.json_file = path.to_string();
                 }else{
-                    eprintln!("You didn't precise the file path with the '-f' parameter.");
+                    eprintln!("COMMAND LINE ERROR: You didn't precise the file path with the '-f' parameter.");
                     return ExitCode::from(ERROR)
                 }
             }
@@ -58,7 +60,7 @@ fn main() -> ExitCode{
                 if let Some(path) = iter.next() {
                     req.file_sql = path.to_string();
                 }else{
-                    eprintln!("You didn't precise the file path with the '-f' parameter.");
+                    eprintln!("COMMAND LINE ERROR: You didn't precise the file path with the '-f' parameter.");
                     return ExitCode::from(ERROR)
                 }
             }
@@ -69,7 +71,7 @@ fn main() -> ExitCode{
             }
             "-p" => req.pretty = true,
             _ => {
-                eprintln!("Unknow parameter: {}", elt);
+                eprintln!("COMMAND LINE ERROR: Unknow parameter: {}", elt);
                 return ExitCode::from(ERROR)
             }
         }
@@ -81,9 +83,9 @@ fn main() -> ExitCode{
     });
 
     if req.file_sql != "" {
-        if file_exists(&req.file_sql){
+        if file_exists_brut(&req.file_sql){
             if req.file_sql.ends_with(".sql") || req.file_sql.ends_with(".txt"){
-                let mut sql_file = TextFile::new(req.file_sql.to_string());
+                let mut sql_file = TextFile::new_brut(req.file_sql.to_string());
                 let mut f_text = sql_file.get_text();
                 f_text = f_text.replace("\n", "");
                 let mut all_request: Vec<&str> = f_text.split(";").collect();
@@ -97,10 +99,10 @@ fn main() -> ExitCode{
                 }
                 println!("The execution of the file {} has been a success", req.file_sql);
             }else{
-                eprintln!("The file {} is not a sql file.", req.file_sql);
+                eprintln!("COMMAND LINE ERROR: The file {} is not a sql file.", req.file_sql);
             }
         }else{
-            eprintln!("Couldn't open the file {}", req.file_sql)
+            eprintln!("COMMAND LINE ERROR: Couldn't open the file {}", req.file_sql)
         } 
     }
 

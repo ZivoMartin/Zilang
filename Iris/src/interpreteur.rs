@@ -59,6 +59,7 @@ impl Interpreteur {
                     }
                     return result
                 }
+                "RESET" => self.reset_request(),
                 _ => return Err(format!("{} is unnknow by the system.", type_request))
             }
         }
@@ -66,7 +67,11 @@ impl Interpreteur {
     }
     
 
-
+    fn reset_request(&mut self) {
+        let mut arguments = HashMap::<&str, &str>::new();
+        arguments.insert(":request", "RESET");
+        self.system.new_request(arguments).unwrap();
+    }
 
     fn drop_req(&mut self, vect_req: Vec::<&str>) -> Result<(), String>{
         if vect_req.len() >= 2{
