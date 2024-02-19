@@ -1,26 +1,23 @@
 const { exec } = require('child_process');
 
+const outputManagment = require('./main.js')
+
 const irisPath = "../Iris/target/debug/iris";
 
-const resultJsonPath = "/home/martin/Travail/Vulcain/Forge/result.json";
+const resultJsonPath = "/home/martin/Travail/Vulcain/Forge/database/result.json";
 
 const fs = require('fs');
 
 class Iris {
 
-    constructor(){}
-
     newRequest(req) {
-        exec(irisPath + " -j result.json -d \"" + req + "\" -p", (error, stdout, stderr) => {
-            if (error) {
-                console.error(`error: ${error.message}`);
-                return;
-            }
-            if (stderr) {
-                console.error(`stderr: ${stderr}`);
-            }
-            console.log(`stdout:\n${stdout}`);
-        })
+        exec(irisPath + " -j "+resultJsonPath+" -d \"" + req + "\" -p", (error, stdout, stderr) => 
+        outputManagment(error, stdout, stderr, "Iris direct request execution"));
+    }
+
+    execFile(file_path) {
+        exec(irisPath + " -f " + file_path, (error, stdout, stderr) => 
+        outputManagment(error, stdout, stderr, "Iris file execution"))
     }
 }
 

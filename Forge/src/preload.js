@@ -6,5 +6,6 @@ contextBridge.exposeInMainWorld('versions', {
   get_content: (path) => ipcRenderer.invoke('get_content', path),
   run: (path) => ipcRenderer.invoke('run', path),
   openide: () => ipcRenderer.invoke('openide'),
-  addProject: () => ipcRenderer.invoke('addProject')
+  addProject: () => ipcRenderer.invoke('addProject'),
+  init: () => ipcRenderer.invoke("init")
 })

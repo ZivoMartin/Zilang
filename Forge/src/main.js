@@ -17,6 +17,18 @@ const exec_command = "../compiler/exe";
 const iris = new Iris();
 
 
+const outputManagment = (error, stdout, stderr, type_op) => {
+  if (error) {
+    console.error(type_op + ` error: ${error.message}`);
+    return false;
+  }
+  if (stderr) {
+    console.error(type_op + ` stderr: ${stderr}`);
+  }
+  console.log(type_op + ` stdout:\n${stdout}`);      
+  return true;  
+};
+
 app.whenReady().then(() => {
   
   const win = new BrowserWindow({
@@ -32,25 +44,21 @@ app.whenReady().then(() => {
   ipcMain.handle('save', (e, path, new_txt) => fs.writeFile(path, new_txt, (e)=>{if (e) throw e}))
   ipcMain.handle('run', (e, path) => {
     if (path.endsWith(".vu")) {
-      exec(compile_command(path), () => {})
-      exec(exec_command, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`error: ${error.message}`);
-          return;
+      exec(compile_command(path), (error, stdout, stderr) => {
+        if (outputManagment(error, stdout, stderr, "Compilation")){
+          exec(exec_command, (error, stdout, stderr) =>  outputManagment(error, stdout, stderr, "Execution"));
         }
-        if (stderr) {
-          console.error(`stderr: ${stderr}`);
-        }
-        console.log(`stdout:\n${stdout}`);
-      }); 
+      });
     }else{
-      console.log("You can only run .vu files..");
+      console.error("Forge error: You can only run .vu files..");
     }
   });
   ipcMain.handle("get_content", (e, path) => fs.readFileSync(path, {encoding: 'utf8'}))
   ipcMain.handle("openide", () => win.loadFile(idepath))
-  ipcMain.handle("addProject", () => {
-    iris.newRequest("SELECT the_name FROM Humain WHERE age>18");
+  ipcMain.handle("addProject", (e, name) => {
+    iris.execFile("database/init.sql");
+    iris.newRequest("INSERT INTO Projects (p_name) VALUES ("+name+")");
+    iris.newRequest("SELECT * FROM Projects");
   })
+  ipcMain.handle("init", () => iris.execFile("database/init.sql"))
 })
-

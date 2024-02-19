@@ -1,0 +1,2 @@
+RESET;
+CREATE TABLE Project(p_name VARCHAR(30));

@@ -393,7 +393,7 @@ impl Hammer{
     fn is_valid_name(&self, name: &str) -> Result<(), String>{
         if name != "" && name.chars().nth(0).unwrap() == '_'{
             return Err(String::from("A name can't start with '_' it's a vulcain private use."));
-        }else if !self.tools.is_valid_name(name){
+        }if !self.tools.is_valid_name(name){
             return Err(format!("{} is not a valid name for a variable.", name))
         }
         Ok(())
