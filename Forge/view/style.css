@@ -60,3 +60,44 @@ input[type="text"].pre-filled {
     color: #fff;
     left: 65%; 
 }
+
+
+  
+
+.openProjectButton {
+    display: inline-block;
+    padding: 10px 20px;
+    margin-right: 10px;
+    background-color: #007bff; 
+    color: #fff; 
+    font-size: 16px;
+    font-weight: bold;
+    text-decoration: none;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 10px 10px;
+  }
+  
+  .openProjectButton:hover {
+    background-color: #0056b3; 
+  }
+  
+  .openProjectButton:active {
+    transform: translateY(1px);
+  }
+  
+  .openProjectButton-large {
+    padding: 15px 30px;
+    font-size: 18px;
+  }
+  
+  .openProjectButton span {
+    display: inline-block;
+    vertical-align: middle;
+  }
+  
+  .openProjectButton i {
+    margin-right: 5px;
+  }

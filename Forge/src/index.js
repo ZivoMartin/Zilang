@@ -7,10 +7,27 @@ const newProjectDiv = document.getElementById("newProjectDiv");
 const newProjectButtonSubmit = document.getElementById("newProjectButtonSubmit");
 const newProjectNameSubmit = document.getElementById("newProjectNameSubmit");
 
-openProjectButton.addEventListener("click", () => {
+let nbProject = 0;
+
+openProjectButton.addEventListener("click", async () => {
     newProjectDiv.style.display = "none"
     openProjectDiv.style.display = "block"
-    window.messsage.getProjects();
+    const projects = await window.message.getProjects();
+    let i = 0;
+    projects.forEach(name => {
+        if (i >= nbProject) {
+            const txt = document.createElement("button")
+            txt.innerText = name;
+            txt.style.display = "block"
+            txt.className = "openProjectButton"
+            txt.addEventListener("click", () => {
+                window.message.openProject(name);
+            })
+            nbProject += 1;
+            openProjectDiv.appendChild(txt);
+        }
+        i ++;
+    });
 })
 
 newProjectButton.addEventListener("click", () => {
@@ -20,5 +37,5 @@ newProjectButton.addEventListener("click", () => {
 
 newProjectButtonSubmit.addEventListener("click", () => {
     const name = newProjectNameSubmit.value;
-    window.messsage.addProject(name);
+    window.message.addProject(name);
 })

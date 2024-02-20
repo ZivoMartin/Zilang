@@ -1,10 +1,15 @@
 
 const mainEntry = document.getElementById("mainInput");
-const run_button = document.getElementById("Run");
+const runButton = document.getElementById("Run");
+const backButton = document.getElementById("back");
 
-run_button.addEventListener("click", () => {
+backButton.addEventListener("click", () => {
+    window.message.loadFile("index.html");
+})
+
+runButton.addEventListener("click", () => {
     const txt = mainEntry.value;
-    window.messsage.save("database/input.vu", txt);
-    window.messsage.run("database/input.vu");
+    window.message.save("database/input.vu", txt);
+    window.message.run("database/input.vu");
 })
 

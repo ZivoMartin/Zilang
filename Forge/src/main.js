@@ -10,12 +10,14 @@ const { exec } = require('child_process');
 
 const index_path = "view/index.html";
 const idepath = "view/code.html";
+const viewPath = "./view/"
 const compile_command = (path) => "cd ../compiler && cargo run ../Forge/" + path + " -o exe";
 
 const exec_command = "../compiler/exe";
 
 const iris = new Iris();
 
+const projectList = iris.extract_json().p_name;
 
 const outputManagment = (error, stdout, stderr, type_op) => {
   if (error) {
@@ -57,8 +59,15 @@ app.whenReady().then(() => {
   ipcMain.handle("openide", () => win.loadFile(idepath))
   ipcMain.handle("addProject", (e, name) => {
       iris.newRequest("INSERT INTO Projects (p_name) VALUES ("+name+")");
+      projectList.push(name);
       win.loadFile(idepath);
   })
   ipcMain.handle("init", () => iris.execFile("database/init.sql")),
-  ipcMain.handle("getProjects", () => iris.newRequest("SELECT p_name FROM Projects"))
+  ipcMain.handle("getProjects", () => {
+      return projectList;
+  })
+  ipcMain.handle("loadFile", (e, path) => win.loadFile(viewPath+path)),
+  ipcMain.handle("openProject", (e, name) => {console.log(name);win.loadFile(idepath)})
 })
+
+

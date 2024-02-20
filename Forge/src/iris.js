@@ -37,6 +37,10 @@ class Iris {
         exec(irisPath + " -f " + file_path, (error, stdout, stderr) => 
         outputManagment(error, stdout, stderr, "Iris file execution"))
     }
+
+    extract_json() {
+        return JSON.parse(fs.readFileSync(resultJsonPath, {encoding: 'utf8'}));
+    }
 }
 
 module.exports = Iris;
