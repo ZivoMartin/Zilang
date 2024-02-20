@@ -10,8 +10,10 @@ contextBridge.exposeInMainWorld('message', {
   addProject: (name) => ipcRenderer.invoke('addProject', name),
   init: () => ipcRenderer.invoke("init"),
   getProjects: async () => {
-    const res = await ipcRenderer.invoke("getProjects");
-    return res;
+    return await ipcRenderer.invoke("getProjects");
   },
-  openProject: (name) => ipcRenderer.invoke("openProject", name) 
+  openProject: (name) => ipcRenderer.invoke("openProject", name),
+  getFirstFileCurrentProject: async () => {
+    return await ipcRenderer.invoke("getFirstFileCurrentProject")
+  }
 })

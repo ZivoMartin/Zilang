@@ -22,9 +22,13 @@ class Iris {
 
     constructor() {
         if (!fs.existsSync("./database/result.json")) {
-            this.execFile("./database/init.sql");
-            fs.appendFile("./database/result.json", "", (e) => {if (e) console.error("Failed to create the result.json file: " + e)});
-            console.log("Iris: Initiation of project system is a success")
+            fs.rm('./database/userProjects', { recursive: true }, (err) => { 
+                if (err) throw err;
+                fs.mkdirSync("./database/userProjects");
+                this.execFile("./database/init.sql");
+                fs.appendFile("./database/result.json", "", (e) => {if (e) throw e});
+                console.log("Iris: Initiation of project system is a success")
+            })
         }
     }
 
@@ -39,7 +43,13 @@ class Iris {
     }
 
     extract_json() {
-        return JSON.parse(fs.readFileSync(resultJsonPath, {encoding: 'utf8'}));
+        const res = JSON.parse(fs.readFileSync(resultJsonPath, {encoding: 'utf8'}));
+        console.log("res: " + res);
+        return res;
+    }
+
+    initProjectList() {
+        return [];
     }
 }
 

@@ -3,6 +3,8 @@ const mainEntry = document.getElementById("mainInput");
 const runButton = document.getElementById("Run");
 const backButton = document.getElementById("back");
 
+currentFile = window.message.getFirstFileCurrentProject();  
+
 backButton.addEventListener("click", () => {
     window.message.loadFile("index.html");
 })
