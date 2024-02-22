@@ -5,6 +5,7 @@ Forge/node_modules
 Forge/database/*.vu
 Forge/database/*.json
 Forge/*.json
+Forge/database/userProjects
 compiler/exe*
 compiler/asm/functions.asm
 compiler/asm/script.asm

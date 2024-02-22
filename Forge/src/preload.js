@@ -2,7 +2,9 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('message', {
-  save: (path, new_txt) => ipcRenderer.invoke('save', path, new_txt),
+  save: (path, new_txt) => {
+    return ipcRenderer.invoke('save', path, new_txt)
+  },
   get_content: (path) => ipcRenderer.invoke('get_content', path),
   run: (path) => ipcRenderer.invoke('run', path),
   openide: () => ipcRenderer.invoke('openide'),
@@ -13,7 +15,7 @@ contextBridge.exposeInMainWorld('message', {
     return await ipcRenderer.invoke("getProjects");
   },
   openProject: (name) => ipcRenderer.invoke("openProject", name),
-  getFirstFileCurrentProject: async () => {
-    return await ipcRenderer.invoke("getFirstFileCurrentProject")
+  getFirstFileCurrentProject: () => {
+    return ipcRenderer.invoke("getFirstFileCurrentProject")
   }
 })

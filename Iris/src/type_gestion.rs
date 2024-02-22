@@ -54,10 +54,10 @@ impl TypeGestion{
 
     pub fn good_type_and_good_value(&self, type_value: &str, value: &str) -> bool{
         match type_value{
-            "BOOL" => return value == "false" || value == "true",
-            "STRING" => return true,
-            "INT" => return self.is_int(value),
-            _ => return self.is_float(value)
+            "BOOL" => value == "false" || value == "true",
+            "STRING" => true,
+            "INT" => self.is_int(value),
+            _ => self.is_float(value) || type_value.starts_with("VARCHAR")
         }
     }
     
@@ -142,15 +142,15 @@ impl TypeGestion{
         let left: f32 = String::from(left_s).parse().unwrap_or_default();
         let right: f32 = String::from(right_s).parse().unwrap_or_default();
         match operator{
-            "==" => return left == right,
-            "!=" => return left != right,
-            ">" => return left > right,
-            "<" => return left < right,
-            ">=" => return left >= right,
-            "<=" => return left <= right,
-            "AND" => return left == 1.0 && right == 1.0,
-            "OR" => return left == 1.0 || right == 1.0,
-            _ => return false
+            "==" => left == right,
+            "!=" => left != right,
+            ">" => left > right,
+            "<" => left < right,
+            ">=" => left >= right,
+            "<=" => left <= right,
+            "AND" => left == 1.0 && right == 1.0,
+            "OR" => left == 1.0 || right == 1.0,
+            _ => false
         }
     }
 

@@ -89,34 +89,38 @@ impl System{
                 }
             }
             let mut text = table_file.get_text();
-            text.pop();
-            let mut data_text = data_file.get_text();
-            data_text.pop();
-            let data_text_splited: Vec<&str> = data_text.split("\n").collect();
-            let keys: Vec::<&str> = arg.keys().cloned().collect();
-            for p_key in text.split("\n"){
-                let mut line_file = TextFile::new(format!("text_files/{}_line_{}", table_name, p_key));
-                let line_file_text = line_file.get_text();
-                let line_text_split: Vec::<&str> = line_file_text.split("\n").collect();
-                for i in 0..data_text_splited.len(){
-                    let split_space: Vec<&str> = data_text_splited[i].split_whitespace().collect();
-                    if keys.contains(&split_space[0]){
-                        let mut arg_data = self.get_good_data(line_text_split[i].to_string());
-                        if split_space[1].starts_with("VARCHAR"){
-                            arg_data = format!("{}", self.type_gestion.hash_string_to_number(arg_data));
-                        }else if split_space[1] == "BOOL"{
-                            arg_data = self.type_gestion.convert_bool_to_number(&arg_data);
-                        }
-                        string_hashmap.insert(String::from(split_space[0]), arg_data);
-                    }
+            if !text.is_empty(){
+                text.pop();
+                let mut data_text = data_file.get_text();
+                if !data_text.is_empty() {
+                    data_text.pop();
                 }
-                let bool_string_for_this_line = self.build_bool_string(condition.to_string(), &string_hashmap);
-                if self.type_gestion.descript_a_string_bool(&bool_string_for_this_line){
-                    if id == "delete"{
-                        let _ = self.delete_line(&table_name, &p_key);
-                    }else if id == "select"{
-                        for (key, value) in &asked_hash_map{
-                            result.get_mut(key).unwrap().push(self.get_good_data(line_text_split[*value as usize].to_string()));
+                let data_text_splited: Vec<&str> = data_text.split("\n").collect();
+                let keys: Vec::<&str> = arg.keys().cloned().collect();
+                for p_key in text.split("\n"){
+                    let mut line_file = TextFile::new(format!("text_files/{}_line_{}", table_name, p_key));
+                    let line_file_text = line_file.get_text();
+                    let line_text_split: Vec::<&str> = line_file_text.split("\n").collect();
+                    for i in 0..data_text_splited.len(){
+                        let split_space: Vec<&str> = data_text_splited[i].split_whitespace().collect();
+                        if keys.contains(&split_space[0]){
+                            let mut arg_data = self.get_good_data(line_text_split[i].to_string());
+                            if split_space[1].starts_with("VARCHAR"){
+                                arg_data = format!("{}", self.type_gestion.hash_string_to_number(arg_data));
+                            }else if split_space[1] == "BOOL"{
+                                arg_data = self.type_gestion.convert_bool_to_number(&arg_data);
+                            }
+                            string_hashmap.insert(String::from(split_space[0]), arg_data);
+                        }
+                    }
+                    let bool_string_for_this_line = self.build_bool_string(condition.to_string(), &string_hashmap);
+                    if self.type_gestion.descript_a_string_bool(&bool_string_for_this_line){
+                        if id == "delete"{
+                            let _ = self.delete_line(&table_name, &p_key);
+                        }else if id == "select"{
+                            for (key, value) in &asked_hash_map{
+                                result.get_mut(key).unwrap().push(self.get_good_data(line_text_split[*value as usize].to_string()));
+                            }
                         }
                     }
                 }
@@ -307,14 +311,12 @@ impl System{
 
     fn get_arg_data(&self, data_file: &mut TextFile, arg: &str) -> Option<(i32, String)>{
         let text = data_file.get_text();
-        let mut result = 0;
-        for line in text.lines(){
+        for (i, line) in text.lines().enumerate(){
             let mut splited_line = line.split_whitespace();
             let name = splited_line.nth(0).unwrap();
             if name == arg {
-                return Some((result, line.split_whitespace().nth(0).unwrap().to_string()));
+                return Some((i as i32, line.split_whitespace().nth(0).unwrap().to_string()));
             }
-            result += 1;
         }
         return None;
     }   

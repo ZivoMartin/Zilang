@@ -17,39 +17,49 @@ const resultJsonPath = "./database/result.json";
 
 const fs = require('fs');
 
-
 class Iris {
 
     constructor() {
         if (!fs.existsSync("./database/result.json")) {
+            fs.appendFile("./database/result.json", "", (e) => {if (e) throw e});
+            this.execFile("./database/init.sql");
             fs.rm('./database/userProjects', { recursive: true }, (err) => { 
                 if (err) throw err;
                 fs.mkdirSync("./database/userProjects");
-                this.execFile("./database/init.sql");
-                fs.appendFile("./database/result.json", "", (e) => {if (e) throw e});
                 console.log("Iris: Initiation of project system is a success")
             })
         }
     }
 
-    newRequest(req) {
-        exec(irisPath + " -j "+resultJsonPath+" -d \"" + req + "\" -p", (error, stdout, stderr) => 
-        outputManagment(error, stdout, stderr, "Iris direct request execution"));
+    async execSync(cmd, type_op) {
+        return new Promise((resolve, reject) => {
+            exec(cmd, (error, stdout, stderr) => {
+                outputManagment(error, stderr, stdout, type_op)
+                resolve(stdout? stdout : stderr);
+            });
+        });
     }
 
-    async execFile(file_path) {
-        exec(irisPath + " -f " + file_path, (error, stdout, stderr) => 
-        outputManagment(error, stdout, stderr, "Iris file execution"))
+    newRequest(req) {
+        return this.execSync(irisPath + " -j "+resultJsonPath+" -d \"" + req + "\" -p", "Iris direct request execution");
+    }
+
+    execFile(file_path) {
+        this.execSync(irisPath + " -f " + file_path, "Iris file execution")
     }
 
     extract_json() {
-        const res = JSON.parse(fs.readFileSync(resultJsonPath, {encoding: 'utf8'}));
-        console.log("res: " + res);
+        const jsonContent = fs.readFileSync(resultJsonPath, {encoding: 'utf8'});
+        if (jsonContent == "") {
+            return []
+        }
+        const res = JSON.parse(jsonContent);
         return res;
     }
 
-    initProjectList() {
-        return [];
+    async getProjectList() {
+        await this.newRequest("SELECT p_name FROM Projects");
+        return this.extract_json().p_name;
     }
 }
 
