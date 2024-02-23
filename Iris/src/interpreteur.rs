@@ -10,6 +10,21 @@ pub struct Interpreteur {
     type_gestion: TypeGestion
 }
 
+pub struct ResponseData {
+    json_path: String,
+    pretty: bool
+}
+
+impl ResponseData {
+    pub fn new(json_path: String, pretty: bool) -> ResponseData{
+        ResponseData{json_path, pretty}
+    }
+
+    pub fn new_empty() -> ResponseData {
+        ResponseData{json_path: String::new(), pretty: false}
+    }
+}
+
 impl Interpreteur {
     pub fn new() -> Interpreteur{
         Interpreteur{
@@ -19,7 +34,7 @@ impl Interpreteur {
         }
     }
 
-    pub fn sqlrequest(&mut self, mut req: String, json_path: String, pretty: bool) -> Result<Option<HashMap<String, Vec<String>>>, String>{
+    pub fn sqlrequest(&mut self, mut req: String, response_data: ResponseData) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if req != "" {
             req = req.replace(",", " , ");
             while req.contains("  ") {
@@ -27,41 +42,14 @@ impl Interpreteur {
             }
             let mut vect_req: Vec<&str> = req.split(" ").map(str::trim).collect();
             let type_request = vect_req.remove(0);
-            match type_request{
-                "DROP" => self.drop_req(vect_req)?,
-                "CREATE" => self.create_req(vect_req)?,
-                "INSERT" => {
-                    if vect_req.len() >= 5 && vect_req.remove(0) == "INTO" && vect_req.contains(&"VALUES"){
-                        self.insert_request(vect_req)?
-                    }else{
-                        return Err(String::from("Invalid request."));
-                    }
-                }
-                "DELETE" => self.delete_line(vect_req)?,
-                "SELECT" =>{
-                    let result = self.select_request(vect_req);
-                    if result.is_ok() && !json_path.is_empty() {
-                        let json_file = File::create(json_path).unwrap_or_else(|e| {
-                            eprintln!("{e}");
-                            exit(1);
-                        });
-                        if pretty {
-                            serde_json::to_writer_pretty(json_file, &result.clone().unwrap()).unwrap_or_else(|e| {
-                                eprintln!("{e}");
-                                exit(1);
-                            });
-                        }else{
-                            serde_json::to_writer(json_file, &result.clone().unwrap()).unwrap_or_else(|e| {
-                                eprintln!("{e}");
-                                exit(1);
-                            });
-                        }
-                        
-                    }
-                    return result
-                }
-                "RESET" => self.reset_request(),
-                "UPDATE" => self.update_request(vect_req)?,
+            return match type_request{
+                "DROP" => self.drop_req(vect_req, response_data),
+                "CREATE" => self.create_req(vect_req, response_data),
+                "INSERT" => self.insert_request(vect_req, response_data),
+                "DELETE" => self.delete_line(vect_req, response_data),
+                "SELECT" => self.select_request(vect_req, response_data),
+                "RESET" => self.reset_request(vect_req, response_data),
+                "UPDATE" => self.update_request(vect_req, response_data),
                 _ => return Err(format!("{} is unnknow by the system.", type_request))
             }
         }
@@ -69,7 +57,7 @@ impl Interpreteur {
     }
     
 
-    fn update_request(&mut self, mut vect_req: Vec::<&str>) -> Result<(), String>{
+    fn update_request(&mut self, mut vect_req: Vec::<&str>, _response_data: ResponseData) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if vect_req.len() >= 3 {
             let mut arguments = HashMap::<String, String>::new();
             arguments.insert(String::from(":request"), String::from("UPDATE"));
@@ -98,22 +86,21 @@ impl Interpreteur {
                     arguments.insert(String::from(":cols"), cols);
                     arguments.insert(String::from(":values"), values);
                     self.catch_condition(&mut arguments, vect_req)?;
-                    self.system.new_request(arguments)?;
+                    return self.system.new_request(arguments)
                 },
                 _ => return Err(format!("The keyword {} is unknow by the system.", keyword))
             }
         }
-        
-        Ok(())
+        Err(format!("Not enough token for the request UPDATE {}", vect_req.join(" ")))
     }
 
-    fn reset_request(&mut self) {
+    fn reset_request(&mut self, _vect_req: Vec::<&str>, _response_data: ResponseData) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         let mut arguments = HashMap::<String, String>::new();
         arguments.insert(":request".to_string(), "RESET".to_string());
-        self.system.new_request(arguments).unwrap();
+        self.system.new_request(arguments)
     }
 
-    fn drop_req(&mut self, vect_req: Vec::<&str>) -> Result<(), String>{
+    fn drop_req(&mut self, vect_req: Vec::<&str>, _response_data: ResponseData) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if vect_req.len() >= 2{
             let mut arguments = HashMap::<String, String>::new();
             arguments.insert(":request".to_string(), "DELETE_TABLE".to_string());
@@ -124,16 +111,16 @@ impl Interpreteur {
                         self.system.new_request(arguments.clone())?;    // We drop it
                     }
                 }
-                _ => {}
+                _ => return Err(format!("{} is unknow by the system", vect_req[0]))
             }
-            return Ok(())
+            return Ok(None)
         }
         Err(format!("DROP {} isn't a valid command.", vect_req.join(" ")))
     }
 
 
 
-    fn select_request(&mut self, mut vect_req: Vec<&str>) -> Result<Option<HashMap<String, Vec<String>>>, String>{
+    fn select_request(&mut self, mut vect_req: Vec<&str>, response_data: ResponseData) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if vect_req.len() >= 3 {
             let mut arguments = HashMap::<String, String>::new();
             arguments.insert(String::from(":request"), String::from("SELECT"));
@@ -164,7 +151,26 @@ impl Interpreteur {
                     "FROM" => {
                         self.valid_table_name(&mut arguments, &mut vect_req)?;
                         self.catch_condition(&mut arguments, vect_req)?;
-                        return self.system.new_request(arguments)
+                        let result = self.system.new_request(arguments);
+                        if result.is_ok() && !response_data.json_path.is_empty() {
+                            let json_file = File::create(response_data.json_path).unwrap_or_else(|e| {
+                                eprintln!("{e}");
+                                exit(1);
+                            });
+                            if response_data.pretty {
+                                serde_json::to_writer_pretty(json_file, &result.clone().unwrap()).unwrap_or_else(|e| {
+                                    eprintln!("{e}");
+                                    exit(1);
+                                });
+                            }else{
+                                serde_json::to_writer(json_file, &result.clone().unwrap()).unwrap_or_else(|e| {
+                                    eprintln!("{e}");
+                                    exit(1);
+                                });
+                            }
+                            
+                        }
+                        return result
                     },   
                     _ => return Err(format!("{} found where From was expected", from_keyword)),
                 }
@@ -175,16 +181,17 @@ impl Interpreteur {
     }
 
 
-    fn delete_line(&mut self, mut vect_req: Vec::<&str>) -> Result<(), String>{
+    fn delete_line(&mut self, mut vect_req: Vec::<&str>, _response_data: ResponseData) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if vect_req.len() >= 2{
             let from_keyword = vect_req.remove(0);
             if from_keyword == "FROM"{
                 if vect_req[0].len() > 2 && self.is_correct_name(&vect_req[0]){
                     let mut arguments = HashMap::<String, String>::new();
+                    arguments.insert(":asked".to_string(), String::new());
                     self.valid_table_name(&mut arguments, &mut vect_req)?;
                     arguments.insert(String::from(":request"), String::from("DELETE_LINE_IF"));
                     self.catch_condition(&mut arguments, vect_req)?;
-                    self.system.new_request(arguments)?;
+                    return self.system.new_request(arguments)
                 }else{
                     if vect_req[0].len() <= 2{
                         return Err(String::from("Nothing found when a table name was expected."));
@@ -198,7 +205,6 @@ impl Interpreteur {
         }else {
             return Err(format!("The request 'DELETE {}' isn't valid.", vect_req.join(" ")));
         }
-        Ok(())
     }
 
     fn catch_condition(&mut self, mut arguments: &mut HashMap<String, String>, mut vect_req: Vec<&str>) -> Result<(), String> {
@@ -336,7 +342,10 @@ impl Interpreteur {
 
 
     
-    fn insert_request(&mut self, mut vect_req: Vec::<&str>) -> Result<(), String>{
+    fn insert_request(&mut self, mut vect_req: Vec::<&str>, _response_data: ResponseData) -> Result<Option<HashMap<String, Vec<String>>>, String>{
+        if vect_req.len() == 0 || vect_req.remove(0) != "INTO" {
+            return Err(String::from("Invalid syntax for a INSERT request"))
+        }
         let mut arguments = HashMap::<String, String>::new();
         self.valid_table_name(&mut arguments, &mut vect_req)?;
         arguments.insert(String::from(":request"), String::from("INSERT"));
@@ -363,7 +372,7 @@ impl Interpreteur {
                         }
                     }
                     
-                    self.system.new_request(arguments)?;
+                    return self.system.new_request(arguments)
                 }else{
                     return Err(String::from("It seems like the number of values is different then the number of arguments"));
                 }
@@ -377,10 +386,9 @@ impl Interpreteur {
                 return Err(String::from("The 'VALUES' keyword was found on two occasions."));
             }
         }
-        Ok(())
     }
 
-    fn create_req(&mut self, mut vect_req: Vec::<&str>) -> Result<(), String>{
+    fn create_req(&mut self, mut vect_req: Vec::<&str>, _response_data: ResponseData) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if vect_req.len() >= 2{
             let thing_to_create = vect_req.remove(0);
             match thing_to_create{
@@ -442,8 +450,7 @@ impl Interpreteur {
                                 
                             }
                             if p_key{
-                                self.system.new_request(arguments)?;
-                                return Ok(())
+                                return self.system.new_request(arguments)
                             }
                             return Err(String::from("Primary key is missing."));
                         }

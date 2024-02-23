@@ -24,10 +24,7 @@ impl System{
             "INSERT" => self.insert_line(args)?,
             "DELETE_LINE" => self.delete_line(&args[":table_name"], &args[":primary"])?,
             "DELETE_TABLE" => self.delete_table(&args[":table_name"])?,
-            "DELETE_LINE_IF" => {
-                args.insert(":asked".to_string(), String::new());
-                self.browse_lines(args, "delete")?;
-            }
+            "DELETE_LINE_IF" => {self.browse_lines(args, "delete")?;},
             "SELECT" => {
                 match self.browse_lines(args, "select"){
                     Ok(res) => return Ok(Some(res)),
@@ -82,7 +79,10 @@ impl System{
         let mut data_file = TextFile::new(format!("text_files/data_{}", table_name));
         let mut asked_hash_map = HashMap::<String, i32>::new();  
         let asked_string = arg.remove(":asked").unwrap();
-        if asked_string == String::from("*"){
+        if asked_string == String::from("*") {
+            if id != "select" {
+                return Err(String::from("Invalid character: *"));
+            }
             let txt_data = data_file.get_text();
             let split = txt_data.split("\n");
             let mut i = 0;
@@ -94,7 +94,7 @@ impl System{
                 }
                 i += 1;
             }
-        }else if asked_string != String::from(""){
+        }else if !asked_string.is_empty(){
             let asked_string_split = asked_string.split("/");
             for ask in asked_string_split{
                 match self.get_arg_data(&mut data_file, &ask){

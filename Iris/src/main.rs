@@ -6,6 +6,7 @@ mod view;
 
 
 use interpreteur::Interpreteur;
+use interpreteur::ResponseData;
 use text_file::file_exists_brut;
 use crate::text_file::TextFile;
 use crate::view::View;
@@ -77,7 +78,7 @@ fn main() -> ExitCode{
         }
     }
     let mut interpreteur = Interpreteur::new();
-    interpreteur.sqlrequest(req.request, req.json_file, req.pretty).unwrap_or_else(|e| {
+    interpreteur.sqlrequest(req.request, ResponseData::new(req.json_file, req.pretty)).unwrap_or_else(|e| {
         eprintln!("{e}");
         exit(OK as i32)
     });
@@ -91,7 +92,7 @@ fn main() -> ExitCode{
                 let mut all_request: Vec<&str> = f_text.split(";").collect();
                 all_request.pop();
                 for request in all_request{
-                    interpreteur.sqlrequest(request.to_string(), String::new(), false).unwrap_or_else(|e| {
+                    interpreteur.sqlrequest(request.to_string(), ResponseData::new_empty()).unwrap_or_else(|e| {
                         eprintln!("{e}");
                         eprintln!("During the execution of the file {}", req.file_sql);
                         exit(OK as i32)

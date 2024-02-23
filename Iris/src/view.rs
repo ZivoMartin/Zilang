@@ -9,7 +9,7 @@ use std::time::Duration;
 use std::path::Path;
 use sdl2::ttf::Font;
 
-use crate::interpreteur::Interpreteur;
+use crate::interpreteur::{Interpreteur, ResponseData};
 use crate::text_file::TextFile;
 use crate::text_file::file_exists;
 
@@ -214,7 +214,7 @@ impl View{
     }
 
     fn new_request(&mut self, text: String){
-        match self.interpreteur.sqlrequest(text.to_string(), String::new(), false){
+        match self.interpreteur.sqlrequest(text.to_string(), ResponseData::new_empty()){
             Ok(res) => {
                 match res{
                     Some(result) => {
