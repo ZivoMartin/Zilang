@@ -164,7 +164,7 @@ impl System{
         let new_table_name = arg.remove(":table_name").unwrap();
         let new_table_path = format!("text_files/{}", new_table_name);
         let new_table_data_path = format!("text_files/data_{}", new_table_name);
-        if self.table_exists(&new_table_name).is_ok(){
+        if !self.table_exists(&new_table_name).is_ok(){
             self.main_file.push(&format!("{}\n", new_table_name));
             TextFile::new(new_table_path);
             let mut new_table_data_file = TextFile::new(new_table_data_path);
@@ -283,10 +283,10 @@ impl System{
         let text = self.main_file.get_text();
         for line in text.lines() {
             if line.split_whitespace().next() == Some(tab_name) {
-                return Err(format!("the table {} doesn't exists", tab_name));
+                return Ok(()) 
             }
         }
-        Ok(()) 
+        Err(format!("the table {} doesn't exists", tab_name))
     }
     
 

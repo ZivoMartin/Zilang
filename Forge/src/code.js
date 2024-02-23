@@ -9,6 +9,7 @@ const addFileButton = document.getElementById("addFileButton");
 const tabDiv = document.getElementById("tabDiv");
 let currentFile = "loading.."
 
+
 window.message.getCurrentProjectData().then((res) => {
     mainEntry.value = res.txt
     currentFile = res.nameFile;
@@ -20,6 +21,12 @@ window.message.getCurrentProjectData().then((res) => {
         tab.addEventListener("click", async () => {
             mainEntry.value = await window.message.getTabText(tabName);
             currentFile = tabName;
+            for(let i = 0; i<tabDiv.children.length; i++) {
+                if (tabDiv.children[i].innerHTML != "Tabs:") {
+                    tabDiv.children[i].style.backgroundColor = "#333";
+                }                
+            }
+            tab.style.backgroundColor = "#550";
         })
         tabDiv.appendChild(tab);
     });
