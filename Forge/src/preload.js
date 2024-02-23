@@ -15,7 +15,9 @@ contextBridge.exposeInMainWorld('message', {
     return await ipcRenderer.invoke("getProjects");
   },
   openProject: (name) => ipcRenderer.invoke("openProject", name),
-  getFirstFileCurrentProject: () => {
-    return ipcRenderer.invoke("getFirstFileCurrentProject")
-  }
+  getCurrentProjectData: () => {
+    return ipcRenderer.invoke("getCurrentProjectData")
+  },
+  addFile: (name) => ipcRenderer.invoke("addFile", name),
+  backToProject: () => ipcRenderer.invoke("backToProject")
 })

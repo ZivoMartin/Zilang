@@ -38,6 +38,11 @@ app.whenReady().then(async () => {
 
   const iris = new Iris()
 
+  const addFile = (fileName) => {
+    fs.appendFile(userProjectsFolder + currentProject+"/"+fileName, baseTxt, (e) => {if (e) console.error("Failed to create the "+fileName+" file: " + e)});
+    iris.newRequest("INSERT INTO Files (file_path, p_name) VALUES ("+fileName+", "+currentProject+")");
+  }
+
   const win = new BrowserWindow({
     width: 2000,
     height: 1000,
@@ -50,10 +55,6 @@ app.whenReady().then(async () => {
   win.setFullScreen(true)
   win.loadFile(index_path)
 
-  const getCurrentFile = async () => {
-    await iris.newRequest("SELECT firstFile FROM Projects WHERE p_name == \'"+currentProject+"'");
-    return iris.extract_json().firstFile;
-  }
 
   ipcMain.handle('save', (e, fileName, new_txt) => {
     return new Promise(async (resolve, reject) => {
@@ -86,11 +87,11 @@ app.whenReady().then(async () => {
   ipcMain.handle("openide", () => win.loadFile(idepath))
   ipcMain.handle("addProject", (e, name) => {
       fs.mkdirSync(userProjectsFolder + name);
-      fs.appendFile(userProjectsFolder + name+"/main.vu", baseTxt, (e) => {if (e) console.error("Failed to create the main.vu file: " + e)});
-      iris.newRequest("INSERT INTO Projects (p_name) VALUES ("+name+")");   
-      iris.newRequest("INSERT INTO Files (file_path, p_name) VALUES ("+name+","+name+"/main.vu)");
-      win.loadFile(idepath);
-      currentProject = name;
+      iris.newRequest("INSERT INTO Projects (p_name) VALUES ("+name+")").then(() => {
+        win.loadFile(idepath);
+        currentProject = name;
+        addFile("main.vu");
+      });   
   })
   ipcMain.handle("init", () => iris.execFile("database/init.sql")),
   ipcMain.handle("getProjects", () => {
@@ -101,11 +102,17 @@ app.whenReady().then(async () => {
     currentProject = name;
     win.loadFile(idepath);
   })
-  ipcMain.handle("getFirstFileCurrentProject", async (e) => {
-    const firstFiles = await getCurrentFile();
+  ipcMain.handle("getCurrentProjectData", async (e) => {
+    const data = await iris.selectRequest("SELECT firstFile FROM Projects WHERE p_name == \'"+currentProject+"'");
+    const tabs = await iris.selectRequest("SELECT file_path FROM Files WHERE p_name == \'"+currentProject+"'")
     return {
-      nameFile: firstFiles[0],
-      txt: fs.readFileSync(userProjectsFolder+currentProject+"/"+firstFiles[0], {encoding: 'utf8'})
+      nameFile: data.firstFile[0],
+      txt: fs.readFileSync(userProjectsFolder+currentProject+"/"+data.firstFile[0], {encoding: 'utf8'}),
+      tabs : tabs.file_path
     }
+  })
+  ipcMain.handle("addFile", (e, filename) => addFile(filename))
+  ipcMain.handle("backToProject", () => {
+    win.loadFile(idepath);
   })
 })

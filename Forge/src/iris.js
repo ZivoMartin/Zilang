@@ -57,6 +57,11 @@ class Iris {
         return res;
     }
 
+    async selectRequest(req) {
+        await this.newRequest(req);
+        return this.extract_json();
+    }
+
     async getProjectList() {
         await this.newRequest("SELECT p_name FROM Projects");
         return this.extract_json().p_name;

@@ -1,4 +1,43 @@
 
+body {
+  background-color: #1a2530; 
+}
+
+textarea { 
+  padding: 10px;  
+  font-size: 16px;  
+  border: 1px solid #ccc; 
+  border-radius: 5px;
+  resize: none; 
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  float: right;   
+}
+
+#mainInput {
+  width: 85vw; 
+  height: 60vh;
+  color: #ffffff; 
+  background-color: #282c34; 
+}
+
+#mainOutput {
+  width: 85vw; 
+  height: 30vh;
+  background-color: #3a4d5a; 
+  color: #f0f5f9; 
+}
+
+textarea:focus {
+  border-color: #007bff; 
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);  
+}
+
+ 
+textarea::placeholder {
+  color: #aaa; 
+}
+
+
 
 .TypeProject{
     padding: 10px 40px;
@@ -43,7 +82,7 @@ input[type="text"].pre-filled {
 .submitNewProject {
     padding: 10px 20px;
     border-radius: 5px;
-    top: 40%;
+    top: 40%; 
     transform: translate(-50%, -50%);
     position: absolute;
     font-size: 16px;
@@ -59,7 +98,15 @@ input[type="text"].pre-filled {
 }
 
 
-  
+
+.mainDiv {
+  display: inline-block;
+}
+
+
+#buttonDivCode {
+  text-align: center;
+}
 
 .openProjectButton {
     display: inline-block;
@@ -98,3 +145,36 @@ input[type="text"].pre-filled {
   .openProjectButton i {
     margin-right: 5px;
   }
+
+  .tabButton {
+  background-color: #333;
+  color: #fff;
+  padding: 10px 20px;
+  border: 1px solid #666;
+  border-bottom: none;
+  border-radius: 50px / 25px; 
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin: 10px 10px;
+}
+
+.tabButton:hover {
+  background-color: #555;
+}
+
+.tabButton.active {
+  background-color: #fff;
+  border-color: #666;
+  border-bottom-color: #fff;
+}
+
+.tabButton:first-child {
+  margin-left: 0;
+}
+
+.tabButton-container {
+  display: flex;
+}
+
+  
+  
