@@ -17,8 +17,9 @@ window.message.getCurrentProjectData().then((res) => {
         tab.innerText = tabName;
         tab.className = "tabButton";
         tab.style.display = "block"
-        tab.addEventListener("click", () => {
-            console.log(tabName);
+        tab.addEventListener("click", async () => {
+            mainEntry.value = await window.message.getTabText(tabName);
+            currentFile = tabName;
         })
         tabDiv.appendChild(tab);
     });
@@ -51,7 +52,7 @@ runButton.addEventListener("click", () => {
     const txt = mainEntry.value;
     window.message.save(currentFile, txt).then(async () => {
         const output = await window.message.run(currentFile);
-        mainOutput.value += output;
+        mainOutput.value += output+"\n";
     })
     
 })

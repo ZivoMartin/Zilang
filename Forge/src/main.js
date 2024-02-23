@@ -25,11 +25,11 @@ const exec_command = "../compiler/exe";
 const outputManagment = (error, stdout, stderr, type_op) => {
   if (error) {
     console.error(type_op + ` error: ${error.message}`);
-    return false;
+    return error;
   }
   if (stderr) console.error(type_op + ` stderr: ${stderr}`);
   if (stdout) console.log(type_op + ` stdout:\n${stdout}`);      
-  return true;  
+  return stdout;  
 };
 
 
@@ -68,12 +68,12 @@ app.whenReady().then(async () => {
     if (path.endsWith(".vu")) {
       return new Promise((resolve, reject) => {
         exec(compile_command(path), (error, stdout, stderr) => {
-          if (outputManagment(error, stdout, stderr, "Compilation")){
+          if (outputManagment(error, stdout, stderr, "Compilation") == ""){
             exec(exec_command, (error, stdout, stderr) =>  {
               outputManagment(error, stdout, stderr, "Execution")
               resolve(stdout, error);
             });
-          }   
+          }else resolve(stderr, error);
         });
       }).then((stdout, error) => {
           if (error) return error;
@@ -114,5 +114,8 @@ app.whenReady().then(async () => {
   ipcMain.handle("addFile", (e, filename) => addFile(filename))
   ipcMain.handle("backToProject", () => {
     win.loadFile(idepath);
+  })
+  ipcMain.handle("getTabText", (e, tabName) => {
+    return fs.readFileSync(userProjectsFolder+currentProject+"/"+tabName, {encoding: 'utf8'})
   })
 })

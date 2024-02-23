@@ -1,3 +1,4 @@
+
 use crate::system::System;
 use std::collections::HashMap;
 use crate::type_gestion::TypeGestion;
@@ -60,7 +61,7 @@ impl Interpreteur {
                     return result
                 }
                 "RESET" => self.reset_request(),
-                "SET" => todo!(),
+                "UPDATE" => self.update_request(vect_req)?,
                 _ => return Err(format!("{} is unnknow by the system.", type_request))
             }
         }
@@ -68,20 +69,58 @@ impl Interpreteur {
     }
     
 
+    fn update_request(&mut self, mut vect_req: Vec::<&str>) -> Result<(), String>{
+        if vect_req.len() >= 3 {
+            let mut arguments = HashMap::<String, String>::new();
+            arguments.insert(String::from(":request"), String::from("UPDATE"));
+            self.valid_table_name(&mut arguments, &mut vect_req)?;
+            let mut cols = String::new();
+            let mut values = String::new();
+            let keyword = vect_req.remove(0);
+            match keyword {
+                "SET" => {
+                    while vect_req.len() > 0{
+                        let exp = vect_req.remove(0);
+                        if exp.matches('=').count() == 1 {
+                            let mut split = exp.split("=");
+                            cols += &(split.next().unwrap().trim().to_string() + "/");
+                            values += &(split.next().unwrap().trim().to_string() + "/");
+                        }else{
+                            if !cols.is_empty(){
+                                cols.pop();
+                            }
+                            if !values.is_empty(){
+                                values.pop();
+                            }
+                            break;
+                        }                    
+                    }
+                    arguments.insert(String::from(":cols"), cols);
+                    arguments.insert(String::from(":values"), values);
+                    self.catch_condition(&mut arguments, vect_req)?;
+                    self.system.new_request(arguments)?;
+                },
+                _ => return Err(format!("The keyword {} is unknow by the system.", keyword))
+            }
+        }
+        
+        Ok(())
+    }
+
     fn reset_request(&mut self) {
-        let mut arguments = HashMap::<&str, &str>::new();
-        arguments.insert(":request", "RESET");
+        let mut arguments = HashMap::<String, String>::new();
+        arguments.insert(":request".to_string(), "RESET".to_string());
         self.system.new_request(arguments).unwrap();
     }
 
     fn drop_req(&mut self, vect_req: Vec::<&str>) -> Result<(), String>{
         if vect_req.len() >= 2{
-            let mut arguments = HashMap::<&str, &str>::new();
-            arguments.insert(":request", "DELETE_TABLE");
+            let mut arguments = HashMap::<String, String>::new();
+            arguments.insert(":request".to_string(), "DELETE_TABLE".to_string());
             match vect_req[0]{
                 "TABLE" => {
                     for table_to_drop in vect_req.iter().skip(1){
-                        arguments.insert(":table_name", table_to_drop); // We insert the table to drop
+                        arguments.insert(":table_name".to_string(), table_to_drop.to_string()); // We insert the table to drop
                         self.system.new_request(arguments.clone())?;    // We drop it
                     }
                 }
@@ -97,7 +136,6 @@ impl Interpreteur {
     fn select_request(&mut self, mut vect_req: Vec<&str>) -> Result<Option<HashMap<String, Vec<String>>>, String>{
         if vect_req.len() >= 3 {
             let mut arguments = HashMap::<String, String>::new();
-            let mut result = HashMap::<&str, &str>::new();
             arguments.insert(String::from(":request"), String::from("SELECT"));
             arguments.insert(String::from(":asked"), String::from("*"));
             match vect_req[0]{
@@ -124,38 +162,9 @@ impl Interpreteur {
                 let from_keyword = vect_req.remove(0);
                 match from_keyword{
                     "FROM" => {
-                        let table_name = vect_req.remove(0);
-                        if self.is_correct_name(table_name){
-                            arguments.insert(String::from(":table_name"), table_name.to_string());
-                            if vect_req.len() > 0{
-                                let keyword = vect_req.remove(0);
-                                match keyword{
-                                    "WHERE" => {
-                                        if vect_req.len() == 0{
-                                            return Err(String::from("Error: Condition missing."));
-                                        }else{
-                                            let condition = vect_req.join(" ");
-                                            let cleaning = self.clean_the_condition(condition, &mut arguments);
-                                            match cleaning{
-                                                Some(condition) => {
-                                                    arguments.insert(String::from(":condition"), condition);
-                                                    self.convert_in_str_hashmap(&arguments, &mut result);
-                                                    return self.system.new_request(result);
-                                                }
-                                                None => return Err(String::from("The condition doesn't respect the syntax rules.")),
-                                            }
-                                        }
-                                    }
-                                    _ => return Err(format!("Bad keyword: {}", keyword))
-                                }
-                            }else{
-                                arguments.insert(String::from(":condition"), String::from("1 == 1"));
-                                self.convert_in_str_hashmap(&arguments, &mut result);
-                                return self.system.new_request(result);
-                            }
-                        }else{
-                            return Err(format!("{} isn't a correct name for a table.", table_name));
-                        }
+                        self.valid_table_name(&mut arguments, &mut vect_req)?;
+                        self.catch_condition(&mut arguments, vect_req)?;
+                        return self.system.new_request(arguments)
                     },   
                     _ => return Err(format!("{} found where From was expected", from_keyword)),
                 }
@@ -171,39 +180,11 @@ impl Interpreteur {
             let from_keyword = vect_req.remove(0);
             if from_keyword == "FROM"{
                 if vect_req[0].len() > 2 && self.is_correct_name(&vect_req[0]){
-                    let table_name = vect_req.remove(0);
                     let mut arguments = HashMap::<String, String>::new();
-                    let mut result = HashMap::<&str, &str>::new();
-                    arguments.insert(String::from(":table_name"), table_name.to_string());
+                    self.valid_table_name(&mut arguments, &mut vect_req)?;
                     arguments.insert(String::from(":request"), String::from("DELETE_LINE_IF"));
-                    if vect_req.len() == 0{
-                        arguments.insert(String::from(":condition"), String::from("1 == 1"));
-                        self.convert_in_str_hashmap(&arguments, &mut result);
-                        self.system.new_request(result)?;
-                    }else{
-                        let key_word = vect_req.remove(0); 
-                        match key_word{
-                            "WHERE" => {
-                                if vect_req.len() == 0{
-                                    return Err(String::from("Condition missing"));
-                                }else{
-                                    let condition = vect_req.join(" ");
-                                    let cleaning = self.clean_the_condition(condition, &mut arguments);
-                                    match cleaning{
-                                        Some(condition) => {
-                                            arguments.insert(String::from(":condition"), condition);
-                                            self.convert_in_str_hashmap(&arguments, &mut result);
-                                            self.system.new_request(result)?;
-                                        }
-                                        None => return Err(String::from("The condition doesn't respect the syntax rules."))
-                                    }
-                                }
-                            }   
-                            _ => {
-                                return Err(format!("Bad key_word here: {}", key_word));
-                            }
-                        }
-                    }
+                    self.catch_condition(&mut arguments, vect_req)?;
+                    self.system.new_request(arguments)?;
                 }else{
                     if vect_req[0].len() <= 2{
                         return Err(String::from("Nothing found when a table name was expected."));
@@ -216,6 +197,39 @@ impl Interpreteur {
             }
         }else {
             return Err(format!("The request 'DELETE {}' isn't valid.", vect_req.join(" ")));
+        }
+        Ok(())
+    }
+
+    fn catch_condition(&mut self, mut arguments: &mut HashMap<String, String>, mut vect_req: Vec<&str>) -> Result<(), String> {
+        if vect_req.len() > 0{
+            let keyword = vect_req.remove(0);
+            match keyword{
+                "WHERE" => {
+                    if vect_req.is_empty() {
+                        return Err(String::from("Condition missing"));
+                    }
+                    let condition = vect_req.join(" ");
+                    let cleaning = self.clean_the_condition(condition, &mut arguments);
+                    match cleaning{
+                        Some(condition) => arguments.insert(String::from(":condition"), condition),
+                        _ => return Err(String::from("The condition doesn't respect the syntax rules."))
+                    };
+                },
+                _ => return Err(format!("Bad keyword: {}", keyword))
+            }
+        }else{
+            arguments.insert(String::from(":condition"), String::from("1 == 1"));
+        }
+        Ok(())
+    }
+
+    fn valid_table_name(&mut self, arguments: &mut HashMap<String, String>, vect_req: &mut Vec::<&str>) -> Result<(), String> {
+        let table_name = vect_req.remove(0);
+        if self.is_correct_name(table_name){
+            arguments.insert(String::from(":table_name"), table_name.to_string());
+        }else{
+            return Err(format!("{} isn't a correct name for a table.", table_name));
         }
         Ok(())
     }
@@ -324,51 +338,44 @@ impl Interpreteur {
     
     fn insert_request(&mut self, mut vect_req: Vec::<&str>) -> Result<(), String>{
         let mut arguments = HashMap::<String, String>::new();
-        let mut result = HashMap::<&str, &str>::new();
-        let table_name = vect_req.remove(0);
-        result.insert(":request", "INSERT");
-        if self.is_correct_name(&table_name){
-            arguments.insert(":table_name".to_string(), table_name.to_string());
-            let mut req = vect_req.join(" ");
-            req = req.replace(", ", ",");
-            req = req.replace(" ,", ",");
-            let split_req_value: Vec<&str> = req.split(" VALUES ").collect();
-            if split_req_value.len() == 2{
-                let mut arg_s = split_req_value[0].to_string();
-                let mut values_s = split_req_value[1].to_string();
-                if arg_s.remove(0) == '(' && arg_s.pop() == Some(')') && values_s.remove(0) == '(' && values_s.pop() == Some(')'){
-                    let mut values: Vec<String> = values_s.split(",").map(String::from).collect();
-                    let args: Vec<String> = arg_s.split(",").map(String::from).collect();
-                    if values.len() == args.len(){
-                        for i in 0..values.len(){
-                            if self.is_correct_name(&args[i]){
-                                if values[i].chars().next() == Some('\'') && values[i].remove(0) == '\'' && values[i].pop() != Some('\''){
-                                    return Err(String::from("You forgot to close this: '"));
-                                }else{
-                                    arguments.insert(args[i].to_string(), values[i].to_string());
-                                }
+        self.valid_table_name(&mut arguments, &mut vect_req)?;
+        arguments.insert(String::from(":request"), String::from("INSERT"));
+        let mut req = vect_req.join(" ");
+        req = req.replace(", ", ",");
+        req = req.replace(" ,", ",");
+        let split_req_value: Vec<&str> = req.split(" VALUES ").collect();
+        if split_req_value.len() == 2{
+            let mut arg_s = split_req_value[0].to_string();
+            let mut values_s = split_req_value[1].to_string();
+            if arg_s.remove(0) == '(' && arg_s.pop() == Some(')') && values_s.remove(0) == '(' && values_s.pop() == Some(')'){
+                let mut values: Vec<String> = values_s.split(",").map(String::from).collect();
+                let args: Vec<String> = arg_s.split(",").map(String::from).collect();
+                if values.len() == args.len(){
+                    for i in 0..values.len(){
+                        if self.is_correct_name(&args[i]){
+                            if values[i].chars().next() == Some('\'') && values[i].remove(0) == '\'' && values[i].pop() != Some('\''){
+                                return Err(String::from("You forgot to close this: '"));
                             }else{
-                                return Err(format!("This name isn't correct for a variable: {}", args[i]));
+                                arguments.insert(args[i].to_string(), values[i].to_string());
                             }
+                        }else{
+                            return Err(format!("This name isn't correct for a variable: {}", args[i]));
                         }
-                        
-                        self.convert_in_str_hashmap(&arguments, &mut result);
-                        self.system.new_request(result)?;
-                    }else{
-                        return Err(String::from("It seems like the number of values is different then the number of arguments"));
                     }
+                    
+                    self.system.new_request(arguments)?;
                 }else{
-                    return Err(String::from("A parenthésis is missing in your request."));
+                    return Err(String::from("It seems like the number of values is different then the number of arguments"));
                 }
             }else{
-                if split_req_value.len() < 2{
-                    return Err(String::from("The 'VALUES' keyword is missing."));
-                }else{
-                    return Err(String::from("The 'VALUES' keyword was found on two occasions."));
-                }
+                return Err(String::from("A parenthésis is missing in your request."));
             }
         }else{
-            return Err(format!("The name {} isn't valid for a table", table_name));
+            if split_req_value.len() < 2{
+                return Err(String::from("The 'VALUES' keyword is missing."));
+            }else{
+                return Err(String::from("The 'VALUES' keyword was found on two occasions."));
+            }
         }
         Ok(())
     }
@@ -383,15 +390,14 @@ impl Interpreteur {
                         return Err(String::from("A parenthésis is missing in your request."));
                     }else{
                         _ = new_table.replace(", ", ",");
+                        let mut arguments = HashMap::<String, String>::new();
                         let mut splited_req_for_name: Vec::<&str> = new_table.split("(").collect();
-                        let table_name = splited_req_for_name.remove(0);
-                        if self.is_correct_name(table_name) && splited_req_for_name.len() >= 2{
+                        self.valid_table_name(&mut arguments, &mut splited_req_for_name)?;
+                        if splited_req_for_name.len() >= 2{
                             let arg_string = splited_req_for_name.join("(");
                             let virgule_split: Vec::<&str> = arg_string.split(",").collect();
-                            let mut arguments = HashMap::<String, String>::new();
                             let mut p_key = false;
                             arguments.insert(":request".to_string(), "CREATE".to_string());
-                            arguments.insert(":table_name".to_string(), table_name.to_string());
                             for arg in virgule_split{
                                 let mut splited_arg: Vec::<&str> = arg.split_whitespace().collect();
                                 let column_name = splited_arg.remove(0);
@@ -410,17 +416,11 @@ impl Interpreteur {
                                                     return Err(format!("It seems that you have declared two primary keys, so '{}' will not be primary key.", column_name));
                                                 } 
                                             }
-                                            "FOREIGN KEY" => {
-                                                bonus_param = "FOREIGN".to_string();
-                                            }
-                                            "NOT NULL" => {
-                                                bonus_param = "NOTNULL".to_string();
-                                            }
+                                            "FOREIGN KEY" => bonus_param = "FOREIGN".to_string(),
+                                            "NOT NULL" => bonus_param = "NOTNULL".to_string(),
                                             _ => {
                                                 if other.starts_with("DEFAULT "){
-                                                    for _ in 0..8{
-                                                        other.remove(0);
-                                                    }
+                                                    other = String::from(&other[8..other.len()]);
                                                     if self.type_gestion.good_type_and_good_value(type_data, &other){
                                                         bonus_param = String::from("DEFAULT");
                                                         arguments.insert(format!("${}", String::from(column_name)), other);
@@ -442,28 +442,20 @@ impl Interpreteur {
                                 
                             }
                             if p_key{
-                                let mut result = HashMap::<&str, &str>::new();
-                                self.convert_in_str_hashmap(&arguments, &mut result);
-                                self.system.new_request(result)?;
-                                Ok(())
-                            }else{
-                                return Err(String::from("Primary key is missing."));
+                                self.system.new_request(arguments)?;
+                                return Ok(())
                             }
-                        }else{
-                            if splited_req_for_name.len() < 2{
-                                return Err(String::from("You have to specify the column of a new table between parenthesis: (column1 type, column2 type ...)"));
-                            }
-                            return Err(format!("{} isn't a correct name for a table.", table_name));
+                            return Err(String::from("Primary key is missing."));
                         }
+                        return Err(String::from("You have to specify the column of a new table between parenthesis: (column1 type, column2 type ...)"));
                     }
                 }
                 _ => {
                     return Err(format!("{} is unknow by the system.", thing_to_create));
                 }
             }
-        }else{
-            return Err(format!("CREATE {} n'est pas une commande valide", vect_req.join(" ")));
         }
+        Err(format!("CREATE {} n'est pas une commande valide", vect_req.join(" ")))
     }
 
     fn is_correct_name(&self, name: &str) -> bool{
@@ -473,14 +465,6 @@ impl Interpreteur {
             }
         }
         true
-    }
-
-    fn convert_in_str_hashmap<'a>(&self, hashmap_to_convert: &'a HashMap<String, String>, result: &mut HashMap<&'a str, &'a str>) {
-        for (cle, value) in hashmap_to_convert {
-            let cle_str: &'a str = cle.as_str();
-            let value_str: &'a str = value.as_str();
-            result.insert(cle_str, value_str);
-        }
     }
     
 }

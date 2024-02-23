@@ -19,5 +19,6 @@ contextBridge.exposeInMainWorld('message', {
     return ipcRenderer.invoke("getCurrentProjectData")
   },
   addFile: (name) => ipcRenderer.invoke("addFile", name),
-  backToProject: () => ipcRenderer.invoke("backToProject")
+  backToProject: () => ipcRenderer.invoke("backToProject"),
+  getTabText: (tabName) => ipcRenderer.invoke("getTabText", tabName),
 })
