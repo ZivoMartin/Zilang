@@ -60,6 +60,7 @@ impl Interpreteur {
                     return result
                 }
                 "RESET" => self.reset_request(),
+                "SET" => todo!(),
                 _ => return Err(format!("{} is unnknow by the system.", type_request))
             }
         }
