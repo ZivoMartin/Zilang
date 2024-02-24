@@ -3,7 +3,7 @@ mod tools;
 mod hammer;
 
 use std::env;
-use hammer::compile_txt;
+use hammer::{compile_txt, tokenize_txt};
 use tools::textfiles::{TextFile, file_exists};
 
 use std::process::{Command, exit, ExitCode};
@@ -20,8 +20,8 @@ static FILE_DOESNT_EXISTS: i8 = 7;
 
 fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
-    let operations: Vec<&str> = vec!("-o");
-    let parameters: Vec<&str> = vec!("-t");
+    let operations: Vec<&str> = vec!("-o", "-t");
+    let parameters: Vec<&str> = vec!("-opt");
     
     let mut operation: Option<&str> = None;
     let mut debug = true;
@@ -36,7 +36,7 @@ fn main() -> ExitCode {
             operation = Some(elt);
         }else if parameters.contains(&(elt as &str)) {
             match elt as &str {
-                "-t" => debug = false,
+                "-opt" => debug = false,
                 _ => {
                     eprintln!("Unknow parameter in the command line: {}", elt);
                     exit(BAD_PARAMETER as i32)
@@ -55,14 +55,20 @@ fn main() -> ExitCode {
     if input.is_none() {
         eprintln!("Expected a file name to compile...");
         exit(INPUT_FILE_MISSING as i32)
-    }else if output.is_none() {
+    }else if output.is_none() && operation == Some("-o") {
         ("Expected a file name for the output...");
         exit(OUTPUT_FILE_MISSING as i32)
     }else if operation.is_none() {
         eprintln!("You didn't indicate the convert operator...");
         exit(CONVERT_OPERATOR_MISSING as i32);
     }
-    compile(input.unwrap(), output.unwrap(), debug)
+    println!("operation: {operation:?}");
+    match operation.unwrap() {
+        "-o" => return compile(input.unwrap(), output.unwrap(), debug),
+        "-t" => tokenize_txt(input.unwrap().to_string()),
+        _ => panic!("Impossible")
+    }
+    ExitCode::from(OK as u8)
 }
 
 

@@ -11,7 +11,7 @@ compiler/asm/functions.asm
 compiler/asm/script.asm
 compiler/asm/data.asm
 compiler/asm/macros.asm
-compiler/Todo.txt
+compiler/Todo*
 Iris/target
 Iris/text_files/*
 Iris/*.json
