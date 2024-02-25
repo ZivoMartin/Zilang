@@ -15,7 +15,7 @@ pub fn compile_txt(prog_name: String, input: String, debug: bool) -> Result<(), 
 }
 
 pub fn tokenize_txt(input: String) {
-    let tokenizer = Tokenizer::new();
+    let mut tokenizer = Tokenizer::new();
     tokenizer.tokenize(input).unwrap_or_else(|e|  {
         eprintln!("{e}");
         exit(1)
