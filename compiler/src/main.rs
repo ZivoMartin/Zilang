@@ -2,7 +2,7 @@
 mod tools;
 mod hammer;
 
-use std::env;
+//use std::env;
 use hammer::{compile_txt, tokenize_txt};
 use tools::textfiles::{TextFile, file_exists};
 
@@ -19,7 +19,8 @@ static FILE_DOESNT_EXISTS: i8 = 7;
 
 
 fn main() -> ExitCode {
-    let args: Vec<String> = env::args().collect();
+    //let args: Vec<String> = env::args().collect();
+    let args = vec!("compiler".to_string(), "testing/tokenizer/first.vu".to_string(), "-t".to_string());
     let operations: Vec<&str> = vec!("-o", "-t");
     let parameters: Vec<&str> = vec!("-opt");
     
@@ -62,10 +63,9 @@ fn main() -> ExitCode {
         eprintln!("You didn't indicate the convert operator...");
         exit(CONVERT_OPERATOR_MISSING as i32);
     }
-    println!("operation: {operation:?}");
     match operation.unwrap() {
         "-o" => return compile(input.unwrap(), output.unwrap(), debug),
-        "-t" => tokenize_txt(input.unwrap().to_string()),
+        "-t" => tokenize_txt(TextFile::new(String::from(input.unwrap())).unwrap().get_text()),
         _ => panic!("Impossible")
     }
     ExitCode::from(OK as u8)
