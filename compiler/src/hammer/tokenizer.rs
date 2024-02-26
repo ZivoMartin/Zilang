@@ -200,7 +200,7 @@ impl<'a> Tokenizer {
             Ok(token_string) => {
                 match self.filter_nodes(&mut paths_vec, &token_string) {
                     Some(path) => {
-                        //println!("PUSHED: {:?}: {token_string}", path.p_node().type_token);
+                        println!("PUSHED: {:?}: {token_string}", path.p_node().type_token);
                         res.push(Token::new(path.p_node().type_token, token_string));
                         for node in path.path.iter() {
                             res = self.curse(node, res, chars)?;
