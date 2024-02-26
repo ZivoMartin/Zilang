@@ -9,6 +9,7 @@ enum TokenType {
     Number,
     Type,
     Symbol,
+    Operator,
     // Keyword,
 
     // Token group
@@ -25,9 +26,10 @@ enum TokenType {
 
 
 static TYPE_LIST: &[&'static str; 2] = &["int", "char"];
-static OPERATORS: &[&'static str; 13] = &["+", "-", "%", "*", "/", "<", "<=", ">", ">=", "==", "!=", "||", "&&"];
+static OPERATORS: &[&'static str; 14] = &["+", "-", "%", "*", "/", "<", "<=", ">", ">=", "==", "!=", "||", "&&", "=s"];
+static CHAR_OPERATOR: &[char; 8] = &['+', '-', '%', '*', '/', '<', '>', '='];
 static DEFAULT_GARBAGE_CHARACTER: &[char; 2] = &[' ', '\n'];
-
+static PRIMITIVE_TOKENTYPE: &[TokenType; 5] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator];
 impl Copy for TokenType {}
 
 impl Clone for TokenType {
@@ -84,17 +86,32 @@ impl PartialEq for Node {
 fn get_default_constraint(token_type: TokenType ) -> Vec<&'static str> {
     match token_type {
         TokenType::Type => Vec::from(TYPE_LIST),
+        TokenType::Operator => Vec::from(OPERATORS),
         _ => Vec::new()
     }
 }
 
 impl Node {
 
-    
+    fn check_son(self) -> Node{
+        for son in self.sons.iter() {
+            if !PRIMITIVE_TOKENTYPE.contains(&son.type_token) {
+                println!("ERROR DURING THE BUILDING OF THE TREE:");
+                panic!("{:?} was found on a branch of a {:?} when a primitive type was expected", son.type_token, self.type_token);
+            }
+        }
+        for group in self.groups.iter() {
+            if PRIMITIVE_TOKENTYPE.contains(&group.type_token) {
+                println!("ERROR DURING THE BUILDING OF THE TREE:");
+                panic!("{:?} was found on a branch of a {:?} when a group type was expected", group.type_token, self.type_token);
+            }
+        }
+        self
+    }
 
     /// Build a new node wich has to be builded.
     fn new(type_token: TokenType, groups: Vec<Node>, sons: Vec<Node>) -> Node {
-        Node{type_token, groups, sons, can_end: false, constraints: get_default_constraint(type_token), consider_garbage: false}
+        Node{type_token, groups, sons, can_end: false, constraints: get_default_constraint(type_token), consider_garbage: false}.check_son()
     }
 
     /// Build a leaf, a leaf has to be builded
@@ -104,19 +121,19 @@ impl Node {
 
     /// Build a new node wich can end the building of the group.
     fn new_end(type_token: TokenType, groups: Vec<Node>, sons: Vec<Node>) -> Node {
-        Node{type_token, groups, sons, can_end: true, constraints: get_default_constraint(type_token), consider_garbage: false}
+        Node{type_token, groups, sons, can_end: true, constraints: get_default_constraint(type_token), consider_garbage: false}.check_son()
     }
 
     fn new_c(type_token: TokenType, groups: Vec<Node>, sons: Vec<Node>, constraints: Vec<&'static str>) -> Node {
-        Node{type_token, groups, sons, can_end: false, constraints: constraints, consider_garbage: false}
+        Node{type_token, groups, sons, can_end: false, constraints, consider_garbage: false}.check_son()
     }
 
     fn leaf_c(type_token: TokenType, constraints: Vec<&'static str>) -> Node {
-        Node{type_token, sons: vec!(), groups: vec!(), can_end: true, constraints: constraints,consider_garbage: false}
+        Node{type_token, sons: vec!(), groups: vec!(), can_end: true, constraints, consider_garbage: false}
     }
 
     fn new_end_c(type_token: TokenType, groups: Vec<Node>, sons: Vec<Node>, constraints: Vec<&'static str>) -> Node {
-        Node{type_token, groups, sons, can_end: true, constraints: constraints, consider_garbage: false}
+        Node{type_token, groups, sons, can_end: true, constraints, consider_garbage: true}.check_son()
     }
 
     fn end_inst() -> Node {
@@ -126,7 +143,8 @@ impl Node {
 
 pub struct Tokenizer {
     group_map: HashMap<TokenType, Node>,
-    priority_map: HashMap<TokenType, u8>
+    priority_map: HashMap<TokenType, u8>,
+    identity_map: HashMap<fn(char)->bool, Vec<TokenType>>
 }
 
 fn build_priority_map() -> HashMap<TokenType, u8> {
@@ -138,12 +156,24 @@ fn build_priority_map() -> HashMap<TokenType, u8> {
     priority_map
 }
 
+
+fn build_identity_map() -> HashMap<fn(char)->bool, Vec<TokenType>> {
+    let mut res = HashMap::<fn(char)->bool, Vec<TokenType>>::new();
+    res.insert(is_number, vec!(TokenType::Number));
+    res.insert(is_letter, vec!(TokenType::Ident, TokenType::Type));
+    res.insert(is_sign, vec!(TokenType::Symbol));
+    res.insert(is_operator, vec!(TokenType::Operator));
+    res
+}
+
+
 impl<'a> Tokenizer {
 
     pub fn new() -> Tokenizer {
         let mut res = Tokenizer{
             group_map: HashMap::<TokenType, Node>::new(),
-            priority_map: build_priority_map()
+            priority_map: build_priority_map(),
+            identity_map: build_identity_map()
         };
         res.init_token_groups();
         res
@@ -170,7 +200,7 @@ impl<'a> Tokenizer {
             Ok(token_string) => {
                 match self.filter_nodes(&mut paths_vec, &token_string) {
                     Some(path) => {
-                        println!("PUSHED: {:?}: {token_string}", path.p_node().type_token);
+                        //println!("PUSHED: {:?}: {token_string}", path.p_node().type_token);
                         res.push(Token::new(path.p_node().type_token, token_string));
                         for node in path.path.iter() {
                             res = self.curse(node, res, chars)?;
@@ -197,35 +227,25 @@ impl<'a> Tokenizer {
     fn get_next_token(&self, path_vec: &mut Vec<Path>, chars: &mut Peekable<Chars>) -> Result<String, String> {
         let mut current_token = String::new();
         let c: char = *chars.peek().unwrap();
-        if is_number(c) {
-            if self.clean_son_vec(path_vec, vec!(TokenType::Number)) {  
-                self.next_char_while(&mut current_token, chars, is_number)
-            }else{
-                return Err(format!("You can't put a number here."))
-            }
-        }else if is_letter(c) {
-            if self.clean_son_vec(path_vec, vec!(TokenType::Type, TokenType::Ident)) {
-                self.next_char_while(&mut current_token, chars, is_letter);
-                if is_number(*chars.peek().unwrap()) && self.clean_son_vec(path_vec, vec!(TokenType::Ident)) {
-                    self.next_char_while(&mut current_token, chars, |c: char| {is_letter(c) || is_number(c)});
+        for (cond_stop, author_type) in self.identity_map.iter() {
+            if cond_stop(c) {
+                if self.clean_son_vec(path_vec, author_type) {
+                    self.next_char_while(&mut current_token, chars, *cond_stop);
+                    if *cond_stop == is_letter as fn(char)->bool && is_number(*chars.peek().unwrap()) && self.clean_son_vec(path_vec, &vec!(TokenType::Ident)) {  // If we are looking for an ident
+                        self.next_char_while(&mut current_token, chars, |c: char| {is_letter(c) || is_number(c)});
+                    }
+                }else{
+                    return Err(format!("FAILED TO TOKENIZE"))
                 }
-            }else{
-                return Err(format!("You can't put a letter here"))
-            }
-        }else{
-            if self.clean_son_vec(path_vec, vec!(TokenType::Symbol)) {
-                self.next_char_while(&mut current_token, chars, is_sign);
-            }else{
-                return Err(format!("You can't put a symbol here."))
             }
         }
         Ok(current_token)
     }
 
-    fn clean_son_vec(&self, path_vec: &mut Vec<Path>, author_type: Vec<TokenType>) -> bool {
+    fn clean_son_vec(&self, path_vec: &mut Vec<Path>, author_type: &Vec<TokenType>) -> bool {
         let mut i = 0;
         while i < path_vec.len() {
-            if !author_type.contains(&path_vec[0].p_node().type_token) {
+            if !author_type.contains(&path_vec[i].p_node().type_token) {
                 path_vec.remove(i);
             }else{
                 i += 1;
@@ -235,14 +255,16 @@ impl<'a> Tokenizer {
     }
 
     fn next_char_while(&self, current_token: &mut String, chars: &mut Peekable<Chars>, continue_cond: fn(char)->bool) {
-        while let Some(c) = chars.peek() {
-            if continue_cond(*c) {    
-                current_token.push(*c);
-                chars.next();
-            }else{
-                break;
-            }
-        }   
+        current_token.push(chars.nth(0).unwrap());
+        if continue_cond != is_sign as fn(char) -> bool {
+            while let Some(c) = chars.peek() {
+                if continue_cond(*c) {    
+                    current_token.push(chars.nth(0).unwrap());
+                }else{
+                    break;
+                }
+            }   
+        }
     }
 
     fn get_son_array(&'a self, node: &'a Node) -> Vec<Path> {
@@ -305,25 +327,31 @@ impl<'a> Tokenizer {
                                 )
                             )
                         ), 
-                        vec!(),
+                        vec!(
+                            Node::leaf_c(TokenType::Symbol, vec!(")")) // )
+                        ),
                         vec!("(")
                     )
                 )
             )
         );
-
         
         self.group_map.insert(
             TokenType::SerieExpression,
-            Node::new_end(
+            Node::new(
                 TokenType::SerieExpression,
                 vec!(
-                    Node::new(
+                    Node::new_end(
                         TokenType::Expression,
                         vec!(),
                         vec!(
-                            Node::leaf_c(
-                                TokenType::Symbol, vec!(",") // ,
+                            Node::new_c(
+                                TokenType::Symbol, // ,
+                                vec!(
+                                    Node::leaf(TokenType::SerieExpression)
+                                ),
+                                vec!(),
+                                vec!(",")
                             )
                         )
                     )
@@ -370,14 +398,14 @@ impl<'a> Tokenizer {
                 TokenType::Brackets,
                 vec!(),
                 vec!(
-                    Node::new_end_c(
+                    Node::new_c(
                        TokenType::Symbol, // [
                        vec!(
                            Node::new(
                                 TokenType::Expression,
                                 vec!(),
                                 vec!(
-                                    Node::new_c(
+                                    Node::new_end_c(
                                         TokenType::Symbol, // ]
                                         vec!(
                                             Node::leaf(
@@ -423,15 +451,14 @@ impl<'a> Tokenizer {
                         TokenType::Value,
                         vec!(),
                         vec!(
-                            Node::new_c(
-                                TokenType::Symbol,  // Operateur
+                            Node::new(
+                                TokenType::Operator,  // Operateur
                                 vec!(
                                     Node::leaf(
                                         TokenType::Expression
                                     )
                                 ),
-                                vec!(),
-                                Vec::from(OPERATORS)
+                                vec!()
                             )
                         )
                     )
@@ -444,8 +471,19 @@ impl<'a> Tokenizer {
                                 TokenType::Expression,
                                 vec!(),
                                 vec!(
-                                    Node::leaf_c(
-                                        TokenType::Symbol, vec!(")") // )
+                                    Node::new_end_c(
+                                        TokenType::Symbol, // )
+                                        vec!(),
+                                        vec!(
+                                            Node::new(
+                                                TokenType::Operator,
+                                                vec!(
+                                                    Node::leaf(TokenType::Expression)
+                                                ),
+                                                vec!()
+                                            )
+                                        ), 
+                                        vec!(")") 
                                     )
                                 )
                             )
@@ -464,7 +502,7 @@ impl<'a> Tokenizer {
                 vec!(),
                 vec!(
                     Node::new_c(
-                        TokenType::Symbol, // =
+                        TokenType::Operator, // =
                         vec!(
                             Node::leaf(
                                 TokenType::Expression 
@@ -481,7 +519,24 @@ impl<'a> Tokenizer {
             TokenType::Instruction,
             Node::new(
                 TokenType::Instruction,
-                vec!(),
+                vec!(
+                    Node::new(
+                        TokenType::ComplexIdent,
+                        vec!(
+                            Node::new(
+                                TokenType::Affectation,
+                                vec!(),
+                                vec!(Node::end_inst())
+                            ),
+                            Node::new(
+                                TokenType::Tuple,
+                                vec!(),
+                                vec!(Node::end_inst())
+                            ),
+                        ),
+                        vec!()
+                    )
+                ),
                 vec!(
                     Node::leaf_c(
                         TokenType::Symbol, vec!("}") // }
@@ -502,22 +557,6 @@ impl<'a> Tokenizer {
                                 vec!(Node::end_inst())
                             )
                         )
-                    ),
-                    Node::new(
-                        TokenType::Ident,
-                        vec!(
-                            Node::new(
-                                TokenType::Affectation,
-                                vec!(),
-                                vec!(Node::end_inst())
-                            ),
-                            Node::new(
-                                TokenType::Tuple,
-                                vec!(),
-                                vec!(Node::end_inst())
-                            ),
-                        ),
-                        vec!()
                     )
                 )
             )
@@ -555,10 +594,8 @@ impl<'a> Tokenizer {
     }
 }
 
-
-
 fn is_sign(c: char) -> bool {
-    !is_number(c) && !is_letter(c) && !DEFAULT_GARBAGE_CHARACTER.contains(&c)
+    !is_number(c) && !is_letter(c) && !DEFAULT_GARBAGE_CHARACTER.contains(&c) && !is_operator(c)
 }
 
 fn is_number(c: char) -> bool {
@@ -567,4 +604,8 @@ fn is_number(c: char) -> bool {
 
 fn is_letter(c: char) -> bool {
     (c as u8) >= 65 && (c as u8) <= 122 && !((c as u8) >= 91 && (c as u8) <= 96)  
+}
+
+fn is_operator(c: char) -> bool {
+    CHAR_OPERATOR.contains(&c)
 }
