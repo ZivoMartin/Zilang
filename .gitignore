@@ -1,6 +1,7 @@
 compiler/testing/tokenizer/first.vu
 compiler/target
 Compiler/Todo.txt
+compiler/testing/tokenizer/first.vu
 .vscode
 Forge/node_modules
 Forge/database/*.vu

@@ -19,9 +19,9 @@ enum TokenType {
     ComplexIdent,       
     Expression,    
     Brackets,     
-    Tuple,              // (Expression, Expression, ... , Expression)
+    Tuple,              
     SerieExpression,    
-    Affectation        // = Expression
+    Affectation        
 }
 
 
@@ -30,6 +30,7 @@ static OPERATORS: &[&'static str; 14] = &["+", "-", "%", "*", "/", "<", "<=", ">
 static CHAR_OPERATOR: &[char; 8] = &['+', '-', '%', '*', '/', '<', '>', '='];
 static DEFAULT_GARBAGE_CHARACTER: &[char; 2] = &[' ', '\n'];
 static PRIMITIVE_TOKENTYPE: &[TokenType; 5] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator];
+static TOKEN_GROUP: &[TokenType; 9] = &[TokenType::Program, TokenType::Instruction, TokenType::Value, TokenType::ComplexIdent, TokenType::Expression, TokenType::Brackets, TokenType::Tuple, TokenType::SerieExpression, TokenType::Affectation];
 impl Copy for TokenType {}
 
 impl Clone for TokenType {
@@ -52,17 +53,19 @@ impl Token {
     }
 }
 #[derive(Debug)]
-struct Path<'a> {
-    path: Vec<&'a Node>,
+struct Path {
+    path: Vec<*const Node>,
 }
 
-impl<'a> Path<'a> {
-    fn init(node: &'a Node) -> Path {
+impl Path {
+    fn init(node: &Node) -> Path {
         Path{path: vec!(node)}
     }
 
-    fn p_node(&self) -> &'a Node {
-        self.path[0]
+    fn p_node(&self) -> &Node {
+        unsafe{
+            &*self.path[0] as &Node
+        }   
     } 
 }
 
@@ -144,9 +147,10 @@ impl Node {
 pub struct Tokenizer {
     group_map: HashMap<TokenType, Node>,
     priority_map: HashMap<TokenType, u8>,
-    identity_map: HashMap<fn(char)->bool, Vec<TokenType>>
+    identity_map: HashMap<fn(char)->bool, Vec<TokenType>>,
+    path_map: HashMap<TokenType, Vec<Path>>
 }
-
+ 
 fn build_priority_map() -> HashMap<TokenType, u8> {
     let mut priority_map = HashMap::<TokenType, u8>::new();
     priority_map.insert(TokenType::Ident, 1);
@@ -173,9 +177,11 @@ impl<'a> Tokenizer {
         let mut res = Tokenizer{
             group_map: HashMap::<TokenType, Node>::new(),
             priority_map: build_priority_map(),
-            identity_map: build_identity_map()
+            identity_map: build_identity_map(),
+            path_map: HashMap::new()
         };
         res.init_token_groups();
+        res.build_path_map();
         res
     }
 
@@ -194,7 +200,10 @@ impl<'a> Tokenizer {
         if !chars.peek().is_some() {
             return Ok(res)
         }
-        let mut paths_vec = self.get_son_array(current_node);
+        let  (nodes_vec, mut paths_vec) = self.get_son_array(current_node);
+        for node in nodes_vec.iter() {
+            paths_vec.push(node);
+        }        
         let save = chars.clone();
         match self.get_next_token(&mut paths_vec, chars) {
             Ok(token_string) => {
@@ -203,7 +212,9 @@ impl<'a> Tokenizer {
                         println!("PUSHED: {:?}: {token_string}", path.p_node().type_token);
                         res.push(Token::new(path.p_node().type_token, token_string));
                         for node in path.path.iter() {
-                            res = self.curse(node, res, chars)?;
+                            unsafe{
+                                res = self.curse(&**node, res, chars)?;
+                            }
                         }
                     }
                     _ => {
@@ -224,7 +235,7 @@ impl<'a> Tokenizer {
         Ok(res)
     }
 
-    fn get_next_token(&self, path_vec: &mut Vec<Path>, chars: &mut Peekable<Chars>) -> Result<String, String> {
+    fn get_next_token(&self, path_vec: &mut Vec<&Path>, chars: &mut Peekable<Chars>) -> Result<String, String> {
         let mut current_token = String::new();
         let c: char = *chars.peek().unwrap();
         for (cond_stop, author_type) in self.identity_map.iter() {
@@ -242,11 +253,11 @@ impl<'a> Tokenizer {
         Ok(current_token)
     }
 
-    fn clean_son_vec(&self, path_vec: &mut Vec<Path>, author_type: &Vec<TokenType>) -> bool {
+    fn clean_son_vec(&self, path_vec: &mut Vec<&Path>, author_type: &Vec<TokenType>) -> bool {
         let mut i = 0;
         while i < path_vec.len() {
             if !author_type.contains(&path_vec[i].p_node().type_token) {
-                path_vec.remove(i);
+                path_vec.remove(i); 
             }else{
                 i += 1;
             }
@@ -267,23 +278,20 @@ impl<'a> Tokenizer {
         }
     }
 
-    fn get_son_array(&'a self, node: &'a Node) -> Vec<Path> {
-        let mut res = Vec::<Path>::new();
+    fn get_son_array(&self, node: &Node) -> (Vec<Path>, Vec<&Path>) {
+        let mut nodes_vec = Vec::<Path>::new();
         for son in node.sons.iter() {
-            res.push(Path::init(son));
+            nodes_vec.push(Path::init(son))
         }
+        let mut groups = Vec::<&Path>::new();
         for group in node.groups.iter() {
-            //println!("{:?} {:?}", group.type_token, node.type_token);
-            let mut paths = self.get_son_array(self.group_map.get(&group.type_token).unwrap());
-            for p in paths.iter_mut() {
-                p.path.push(group);
-            }
-            res.append(&mut paths);
+            groups.append(&mut self.path_map.get(&group.type_token).unwrap().iter().collect())
         }
-        res
+        (nodes_vec, groups)
     }
 
-    fn filter_nodes(&'a self, paths: &'a mut Vec::<Path>, token: &str) -> Option<&Path>{
+
+    fn filter_nodes(&'a self, paths: &'a mut Vec::<&Path>, token: &str) -> Option<&Path>{
         if token.is_empty() {
             return None
         }
@@ -293,7 +301,7 @@ impl<'a> Tokenizer {
             let node = paths[i].p_node();
             if node.constraints.is_empty() || node.constraints.contains(&token) {
                 if !res.is_some() || self.priority_map.get(&res.unwrap().p_node().type_token) < self.priority_map.get(&node.type_token){
-                    res = Some(&paths[i])
+                    res = Some(paths[i])
                 }
             }
             i += 1;
@@ -307,6 +315,28 @@ impl<'a> Tokenizer {
                 break;
             }
             chars.next();
+        }
+    }
+
+    fn build_path(&self, node: &Node) -> Vec<Path> {
+        let mut res = Vec::<Path>::new();
+        for son in node.sons.iter() {
+            res.push(Path::init(son));
+        }
+        for group in node.groups.iter() {
+            //println!("{:?} {:?}", group.type_token, node.type_token);
+            let mut paths = self.build_path(self.group_map.get(&group.type_token).unwrap());
+            for p in paths.iter_mut() {
+                p.path.push(group);
+            }
+            res.append(&mut paths);
+        }
+        res
+    }
+
+    fn build_path_map(&mut self) {
+        for grp in TOKEN_GROUP.iter() {
+            self.path_map.insert(*grp, self.build_path(self.group_map.get(grp).unwrap()));
         }
     }
 
