@@ -10,26 +10,37 @@ enum TokenType {
     Type,
     Symbol,
     Operator,
-    // Keyword,
+    Keyword,
 
     // Token group
     Program,
+    BlocProgram,
     Instruction,
     Value,              
     ComplexIdent,       
     Expression,    
     Brackets,     
     Tuple,              // (Expression, Expression, ... , Expression)
-    SerieExpression,    
-    Affectation        // = Expression
+    SerieExpression,
+    SerieDeclaration,
+    Declaration,    
+    Affectation,        // = Expression
+    Bloc,
+    KeywordInstruction,
+    IfKeyword,
+    ForKeyword,
+    WhileKeyword,
+    FuncKeyword
 }
 
 
 static TYPE_LIST: &[&'static str; 2] = &["int", "char"];
 static OPERATORS: &[&'static str; 14] = &["+", "-", "%", "*", "/", "<", "<=", ">", ">=", "==", "!=", "||", "&&", "=s"];
+static KEYWORD: &[&'static str; 8] = &["if", "else", "for", "while", "return", "continue", "break", "func"];
 static CHAR_OPERATOR: &[char; 8] = &['+', '-', '%', '*', '/', '<', '>', '='];
-static DEFAULT_GARBAGE_CHARACTER: &[char; 2] = &[' ', '\n'];
-static PRIMITIVE_TOKENTYPE: &[TokenType; 5] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator];
+static DEFAULT_GARBAGE_CHARACTER: &[char; 3] = &[' ', '\n', '\t'];
+static PRIMITIVE_TOKENTYPE: &[TokenType; 6] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator, TokenType::Keyword];
+
 impl Copy for TokenType {}
 
 impl Clone for TokenType {
@@ -87,6 +98,7 @@ fn get_default_constraint(token_type: TokenType ) -> Vec<&'static str> {
     match token_type {
         TokenType::Type => Vec::from(TYPE_LIST),
         TokenType::Operator => Vec::from(OPERATORS),
+        TokenType::Keyword => Vec::from(KEYWORD),
         _ => Vec::new()
     }
 }
@@ -136,9 +148,7 @@ impl Node {
         Node{type_token, groups, sons, can_end: true, constraints, consider_garbage: true}.check_son()
     }
 
-    fn end_inst() -> Node {
-        Node::leaf_c(TokenType::Symbol, vec!(";"))
-    }
+
 }
 
 pub struct Tokenizer {
@@ -151,8 +161,10 @@ fn build_priority_map() -> HashMap<TokenType, u8> {
     let mut priority_map = HashMap::<TokenType, u8>::new();
     priority_map.insert(TokenType::Ident, 1);
     priority_map.insert(TokenType::Number, 1);
+    priority_map.insert(TokenType::Symbol, 1);
+    priority_map.insert(TokenType::Operator, 2);
     priority_map.insert(TokenType::Type, 2);
-    //priority_map.insert(TokenType::Keyword, 3);
+    priority_map.insert(TokenType::Keyword, 3);
     priority_map
 }
 
@@ -160,7 +172,7 @@ fn build_priority_map() -> HashMap<TokenType, u8> {
 fn build_identity_map() -> HashMap<fn(char)->bool, Vec<TokenType>> {
     let mut res = HashMap::<fn(char)->bool, Vec<TokenType>>::new();
     res.insert(is_number, vec!(TokenType::Number));
-    res.insert(is_letter, vec!(TokenType::Ident, TokenType::Type));
+    res.insert(is_letter, vec!(TokenType::Ident, TokenType::Type, TokenType::Keyword));
     res.insert(is_sign, vec!(TokenType::Symbol));
     res.insert(is_operator, vec!(TokenType::Operator));
     res
@@ -273,7 +285,6 @@ impl<'a> Tokenizer {
             res.push(Path::init(son));
         }
         for group in node.groups.iter() {
-            //println!("{:?} {:?}", group.type_token, node.type_token);
             let mut paths = self.get_son_array(self.group_map.get(&group.type_token).unwrap());
             for p in paths.iter_mut() {
                 p.path.push(group);
@@ -319,18 +330,14 @@ impl<'a> Tokenizer {
                 vec!(
                     Node::new_c(
                         TokenType::Symbol, // ( 
-                        vec!(Node::new(
-                            TokenType::SerieExpression,
-                                vec!(),
-                                vec!(
-                                    Node::leaf_c(TokenType::Symbol, vec!(")")) // )
-                                )
-                            )
+                        vec!(
+                            Node::leaf(TokenType::SerieExpression),
+                            Node::leaf(TokenType::SerieDeclaration)
                         ), 
                         vec!(
-                            Node::leaf_c(TokenType::Symbol, vec!(")")) // )
+                            Node::leaf_c(TokenType::Symbol, vec!("~")) // )
                         ),
-                        vec!("(")
+                        vec!("~")
                     )
                 )
             )
@@ -345,10 +352,36 @@ impl<'a> Tokenizer {
                         TokenType::Expression,
                         vec!(),
                         vec!(
+                            Node::leaf_c(TokenType::Symbol, vec!("~")),
                             Node::new_c(
                                 TokenType::Symbol, // ,
                                 vec!(
                                     Node::leaf(TokenType::SerieExpression)
+                                ),
+                                vec!(),
+                                vec!(",")
+                            )
+                        )
+                    )
+                ),
+                vec!()
+            )
+        );
+
+        self.group_map.insert(
+            TokenType::SerieDeclaration,
+            Node::new(
+                TokenType::SerieDeclaration,
+                vec!(
+                    Node::new_end(
+                        TokenType::Declaration,
+                        vec!(),
+                        vec!(
+                            Node::leaf_c(TokenType::Symbol, vec!("~")),
+                            Node::new_c(
+                                TokenType::Symbol, // ,
+                                vec!(
+                                    Node::leaf(TokenType::SerieDeclaration)
                                 ),
                                 vec!(),
                                 vec!(",")
@@ -496,6 +529,27 @@ impl<'a> Tokenizer {
         );
 
         self.group_map.insert(
+            TokenType::Declaration,
+            Node::new(
+                TokenType::Declaration,
+                vec!(),
+                vec!(
+                    Node::new(
+                        TokenType::Type,
+                        vec!(),
+                        vec!(
+                            Node::new_end(
+                                TokenType::Ident,
+                                vec!(Node::leaf(TokenType::Affectation)),
+                                vec!()   
+                            )
+                        )   
+                    )
+                )   
+            )
+        );
+
+        self.group_map.insert(
             TokenType::Affectation,
             Node::new(
                 TokenType::Affectation,
@@ -504,9 +558,7 @@ impl<'a> Tokenizer {
                     Node::new_c(
                         TokenType::Operator, // =
                         vec!(
-                            Node::leaf(
-                                TokenType::Expression 
-                            )
+                            Node::leaf(TokenType::Expression)
                         ),
                         vec!(),
                         vec!("=")
@@ -515,48 +567,30 @@ impl<'a> Tokenizer {
             )
         );
 
+
         self.group_map.insert(
             TokenType::Instruction,
             Node::new(
                 TokenType::Instruction,
                 vec!(
+                    Node::leaf(TokenType::KeywordInstruction),
                     Node::new(
                         TokenType::ComplexIdent,
                         vec!(
-                            Node::new(
-                                TokenType::Affectation,
-                                vec!(),
-                                vec!(Node::end_inst())
-                            ),
-                            Node::new(
-                                TokenType::Tuple,
-                                vec!(),
-                                vec!(Node::end_inst())
-                            ),
+                            Node::leaf(TokenType::Affectation),
+                            Node::leaf(TokenType::Tuple)
                         ),
                         vec!()
-                    )
+                    ),
+                    Node::leaf(TokenType::Declaration)
                 ),
                 vec!(
-                    Node::leaf_c(
-                        TokenType::Symbol, vec!("}") // }
-                    ),
-                    Node::new(
-                        TokenType::Type, 
+                    Node::leaf_c(TokenType::Keyword, vec!("break", "continue")),
+                    Node::new_end_c(
+                        TokenType::Keyword,
+                        vec!(Node::leaf(TokenType::Expression)),
                         vec!(),
-                        vec!(
-                            Node::new(
-                                TokenType::Ident,
-                                vec!(
-                                    Node::new(
-                                        TokenType::Affectation,
-                                        vec!(),
-                                        vec!(Node::end_inst())
-                                    )
-                                ),
-                                vec!(Node::end_inst())
-                            )
-                        )
+                        vec!("return")
                     )
                 )
             )
@@ -569,26 +603,182 @@ impl<'a> Tokenizer {
                 vec!(
                     Node::new(
                         TokenType::Instruction,
+                        vec!(),
                         vec!(
-                            Node::leaf(
-                                TokenType::Program,
+                            Node::new_c(
+                                TokenType::Symbol,
+                                vec!(
+                                    Node::leaf(TokenType::Program)
+                                ),
+                                vec!(),
+                                vec!(";")
+                            )
+                        )
+                    )
+                ), 
+                vec!()      
+            )
+        );
+        
+        self.group_map.insert(
+            TokenType::BlocProgram,
+            Node::new_end(
+                TokenType::BlocProgram, 
+                vec!(
+                    Node::new(
+                        TokenType::Instruction,
+                        vec!(),
+                        vec!(
+                            Node::new_c(
+                                TokenType::Symbol,
+                                vec!(
+                                    Node::leaf(TokenType::BlocProgram)
+                                ),
+                                vec!(
+                                    Node::leaf_c(TokenType::Symbol, vec!("}"))
+                                ),
+                                vec!(";")
+                            )
+                        )
+                    )
+                ), 
+                vec!()      
+            )
+        );
+
+        self.group_map.insert(
+            TokenType::KeywordInstruction,
+            Node::new(
+                TokenType::KeywordInstruction,
+                vec!(
+                    Node::leaf(TokenType::IfKeyword),
+                    Node::leaf(TokenType::ForKeyword),
+                    Node::leaf(TokenType::WhileKeyword)
+                ),
+                vec!()
+            )
+        );
+
+        self.group_map.insert(
+            TokenType::Bloc,
+            Node::new(
+                TokenType::Bloc,
+                vec!(),
+                vec!(
+                    Node::new_c(
+                        TokenType::Symbol,
+                        vec!(
+                            Node::new(
+                                TokenType::BlocProgram,
+                                vec!(),
+                                vec!(Node::leaf_c(TokenType::Symbol, vec!("}")))
+                            )
+                        ),
+                        vec!(Node::leaf_c(TokenType::Symbol, vec!("}"))),
+                        vec!("{")
+                    )
+                )
+            )
+        );
+
+        self.group_map.insert(
+            TokenType::ForKeyword,
+            Node::new(
+                TokenType::ForKeyword,
+                vec!(),
+                vec!(
+                    Node::new_c(
+                        TokenType::Keyword,
+                        vec!(
+                            Node::new(
+                                TokenType::Instruction,
+                                vec!(
+                                    Node::new(
+                                        TokenType::Expression,
+                                        vec!(),
+                                        vec!(
+                                            Node::new_c(
+                                                TokenType::Symbol,
+                                                vec!(
+                                                    Node::new(
+                                                        TokenType::Instruction,
+                                                        vec!(Node::leaf(TokenType::Bloc)),
+                                                        vec!()
+                                                    )
+                                                ),
+                                                vec!(),
+                                                vec!(";")
+                                            )
+                                        )
+                                    )
+                                ),
+                                vec!()
+                            )
+                        ),
+                        vec!(),
+                        vec!("for")
+                    )
+                )
+            )
+        );
+
+        self.group_map.insert(
+            TokenType::IfKeyword,
+            Node::new(
+                TokenType::IfKeyword,
+                vec!(),
+                vec!(
+                    Node::new_c(
+                        TokenType::Keyword,
+                        vec!(
+                            Node::new(
+                                TokenType::Expression,
+                                vec!(
+                                    Node::new_end(
+                                        TokenType::Bloc,
+                                        vec!(),
+                                        vec!(
+                                            Node::new_c(
+                                                TokenType::Keyword,
+                                                vec!(
+                                                    Node::leaf(TokenType::Bloc),
+                                                    Node::leaf(TokenType::IfKeyword)
+                                                ),
+                                                vec!(),
+                                                vec!("else")
+
+                                            )
+                                        )
+                                    )
+                                ),
+                                vec!()
+                            )
+                        ),
+                        vec!(),
+                        vec!("if")
+                    )
+                )
+            )
+        );
+
+        self.group_map.insert(
+            TokenType::WhileKeyword,
+            Node::new(
+                TokenType::WhileKeyword,
+                vec!(),
+                vec!(
+                    Node::new(
+                        TokenType::Keyword,
+                        vec!(
+                            Node::new(
+                                TokenType::Expression,
+                                vec!(Node::leaf(TokenType::Bloc)),
+                                vec!()
                             )
                         ),
                         vec!()
                     )
-                ), 
-                vec!(
-                    Node::new_c(
-                        TokenType::Symbol,  // \n
-                        vec!(
-                            Node::leaf(
-                                TokenType::Program,
-                            )
-                        ),
-                        vec!(),
-                        vec!("\n")
-                    )
-                )
+                ),
             )
         );
     }
