@@ -2,7 +2,7 @@
 mod tools;
 mod hammer;
 
-//use std::env;
+use std::env;
 use hammer::{compile_txt, tokenize_txt};
 use tools::textfiles::{TextFile, file_exists};
 
@@ -21,8 +21,10 @@ static FILE_DOESNT_EXISTS: i8 = 7;
 
 fn main() -> ExitCode {
     let debut = Instant::now();
-    //let args: Vec<String> = env::args().collect();
-    let args = vec!("compiler".to_string(), "testing/tokenizer/first.vu".to_string(), "-t".to_string());
+    let mut args: Vec<String> = env::args().collect();
+    if args.len() == 1 {
+        args = vec!("compiler".to_string(), "testing/tokenizer/first.vu".to_string(), "-t".to_string());
+    }
     let operations: Vec<&str> = vec!("-o", "-t");
     let parameters: Vec<&str> = vec!("-opt");
     

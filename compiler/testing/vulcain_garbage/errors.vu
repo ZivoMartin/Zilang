@@ -3,7 +3,7 @@ int a = 30;
 int* b = &a;
 int** c = &b;
 
-int test = $b;
+int test = *b;
 
 !dn(test);
 

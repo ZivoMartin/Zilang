@@ -1,7 +1,7 @@
 
-func f(int a, int b) -> int {
-    return a + b;
-}
+func f(int a, int b) int {
+    return a;
+};
 
 int a = 2*---1;
 
