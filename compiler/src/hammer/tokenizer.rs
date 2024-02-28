@@ -198,7 +198,11 @@ impl<'a> Tokenizer {
         let mut result = Vec::<Token>::new();
         let first_node = self.group_map.get(&TokenType::Program).unwrap();
         let mut chars = input.chars().peekable();
-        result = self.curse(first_node, result, &mut chars)?;
+        while chars.peek().is_some() {  
+            result = self.curse(first_node, result, &mut chars)?;
+            self.skip_garbage(&mut chars); 
+        }   
+        
         Ok(result)
     } 
 
@@ -612,14 +616,7 @@ impl<'a> Tokenizer {
                         TokenType::Instruction,
                         vec!(),
                         vec!(
-                            Node::new_c(
-                                TokenType::Symbol,
-                                vec!(
-                                    Node::leaf(TokenType::Program)
-                                ),
-                                vec!(),
-                                vec!(";")
-                            )
+                            Node::leaf_c(TokenType::Symbol, vec!(";"))
                         )
                     )
                 ), 

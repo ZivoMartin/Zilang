@@ -7,6 +7,7 @@ use hammer::{compile_txt, tokenize_txt};
 use tools::textfiles::{TextFile, file_exists};
 
 use std::process::{Command, exit, ExitCode};
+use std::time::Instant;
 
 static OK: i8 = 0;
 static COMPILATION_ERROR: i8 = 1;
@@ -19,6 +20,7 @@ static FILE_DOESNT_EXISTS: i8 = 7;
 
 
 fn main() -> ExitCode {
+    let debut = Instant::now();
     //let args: Vec<String> = env::args().collect();
     let args = vec!("compiler".to_string(), "testing/tokenizer/first.vu".to_string(), "-t".to_string());
     let operations: Vec<&str> = vec!("-o", "-t");
@@ -68,6 +70,7 @@ fn main() -> ExitCode {
         "-t" => tokenize_txt(TextFile::new(String::from(input.unwrap())).unwrap().get_text()),
         _ => panic!("Impossible")
     }
+    println!("\n Succès: {:?}", debut.elapsed());
     ExitCode::from(OK as u8)
 }
 
