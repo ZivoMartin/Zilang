@@ -1,0 +1,43 @@
+
+func merge(int* t, int start, int mid, int end) void {
+    int n = end-start;
+    int t_copy[10];
+    int i = start;
+    int j = mid+1;
+    int k = 0;
+    while i <= mid && j < end {
+        if t[i] > t[j] {
+            t_copy[k] = t[j];
+            j += 1;
+        }else{
+            t_copy[k] = t[i];
+            i += 1;
+        };
+        
+        k += 1;
+    };
+    while i <= mid {
+        t_copy[k] = t[i];
+        i += 1;
+        k += 1;
+    };
+    while j < end{
+        t_copy[k] = t[j];
+        j += 1;
+        k += 1;
+    };
+    k = start;
+    while k<n {
+        t[k] = t_copy[k];
+        k += 1;
+    };
+};
+
+func merge_sort(int* t, int start, int end) void {
+    if start < end {
+        int m = (start+end)/2;
+        merge_sort(t, start, m);
+        merge_sort(t, m+1, end);
+        merge(t, start, m-1, end);
+    };
+};

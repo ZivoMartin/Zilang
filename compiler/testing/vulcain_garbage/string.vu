@@ -2,10 +2,10 @@ import ../std/stdio.vu;
 
 char* s = "Hello World!\n\0";
 
-{
+do {
     s = "Nouvelle String !!\n\0";
     print(s);
-}
+};
 
 print(s);
 

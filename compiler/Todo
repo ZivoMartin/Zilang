@@ -2,4 +2,4 @@
 - DirectChar
 - Reussir a fixer la difference entre memory_spot et ExpIdent
 
-Fichiers non compilable: char.vu, do_while.vu, merge_sort.vu
+Fichiers non compilable: string.vu;
