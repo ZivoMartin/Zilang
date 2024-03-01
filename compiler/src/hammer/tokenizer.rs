@@ -67,18 +67,6 @@ impl Clone for TokenType {
 
 
 #[derive(Debug)]
-#[allow(dead_code)]
-pub struct Token {
-    token_type: TokenType,
-    string: String
-}
-
-impl Token {
-    fn new(token_type: TokenType, string: String) -> Token {
-        Token{token_type, string}
-    }
-}
-#[derive(Debug)]
 #[derive(PartialEq)]
 struct Path<'a> {
     path: Vec<&'a Node>,
@@ -144,9 +132,9 @@ impl Node {
         Node::new_c(type_token, groups, sons, get_default_constraint(type_token))
     }
 
-    // fn new_c_r(type_token: TokenType, groups: Vec<Node>, sons: Vec<Node>, constraints: Vec<&'static str>, depth: i8) -> Node {
-    //     Node{type_token, groups, sons, can_end: true, constraints, consider_garbage: false, retry: depth}.check_son()        
-    // }
+    fn new_c_r(type_token: TokenType, groups: Vec<Node>, sons: Vec<Node>, constraints: Vec<&'static str>, depth: i8) -> Node {
+        Node{type_token, groups, sons, can_end: true, constraints: (constraints, true), consider_garbage: false, retry: depth}.check_son()        
+    }
 
     /// Build a leaf, a leaf has to be builded
     fn leaf(type_token: TokenType) -> Node {
@@ -226,66 +214,68 @@ impl<'a> Tokenizer {
         res
     }
 
-    pub fn tokenize(&mut self, input: String) -> Result<Vec<Token>, &'static str> {
-        let mut result = Vec::<Token>::new();
+    pub fn tokenize(&mut self, input: String) -> Result<(), &'static str> {
         let first_node = self.group_map.get(&TokenType::Program).unwrap();
         let mut chars = input.chars().peekable();
         while chars.peek().is_some() {  
-            match self.curse(first_node, &mut result, &mut chars) {
+            match self.curse(first_node, &mut chars) {
                 Ok(()) => (),
                 Err(_) => return Err("Failed to tokenise")
             }
             self.skip_garbage(&mut chars); 
         }   
-        
-        Ok(result)
+        Ok(())
     } 
     
-    fn curse(&self, current_node: &Node, res: &mut Vec<Token>, chars: &mut Peekable<Chars>) -> Result<(), i8> {
+    fn curse(&self, current_node: &Node, chars: &mut Peekable<Chars>) -> Result<(), i8> {
         if !current_node.is_leaf() {
-            if !current_node.consider_garbage {
-                self.skip_garbage(chars); 
-            }
-            if chars.peek().is_some() {
-                let mut paths_vec = self.get_son_array(current_node);
-                let save = chars.clone();
-                match self.get_next_token(&mut paths_vec, chars) {
-                    Ok(token_string) => {
-                        match self.filter_nodes(&mut paths_vec, &token_string) {
-                            Some(path) => {
-                                println!("PUSHED: {:?}: {token_string}", path.p_node().type_token);
-                                res.push(Token::new(path.p_node().type_token, token_string));
-                                let mut n_index = 0;
-                                while n_index < path.path.len() {
-                                    match self.curse(path.path[n_index], res, chars) {
-                                        Ok(()) => n_index += 1,
-                                        Err(depth) => {
-                                            // println!("{:?} : {} {}", current_node.type_token, current_node.retry, depth);
-                                            if current_node.retry != depth {
-                                                return Err(depth + 1)
-                                            } 
-                                            n_index =  0;
+            loop {
+                let mut retry = false;
+                if !current_node.consider_garbage {
+                    self.skip_garbage(chars); 
+                }
+                if chars.peek().is_some() {
+                    let mut paths_vec = self.get_son_array(current_node);
+                    let save = chars.clone();
+                    match self.get_next_token(&mut paths_vec, chars) {
+                        Ok(token_string) => {
+                            match self.filter_nodes(&mut paths_vec, &token_string) {
+                                Some(path) => {
+                                    //println!("{:?}: {token_string}", path.p_node().type_token);
+                                    for p in path.path.iter() {
+                                        match self.curse(p, chars) {
+                                            Ok(()) => (),
+                                            Err(depth) => {
+                                                if current_node.retry != depth {
+                                                    return Err(depth + 1)
+                                                } 
+                                                retry = true;
+                                                break;
+                                            }
                                         }
                                     }
                                 }
-                            }
-                            _ => {
-                                if !current_node.can_end {
-                                    return Err(0)
+                                _ => {
+                                    if !current_node.can_end {
+                                        return Err(0)
+                                    }
+                                    *chars = save;
                                 }
-                                *chars = save;
                             }
+                        },
+                        Err(_) => {
+                            if !current_node.can_end {
+                                return Err(0)
+                            }
+                            *chars = save;
                         }
-                    },
-                    Err(_) => {
-                        if !current_node.can_end {
-                            return Err(0)
-                        }
-                        *chars = save;
                     }
+                }else if !current_node.can_end {
+                    return Err(0);
                 }
-            }else if !current_node.can_end {
-                return Err(0);
+                if !retry {
+                    break;
+                }
             }
         }
         Ok(())
@@ -363,7 +353,7 @@ impl<'a> Tokenizer {
         }
         for group in node.groups.iter() {
             let mut paths = self.get_son_array(self.group_map.get(&group.type_token).unwrap());
-            if !group.is_leaf() || group.retry != -1 {
+            if !group.is_leaf() {
                 for p in paths.iter_mut() {
                     p.path.push(group);
                 }
@@ -659,15 +649,13 @@ impl<'a> Tokenizer {
                 vec!(
                     Node::new(
                         TokenType::ComplexChar,
+                        vec!(),
                         vec!(
-                            Node::leaf(TokenType::SerieChar)
-                        ),
-                        vec!()
+                            Node::leaf_c(TokenType::Symbol, vec!("\""))
+                        )
                     )
                 ),
-                vec!(
-                    Node::leaf_c(TokenType::Symbol, vec!("\"")),
-                )
+                vec!()
             )
         );
         
@@ -856,19 +844,14 @@ impl<'a> Tokenizer {
                 TokenType::String,
                 vec!(),
                 vec!(
-                    Node::new_c(
+                    Node::new_c_r(
                         TokenType::Symbol,
                         vec!(
-                            Node::new(
-                                TokenType::SerieChar,
-                                vec!(),
-                                vec!(
-                                    Node::leaf_c(TokenType::Symbol, vec!("\""))
-                                )
-                            )
+                            Node::leaf(TokenType::SerieChar)
                         ),
                         vec!(),
-                        vec!("\"")
+                        vec!("\""),
+                        0
                     )
                 )
             )
@@ -1005,9 +988,7 @@ impl<'a> Tokenizer {
                         vec!(
                             Node::new_c(
                                 TokenType::Symbol,
-                                vec!(
-                                    Node::leaf(TokenType::BlocProgram)
-                                ),
+                                vec!(),
                                 vec!(
                                     Node::leaf_c(TokenType::Symbol, vec!("}"))
                                 ),
@@ -1078,13 +1059,14 @@ impl<'a> Tokenizer {
                     Node::leaf(TokenType::Instruction)
                 ),
                 vec!(
-                    Node::new_c(
+                    Node::new_c_r(
                         TokenType::Symbol,
                         vec!(
                             Node::leaf(TokenType::BlocProgram)
                         ),
                         vec!(Node::leaf_c(TokenType::Symbol, vec!("}"))),
                         vec!("{"),
+                        1
                     )
                 )
             )
