@@ -1,9 +1,5 @@
-- Fixer les problemes avec le mot clé return
-- Fixer le probleme des appels de fonction
-- Distinguer les tuples de declaration des tuples d'expression
-- Affectation instentanée de tableau
-- do while
 - String
 - DirectChar
+- Reussir a fixer la difference entre memory_spot et ExpIdent
 
-Fichiers non compilable: char.vu, do_while.vu, operations.vu, merge_sort.vu
+Fichiers non compilable: char.vu, do_while.vu, merge_sort.vu
