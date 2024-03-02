@@ -3,7 +3,7 @@ mod tools;
 mod hammer;
 
 use std::env;
-use hammer::{compile_txt, tokenize_txt};
+use hammer::compile_txt;
 use tools::textfiles::{TextFile, file_exists};
 
 use std::process::{Command, exit, ExitCode};
@@ -25,7 +25,7 @@ fn main() -> ExitCode {
     if args.len() == 1 {
         args = vec!("compiler".to_string(), "testing/tokenizer/first.vu".to_string(), "-t".to_string());
     }
-    let operations: Vec<&str> = vec!("-o", "-t");
+    let operations: Vec<&str> = vec!("-o");
     let parameters: Vec<&str> = vec!("-opt");
     
     let mut operation: Option<&str> = None;
@@ -68,8 +68,7 @@ fn main() -> ExitCode {
         exit(CONVERT_OPERATOR_MISSING as i32);
     }
     match operation.unwrap() {
-        "-o" => return compile(input.unwrap(), output.unwrap(), debug),
-        "-t" => tokenize_txt(TextFile::new(String::from(input.unwrap())).unwrap().get_text()),
+        "-o" => {compile(input.unwrap(), output.unwrap(), debug);},
         _ => panic!("Impossible")
     }
     println!("\n Succès: {:?}", debut.elapsed());

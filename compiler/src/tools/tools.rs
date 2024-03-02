@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use super::stack::Stack;
+use super::collections::Stack;
 
 pub struct Tools{
     authorized_char_for_variable: &'static str,

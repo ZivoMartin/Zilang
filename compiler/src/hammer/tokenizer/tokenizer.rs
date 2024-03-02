@@ -2,11 +2,14 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::str::Chars;
 use std::iter::Peekable;
+use crate::hammer::Hammer;
 use super::include::*;
 use super::grammar_tree::build_grammar_tree;
 
 
+
 pub struct Tokenizer {
+    hammer: *mut Hammer,
     group_map: HashMap<TokenType, Node>,
     priority_map: HashMap<TokenType, u8>,
     identity_map: HashMap<fn(char)->bool, Vec<TokenType>>
@@ -36,11 +39,12 @@ fn build_identity_map() -> HashMap<fn(char)->bool, Vec<TokenType>> {
 
 impl<'a> Tokenizer {
 
-    pub fn new() -> Tokenizer {
+    pub fn new(hammer: &'a mut Hammer) -> Tokenizer {
         Tokenizer{
             group_map: build_grammar_tree(),
             priority_map: build_priority_map(),
-            identity_map: build_identity_map()
+            identity_map: build_identity_map(),
+            hammer
         }
     }
 
@@ -71,7 +75,10 @@ impl<'a> Tokenizer {
                         Ok(token_string) => {
                             match self.filter_nodes(&mut paths_vec, &token_string) {
                                 Some(path) => {
-                                    //println!("{:?}: {token_string}", path.p_node().type_token);
+                                    println!("{:?}: {token_string}", path.p_node().type_token);
+                                    unsafe{
+                                        *(self.hammer).new_token(format!("{:?}: {token_string}", ));
+                                    }
                                     for p in path.path.iter() {
                                         match self.curse(p, chars) {
                                             Ok(()) => (),

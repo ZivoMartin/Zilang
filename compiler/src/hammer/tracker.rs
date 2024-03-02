@@ -1,4 +1,4 @@
-use crate::tools::stack::Stack;
+use crate::tools::collections::Stack;
 use std::collections::HashMap;
 use crate::tools::tools::{last_char, operation};
 pub struct Tracker{
