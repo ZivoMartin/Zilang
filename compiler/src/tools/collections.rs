@@ -1,7 +1,9 @@
+#[allow(dead_code)]
 pub struct Stack<T>{
     vec: Vec::<T>
 }
 
+#[allow(dead_code)]
 impl<T> Stack<T>{
 
     pub fn new() -> Stack<T>{ 

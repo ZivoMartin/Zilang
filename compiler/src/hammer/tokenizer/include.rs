@@ -1,3 +1,5 @@
+use super::tokenizer::Tokenizer;
+
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub enum TokenType {
     // Primitive Token
@@ -61,6 +63,18 @@ impl Clone for TokenType {
 }
 
 
+pub struct Token {
+    pub token_type: TokenType,
+    pub content: String
+}
+
+impl Token {
+    pub fn new(token_type: TokenType, content: String) -> Token {
+        Token{token_type, content}
+    }
+}
+
+
 #[derive(Debug)]
 #[derive(PartialEq)]
 pub struct Path<'a> {
@@ -74,6 +88,14 @@ impl<'a> Path<'a> {
 
     pub fn p_node(&self) -> &'a Node {
         self.path[0]
+    }
+
+    pub fn proke_travel_functions(&self, tokenizer: &Tokenizer, token_string: &String) {
+        for node in self.path.iter().rev() {
+            if node.travel_react.is_some() {
+                (node.travel_react.unwrap())(tokenizer, node.type_token, token_string)
+            }
+        }
     } 
 }
 
@@ -85,7 +107,8 @@ pub struct Node {
     pub can_end: bool,
     pub constraints: (Vec::<&'static str>, bool),
     pub consider_garbage: bool,
-    pub retry: i8
+    pub retry: i8,
+    pub travel_react: Option::<fn(&Tokenizer, TokenType, &String)>
 }
 
 
@@ -128,7 +151,7 @@ impl Node {
     }
 
     pub fn new_c_r(type_token: TokenType, groups: Vec<Node>, sons: Vec<Node>, constraints: Vec<&'static str>, depth: i8) -> Node {
-        Node{type_token, groups, sons, can_end: true, constraints: (constraints, true), consider_garbage: false, retry: depth}.check_son()        
+        Node{type_token, groups, sons, can_end: true, constraints: (constraints, true), consider_garbage: false, retry: depth, travel_react: None}.check_son()        
     }
 
     /// Build a leaf, a leaf has to be builded
@@ -142,7 +165,7 @@ impl Node {
     }
 
     pub fn new_c(type_token: TokenType, groups: Vec<Node>, sons: Vec<Node>, constraints: Vec<&'static str>) -> Node {
-        Node{type_token, groups, sons, can_end: false, constraints: (constraints, true), consider_garbage: false, retry: -1}.check_son()
+        Node{type_token, groups, sons, can_end: false, constraints: (constraints, true), consider_garbage: false, retry: -1, travel_react: None}.check_son()
     }
 
     pub fn leaf_c(type_token: TokenType, constraints: Vec<&'static str>) -> Node {
@@ -150,7 +173,7 @@ impl Node {
     }
 
     pub fn new_end_c(type_token: TokenType, groups: Vec<Node>, sons: Vec<Node>, constraints: Vec<&'static str>) -> Node {
-        Node{type_token, groups, sons, can_end: true, constraints: (constraints, true), consider_garbage: false, retry: -1}.check_son()
+        Node{type_token, groups, sons, can_end: true, constraints: (constraints, true), consider_garbage: false, retry: -1, travel_react: None}.check_son()
     }
 
     pub fn is_leaf(&self) -> bool {
@@ -167,4 +190,8 @@ impl Node {
         self.constraints.0.is_empty() || contains && self.constraints.1 || !contains && !self.constraints.1
     }
 
+    pub fn react(mut self, r: fn(&Tokenizer, TokenType, &String)) -> Node {
+        self.travel_react = Some(r);
+        self
+    }
 }

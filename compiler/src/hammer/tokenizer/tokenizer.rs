@@ -15,6 +15,8 @@ pub struct Tokenizer {
     identity_map: HashMap<fn(char)->bool, Vec<TokenType>>
 }
 
+unsafe impl Send for Tokenizer{}
+
 fn build_priority_map() -> HashMap<TokenType, u8> {
     let mut priority_map = HashMap::<TokenType, u8>::new();
     priority_map.insert(TokenType::Ident, 1);
@@ -58,6 +60,9 @@ impl<'a> Tokenizer {
             }
             self.skip_garbage(&mut chars); 
         }   
+        unsafe{
+            (**&self.hammer).end_of_tokenizing_thread();
+        }
         Ok(())
     } 
     
@@ -75,10 +80,7 @@ impl<'a> Tokenizer {
                         Ok(token_string) => {
                             match self.filter_nodes(&mut paths_vec, &token_string) {
                                 Some(path) => {
-                                    println!("{:?}: {token_string}", path.p_node().type_token);
-                                    unsafe{
-                                        *(self.hammer).new_token(format!("{:?}: {token_string}", ));
-                                    }
+                                    path.proke_travel_functions(&self, &token_string);
                                     for p in path.path.iter() {
                                         match self.curse(p, chars) {
                                             Ok(()) => (),
@@ -190,7 +192,7 @@ impl<'a> Tokenizer {
         }
         for group in node.groups.iter() {
             let mut paths = self.get_son_array(self.group_map.get(&group.type_token).unwrap());
-            if !group.is_leaf() {
+            if group.travel_react.is_some() || !group.is_leaf() {
                 for p in paths.iter_mut() {
                     p.path.push(group);
                 }
@@ -224,6 +226,14 @@ impl<'a> Tokenizer {
             }
             chars.next();
         }
+    }
+
+    pub fn push_token(&self, token_type: TokenType, content: &String) {
+        unsafe{(**&self.hammer).new_token(Token::new(token_type, content.clone()));}
+    }
+
+    pub fn push_group(&self, token_type: TokenType, _content: &String) {
+        unsafe{(**&self.hammer).new_group(token_type);}
     }
 }
 
