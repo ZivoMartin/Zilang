@@ -1,4 +1,4 @@
-use super::tokenizer::Tokenizer;
+use super::tokenizer::{self, Tokenizer};
 
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub enum TokenType {
@@ -94,6 +94,14 @@ impl<'a> Path<'a> {
         for node in self.path.iter().rev() {
             if node.travel_react.is_some() {
                 (node.travel_react.unwrap())(tokenizer, node.type_token, token_string)
+            }
+        }
+    } 
+
+    pub fn end_alls_groups(&self, tokenizer: &Tokenizer) {
+        for node in self.path.iter().rev() {
+            if node.travel_react.is_some() && node.travel_react == Some(Tokenizer::push_group) {
+                tokenizer.end_group(node.type_token)
             }
         }
     } 

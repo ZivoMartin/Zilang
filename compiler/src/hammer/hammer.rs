@@ -50,4 +50,8 @@ impl<'a> Hammer {
         println!("NEW GROUP: {:?}", type_token)
     }
 
+    pub fn end_group(&mut self, type_token: TokenType) {
+        println!("END GROUP: {type_token:?}\n")
+    }
+
 }

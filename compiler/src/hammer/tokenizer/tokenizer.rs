@@ -80,10 +80,14 @@ impl<'a> Tokenizer {
                         Ok(token_string) => {
                             match self.filter_nodes(&mut paths_vec, &token_string) {
                                 Some(path) => {
-                                    path.proke_travel_functions(&self, &token_string);
-                                    for p in path.path.iter() {
-                                        match self.curse(p, chars) {
-                                            Ok(()) => (),
+                                    path.proke_travel_functions(self, &token_string);
+                                    for node in path.path.iter() {
+                                        match self.curse(node, chars) {
+                                            Ok(()) => {
+                                                if node.travel_react == Some(Tokenizer::push_group) {
+                                                    self.end_group(node.type_token)
+                                                }
+                                            },
                                             Err(depth) => {
                                                 if current_node.retry != depth {
                                                     return Err(depth + 1)
@@ -234,6 +238,10 @@ impl<'a> Tokenizer {
 
     pub fn push_group(&self, token_type: TokenType, _content: &String) {
         unsafe{(**&self.hammer).new_group(token_type);}
+    }
+
+    pub fn end_group(&self, token_type: TokenType) {
+        unsafe{(**&self.hammer).end_group(token_type);}
     }
 }
 
