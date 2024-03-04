@@ -100,7 +100,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                             vec!(",")
                         )
                     )
-                )
+                ).react(Tokenizer::push_group)
             ),
             vec!()
         )
@@ -498,7 +498,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 )
             ),
             vec!()   
-        ).react(Tokenizer::push_group)
+        )
     );
 
     group_map.insert(
@@ -535,17 +535,17 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     ),
                     vec!()
                 ),
-                Node::leaf(TokenType::Declaration),
-                Node::leaf(TokenType::MacroCall)
+                Node::leaf(TokenType::Declaration).react(Tokenizer::push_group),
+                Node::leaf(TokenType::MacroCall).react(Tokenizer::push_group)
             ),
             vec!(
-                Node::leaf_c(TokenType::Keyword, vec!("break", "continue")),
+                Node::leaf_c(TokenType::Keyword, vec!("break", "continue")).react(Tokenizer::push_token),
                 Node::new_end_c(
                     TokenType::Keyword,
-                    vec!(Node::leaf(TokenType::Expression)),
+                    vec!(Node::leaf(TokenType::Expression).react(Tokenizer::push_group)),
                     vec!(),
                     vec!("return")
-                )
+                ).react(Tokenizer::push_token)
             )
         )
     );
@@ -585,7 +585,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(
                         Node::leaf_c(TokenType::Symbol, vec!(";"))
                     )
-                )
+                ).react(Tokenizer::push_group)
             ), 
             vec!()      
         )
@@ -662,7 +662,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 Node::leaf(TokenType::DoKeyWord)
             ),
             vec!()
-        ).react(Tokenizer::push_group)
+        )
     );
 
     group_map.insert(
@@ -670,7 +670,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
         Node::new(
             TokenType::Bloc,
             vec!(
-                Node::leaf(TokenType::Instruction)
+                Node::leaf(TokenType::Instruction).react(Tokenizer::push_group).react(Tokenizer::end_group)
             ),
             vec!(
                 Node::new_c_r(
@@ -681,7 +681,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(Node::leaf_c(TokenType::Symbol, vec!("}"))),
                     vec!("{"),
                     1
-                )
+                ).react(Tokenizer::end_group)
             )
         )
     );
@@ -727,7 +727,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                                                             vec!(")")
                                                                         )
                                                                     )
-                                                                )
+                                                                ).react(Tokenizer::push_group)
                                                             ),
                                                             vec!(),
                                                             vec!(";")
@@ -739,7 +739,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                             vec!(";")
                                         )
                                     )
-                                )
+                                ).react(Tokenizer::push_group)
                             ),
                             vec!(),
                             vec!("(")
@@ -784,7 +784,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     ),
                     vec!(),
                     vec!("if")
-                ).react(Tokenizer::push_group)
+                ).react(Tokenizer::push_token)
             )
         )
     );

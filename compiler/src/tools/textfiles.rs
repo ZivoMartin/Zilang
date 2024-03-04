@@ -13,6 +13,8 @@ pub struct TextFile{
     file_path: PathBuf,
     file: File,
 }
+
+#[allow(dead_code)]
 impl TextFile{
 
     pub fn new(mut file_path: String) -> Result<TextFile, String> {

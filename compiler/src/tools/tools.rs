@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use super::collections::Stack;
-
+#[allow(dead_code)]
 pub struct Tools{
     authorized_char_for_variable: &'static str,
     operators: Vec<&'static str>,
@@ -9,6 +9,7 @@ pub struct Tools{
     reverse_ascii_map: HashMap::<i32, &'static str>
 }
 
+#[allow(dead_code)]
 impl Tools{
 
     pub fn new() -> Tools{
@@ -124,6 +125,7 @@ impl Tools{
 
 }
 
+#[allow(dead_code)]
 pub fn split(string: &str, splitter: &str) -> Vec::<String>{
     string.split(splitter).map(String::from).collect()
 }
@@ -148,7 +150,7 @@ fn build_operator_priority() -> HashMap<String, u8>{
     res
 }
 
-
+#[allow(dead_code)]
 pub fn from_char_to_number(chara: &mut String) -> Option<i8> {
     if chara.len() <= 2 || !chara.starts_with('\'') || !chara.ends_with('\''){
         return None
@@ -175,6 +177,7 @@ pub fn convert_in_one_char(ch: char) -> Option<char> {
     }
 }
 
+#[allow(dead_code)]
 pub fn extract_end_char(s: &mut String, chara: char) -> u32 {
     let mut result: u32 = 0;
     while s.len() > 0 && s.ends_with(chara) {
@@ -184,10 +187,12 @@ pub fn extract_end_char(s: &mut String, chara: char) -> u32 {
     result    
 }
 
+#[allow(dead_code)]
 pub fn last_char(s: &str) -> char {
     s.chars().last().unwrap()
 }
 
+#[allow(dead_code)]
 pub fn operation(val1: i64, val2: i64, operator: u8) -> i64 {
     match operator as char {
         '@' => (val1 != val2) as i64,

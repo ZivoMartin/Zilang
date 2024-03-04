@@ -85,7 +85,7 @@ impl<'a> Tokenizer {
                                         match self.curse(node, chars) {
                                             Ok(()) => {
                                                 if node.travel_react == Some(Tokenizer::push_group) {
-                                                    self.end_group(node.type_token)
+                                                    self.end_group(node.type_token, &token_string)
                                                 }
                                             },
                                             Err(depth) => {
@@ -197,6 +197,7 @@ impl<'a> Tokenizer {
         for group in node.groups.iter() {
             let mut paths = self.get_son_array(self.group_map.get(&group.type_token).unwrap());
             if group.travel_react.is_some() || !group.is_leaf() {
+                //println!("{:?}", group.type_token);
                 for p in paths.iter_mut() {
                     p.path.push(group);
                 }
@@ -240,7 +241,7 @@ impl<'a> Tokenizer {
         unsafe{(**&self.hammer).new_group(token_type);}
     }
 
-    pub fn end_group(&self, token_type: TokenType) {
+    pub fn end_group(&self, token_type: TokenType, _content: &String) {
         unsafe{(**&self.hammer).end_group(token_type);}
     }
 }
