@@ -51,8 +51,8 @@ pub struct VariableDefinition{
     pub type_var: Type,
 }
 
-impl VariableDefinition {
-    pub fn clone(&self) -> VariableDefinition {
+impl Clone for VariableDefinition {
+    fn clone(&self) -> VariableDefinition {
         VariableDefinition {
             name: self.name.clone(),
             type_var: self.type_var.clone()
@@ -85,30 +85,5 @@ impl Jump {
 
 }
 
-pub enum Interp {
-    Function,
-    Variable,
-    Value,
-    Operator
-}
 
-pub struct Token {
-    pub val: i32,
-    pub nb_stars: i32,
-    pub squares: Option<Vec::<Vec<Token>>>,
-    pub func_dec: Option<String>,
-    pub interp: Interp
-}
 
-impl Token {
-
-    pub fn new_val(val: i32) -> Token{
-        Token{val, squares: None, func_dec: None, nb_stars: 0, interp: Interp::Value}
-    }
-    pub fn new_op(op: i32) -> Token {
-        Token{val: op, squares: None, func_dec: None, nb_stars: 0, interp: Interp::Operator}
-    }
-    pub fn new_func(func: String) -> Token {
-        Token{val: 0, squares: None, func_dec: Some(func), nb_stars: 0, interp: Interp::Function}
-    }
-}

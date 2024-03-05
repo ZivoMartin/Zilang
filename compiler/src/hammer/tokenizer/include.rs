@@ -41,7 +41,9 @@ pub enum TokenType {
     MacroCall,
     DirectChar,
     PointerSymbolSerie,
-    ComplexChar
+    ComplexChar,
+
+    EndToken
 }
 
 

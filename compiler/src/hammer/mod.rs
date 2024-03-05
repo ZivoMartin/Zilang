@@ -2,6 +2,9 @@ mod hammer;
 // mod structs;
 // mod tracker;
 mod tokenizer;
+mod tools;
+mod include;
+mod memory;
 use hammer::Hammer;
 
 /// This function takes as parameters the program name, the text you want to compile and a Boolean indicating whether you want the 
