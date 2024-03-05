@@ -241,8 +241,12 @@ impl<'a> Tokenizer {
         unsafe{(**&self.hammer).new_group(token_type);}
     }
 
-    pub fn end_group(&self, token_type: TokenType, _content: &String) {
-        unsafe{(**&self.hammer).end_group(token_type);}
+    pub fn end_group(&self, _token_type: TokenType, _content: &String) {
+        unsafe{(**&self.hammer).end_group();}
+    }
+
+    pub fn push_once(&self, token_type: TokenType, content: &String) {
+        self.push_group(token_type, content)
     }
 }
 

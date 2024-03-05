@@ -107,9 +107,9 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
     );
 
     group_map.insert(
-        TokenType::ExpIdent,
+        TokenType::ComplexIdent,
         Node::new(
-            TokenType::ExpIdent,
+            TokenType::ComplexIdent,
             vec!(),
             vec!(
                 Node::new_end(
@@ -122,32 +122,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 Node::new_c(
                     TokenType::Symbol,
                     vec!(
-                        Node::leaf(TokenType::ExpIdent)
-                    ),
-                    vec!(),
-                    vec!("&", "*")
-                ).react(Tokenizer::push_token),
-            )
-        ).react(Tokenizer::push_group)
-    );
-
-    group_map.insert(
-        TokenType::MemorySpot,
-        Node::new(
-            TokenType::MemorySpot,
-            vec!(),
-            vec!(
-                Node::new_end(
-                    TokenType::Ident,
-                    vec!(
-                        Node::leaf(TokenType::BrackTuple)
-                    ),
-                    vec!()
-                ).react(Tokenizer::push_token),
-                Node::new_c(
-                    TokenType::Symbol,
-                    vec!(
-                        Node::leaf(TokenType::MemorySpot)
+                        Node::leaf(TokenType::ComplexIdent)
                     ),
                     vec!(),
                     vec!("&", "*")
@@ -278,7 +253,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
         Node::new(
             TokenType::Value,
             vec!(
-                Node::leaf(TokenType::ExpIdent),
+                Node::leaf(TokenType::ComplexIdent).react(Tokenizer::push_group),
                 Node::leaf(TokenType::DirectChar)
             ),
             vec!(
@@ -529,12 +504,12 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
             vec!(
                 Node::leaf(TokenType::KeywordInstruction),
                 Node::new_end(
-                    TokenType::MemorySpot,
+                    TokenType::ComplexIdent,
                     vec!(
                         Node::leaf(TokenType::Affectation),
                     ),
                     vec!()
-                ),
+                ).react(Tokenizer::push_group),
                 Node::leaf(TokenType::Declaration).react(Tokenizer::push_group),
                 Node::leaf(TokenType::MacroCall).react(Tokenizer::push_group)
             ),
@@ -780,7 +755,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                 )
                             ),
                             vec!()
-                        ).react(Tokenizer::push_group)
+                        ).react(Tokenizer::push_once)
                     ),
                     vec!(),
                     vec!("if")

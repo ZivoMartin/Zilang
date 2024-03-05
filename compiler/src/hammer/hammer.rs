@@ -24,6 +24,7 @@ fn init_group_map() -> HashMap<TokenType, fn(&mut Hammer, Token)> {
     res.insert(TokenType::WhileKeyword, Hammer::keywordinst);
     res.insert(TokenType::DoKeyWord, Hammer::keywordinst);
     res.insert(TokenType::FuncKeyword, Hammer::keywordinst);
+    res.insert(TokenType::ComplexIdent, Hammer::complex_ident);
     res
 }
 
@@ -69,14 +70,15 @@ impl<'a> Hammer {
         self.group_stack.push(*self.group_map.get(&type_token).unwrap());
     }
 
-    pub fn end_group(&mut self, type_token: TokenType) {
+    pub fn end_group(&mut self) {
         self.group_stack.pop();
-        println!("END GROUP: {type_token:?}\n")
+        println!("END GROUP\n")
     }
 
     fn expression(&mut self, token: Token) {
         println!("Expression: new token consumed: {}", token.content);
     }
+    
     fn declaration(&mut self, token: Token) {
         println!("Declaration: new token consumed: {}", token.content);
     }
@@ -85,6 +87,10 @@ impl<'a> Hammer {
     }
     fn instruction(&mut self, token: Token) {
         println!("instruction: new token consumed: {}", token.content);
+    }
+
+    fn complex_ident(&mut self, token: Token) {
+        println!("complexe ident: new token consumed: {}", token.content);  
     }
 
 
