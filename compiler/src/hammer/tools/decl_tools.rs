@@ -1,21 +1,43 @@
 use crate::hammer::memory::Memory;
+use super::program::{Tool, panic_bad_token};
+use crate::hammer::tokenizer::include::{TokenType, Token};
+
 pub struct DeclTools {
     name: String,
     type_name: String,
-    stars: u32,
+    stars: i32,
     equal_op: String
 }
 
-impl DeclTools {
+impl Tool for DeclTools {
 
-    pub fn new() -> DeclTools {
-        DeclTools {
+    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<Option<Token>, String>{
+        match token.token_type {
+            TokenType::Type => self.def_type(token.content),
+            TokenType::Ident => self.def_name(token.content, memory),
+            TokenType::Symbol => self.new_star(token.content),
+            TokenType::Operator => self.def_equal_operator(token.content),
+            TokenType::Expression => (),
+            TokenType::EndToken => self.end(memory),
+            _ => panic_bad_token("declaration", token)
+        }
+        Ok(None)
+    }
+
+
+    fn new() -> Box<dyn Tool> {
+        Box::from(DeclTools {
             name: String::new(),
             type_name: String::new(),
             stars: 0,
             equal_op: String::new()
-        }
+        })
     }
+
+}
+
+impl DeclTools {
+
 
     pub fn new_star(&mut self, content: String) {
         if content == "*" {
@@ -40,17 +62,8 @@ impl DeclTools {
 
 
     pub fn end(&mut self, _memory: &mut Memory) {
-        println!("{} {} {} {}", self.type_name, self.name, self.stars, self.equal_op);
         if !self.equal_op.is_empty() {
-            match &self.equal_op as &str {
-                "=" =>  (),
-                "-=" => (),
-                "+=" => (),
-                "*=" => (),
-                "/=" => (),
-                "%=" => (),
-                _ => panic!("This affect operator is unknow: {}", self.equal_op)
-            }
+            todo!("Implementer les affectations");
         }
         self.name.clear();
         self.type_name.clear();

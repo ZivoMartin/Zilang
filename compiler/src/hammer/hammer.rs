@@ -2,14 +2,14 @@ use std::thread::{JoinHandle, spawn};
 use crate::tools::collections::Queue;
 use super::tokenizer::{include::{Token, TokenType}, tokenizer::Tokenizer};
 use std::process::exit;
-use super::tools::tools::Tools;
+use super::tools::program::Program;
 
 
 pub struct Hammer {
     token_queue: Queue<Token>,
     tokenizing_thread: Vec<JoinHandle<()>>,
     keep_compile: bool,
-    tools: Tools,
+    tools: Program,
 }
 
 
@@ -20,7 +20,7 @@ impl<'a> Hammer {
             token_queue: Queue::new(),
             tokenizing_thread: Vec::new(),
             keep_compile: true,
-            tools: Tools::new()
+            tools: Program::new()
         }
     }
 
@@ -35,7 +35,10 @@ impl<'a> Hammer {
         while self.keep_compile {
             if !self.token_queue.is_empty() {
                 let token = self.token_queue.dequeue();
-                self.tools.tokenize(token)
+                match self.tools.tokenize(token) {
+                    Ok(()) => (),
+                    Err(e) => panic!("{e}")
+                }
             }
         }
     }
@@ -53,6 +56,9 @@ impl<'a> Hammer {
     }
 
     pub fn end_group(&mut self) {
-        self.tools.end_group();
+        match self.tools.end_group() {
+            Ok(()) => (),
+            Err(e) => panic!("{e}")
+        }
     }
 }

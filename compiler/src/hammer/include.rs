@@ -1,10 +1,13 @@
 
+pub static POINTER_SIZE: u8 = 4;
+
 pub struct Type {
     pub name: String,
     pub size: u8,
-    pub stars: u32
+    pub stars: i32
 }
 
+#[allow(dead_code)]
 pub struct Function {
     pub args: Vec::<VariableDefinition>,
     pub return_type: Type,

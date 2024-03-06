@@ -1,3 +1,5 @@
+- Regler les soucis pour le faux operateur *&.
+
 ComplexIdent: 
     *
 
@@ -7,3 +9,4 @@ DirectChar:
 Expressions:
     - DirectChar
     - ComplexIdent
+    - Catch the negatives symbol

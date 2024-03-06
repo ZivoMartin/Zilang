@@ -43,7 +43,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                             TokenType::SerieExpression,
                             vec!(),
                             vec!(
-                                Node::leaf_c(TokenType::Symbol, vec!(")"))
+                                Node::leaf_c(TokenType::Symbol, vec!(")")).react(Tokenizer::end_group)
                             ),
                         )
                     ), 
@@ -74,9 +74,9 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                             ),
                             vec!(),
                             vec!(",")
-                        )
+                        ).react(Tokenizer::end_group)
                     )
-                ).react(Tokenizer::push_group)
+                ).react(Tokenizer::push_once)
             ),
             vec!()
         )
@@ -149,7 +149,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                         Node::leaf(TokenType::BrackTuple)
                     ),
                     vec!()
-                )
+                ).react(Tokenizer::push_token)
             ),
             vec!()
         )
@@ -177,9 +177,9 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                     ),
                                     vec!(),
                                     vec!("]")
-                                )
+                                ).react(Tokenizer::end_group)
                             )
-                        ).react(Tokenizer::push_group)
+                        ).react(Tokenizer::push_once)
                     ),
                     vec!(),
                     vec!("[")
@@ -538,7 +538,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                         Node::new(
                             TokenType::Ident,
                             vec!(
-                                Node::leaf(TokenType::ExpressionTuple)
+                                Node::leaf(TokenType::ExpressionTuple).react(Tokenizer::push_token)
                             ),
                             vec!()
                         ).react(Tokenizer::push_token)
@@ -560,7 +560,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(
                         Node::leaf_c(TokenType::Symbol, vec!(";"))
                     )
-                ).react(Tokenizer::push_group)
+                )
             ), 
             vec!()      
         )
