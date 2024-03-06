@@ -47,7 +47,7 @@ impl ExpTools {
             self.pf_exp.push(self.op_stack.pop());
         }
         println!("This is ou final expression: {}", self.pf_exp.join(" "));
-        self.pf_exp.clear()
+        self.pf_exp.clear();
     }
 
     fn get_priority(&self, op: &String) -> u8 {

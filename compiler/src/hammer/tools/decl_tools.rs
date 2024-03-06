@@ -1,9 +1,9 @@
 use crate::hammer::memory::Memory;
-
 pub struct DeclTools {
     name: String,
     type_name: String,
-    stars: u32
+    stars: u32,
+    equal_op: String
 }
 
 impl DeclTools {
@@ -12,7 +12,8 @@ impl DeclTools {
         DeclTools {
             name: String::new(),
             type_name: String::new(),
-            stars: 0
+            stars: 0,
+            equal_op: String::new()
         }
     }
 
@@ -33,9 +34,27 @@ impl DeclTools {
         memory.new_var(self.type_name.clone(), self.name.clone(), self.stars);
     }
 
-    pub fn end(&mut self) {
+    pub fn def_equal_operator(&mut self, op: String) {
+        self.equal_op = op;
+    }
+
+
+    pub fn end(&mut self, _memory: &mut Memory) {
+        println!("{} {} {} {}", self.type_name, self.name, self.stars, self.equal_op);
+        if !self.equal_op.is_empty() {
+            match &self.equal_op as &str {
+                "=" =>  (),
+                "-=" => (),
+                "+=" => (),
+                "*=" => (),
+                "/=" => (),
+                "%=" => (),
+                _ => panic!("This affect operator is unknow: {}", self.equal_op)
+            }
+        }
         self.name.clear();
         self.type_name.clear();
+        self.equal_op.clear();
         self.stars = 0;
     }
 

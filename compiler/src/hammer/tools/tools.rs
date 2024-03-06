@@ -36,12 +36,19 @@ impl Tools {
         (self.group_stack.pop())(self, Token::new(TokenType::EndToken, String::new()));
     }
 
+    pub fn raise_result(&mut self, type_token: TokenType) {
+        (self.group_stack.val())(self, Token::new(type_token, String::new()));
+    }
+
     fn expression(&mut self, token: Token) {
         match token.token_type {
             TokenType::Number => self.exp_tools.new_number(token.content),
             TokenType::Operator => self.exp_tools.new_operator(token.content),
             TokenType::Symbol => self.exp_tools.new_parenthesis(token.content),
-            TokenType::EndToken => self.exp_tools.end(),
+            TokenType::EndToken => {
+                self.exp_tools.end();
+                self.raise_result(TokenType::Expression);
+            }
             _ => panic!("Unknow token type for an expression: {:?}    {}", token.token_type, token.content)
         }
     }
@@ -51,8 +58,9 @@ impl Tools {
             TokenType::Type => self.decl_tools.def_type(token.content),
             TokenType::Ident => self.decl_tools.def_name(token.content, &mut self.memory),
             TokenType::Symbol => self.decl_tools.new_star(token.content),
-            TokenType::Operator => todo!("Affectation not implemented yet."),
-            TokenType::EndToken => self.decl_tools.end(),
+            TokenType::Operator => self.decl_tools.def_equal_operator(token.content),
+            TokenType::Expression => (),
+            TokenType::EndToken => self.decl_tools.end(&mut self.memory),
             _ => panic!("Unknow token type for a declaration: {:?}    {}", token.token_type, token.content)
         }
     }

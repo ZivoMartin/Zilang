@@ -1,5 +1,9 @@
-- String
-- DirectChar
-- Reussir a fixer la difference entre memory_spot et ExpIdent
+ComplexIdent: 
+    *
 
-Fichiers non compilable: string.vu;
+DirectChar:
+    *
+
+Expressions:
+    - DirectChar
+    - ComplexIdent
