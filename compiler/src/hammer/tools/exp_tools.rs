@@ -39,7 +39,7 @@ impl Tool for ExpTools {
         while self.op_stack.size() != 0 {
             self.push_op_val();
         }
-        let asm = build_asm(&self.pf_exp);
+        let asm = self.build_asm();
         Ok((Token::new(TokenType::Expression, String::new()), asm))
     }
     
@@ -74,9 +74,9 @@ impl ExpTools {
     }
 
     pub fn new_cident(&mut self, size: String) {
-        println!("{}", size);
+        let size = str::parse::<u8>(&size).unwrap();
         self.pf_exp.push(ExpToken::new(ExpTokenType::Ident, self.esp_decal));
-        self.esp_decal += str::parse::<i64>(&size).unwrap();
+        self.esp_decal += size as i64;
     }
 
     fn get_priority(&self, op: &String) -> u8 {
@@ -97,6 +97,43 @@ impl ExpTools {
         }
         res
     }
+
+    fn build_asm(&self) -> String {
+        let mut nb_ident = 0;
+        let mut res = String::from("\n");
+        res.push_str("\nmov rbp, rsp");
+        for t in self.pf_exp.iter() {
+            let n = t.content;
+            match t.token_type {
+                ExpTokenType::Operator => {
+                    res.push_str(&format!("
+mov r12, {n}
+pop r11
+pop r10
+call _operation
+push rax"
+                    ))
+    
+                },
+                ExpTokenType::Number => {
+                    res.push_str(&format!("
+push {n}"
+                    ))
+                },
+                ExpTokenType::Ident => {
+                    res.push_str(&format!("      
+mov rax, [rbp+{}]
+push rax", self.esp_decal-nb_ident*8 as i64
+                    ));
+                    nb_ident += 1;
+
+                }
+            }
+        }
+        res.push_str(&format!("\nadd rsp, {}", nb_ident*8));
+        res
+    }
+
 }
 
 fn build_prio_map() -> HashMap<String, u8>{
@@ -138,30 +175,4 @@ impl ExpToken {
     fn new(token_type: ExpTokenType, content: i64) -> ExpToken {
         ExpToken{token_type, content}
     }
-}
-
-fn build_asm(pf: &Vec<ExpToken>) -> String {
-    let mut res = String::from("\n");
-    for t in pf.iter() {
-        let n = t.content;
-        match t.token_type {
-            ExpTokenType::Operator => {
-                res.push_str(&format!("
-mov r12, {n}
-pop r11
-pop r10
-call _operation
-push rax"
-                ))
-
-            },
-            ExpTokenType::Number => {
-                res.push_str(&format!("
-push {n}"
-                ))
-            },
-            ExpTokenType::Ident => todo!("Aller recupérer la valeur sur la stack")
-        }
-    }
-    res
 }
