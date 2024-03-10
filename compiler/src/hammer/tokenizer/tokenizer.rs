@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::str::Chars;
-use std::iter::Peekable;
+// use crate::tools::collections::Stack;
 use crate::hammer::Hammer;
 use super::include::*;
 use super::grammar_tree::build_grammar_tree;
-
-
+use std::iter::Peekable;
+use std::fs::File;
+use std::str::Chars;
+use std::io::prelude::*;
 
 pub struct Tokenizer {
     hammer: *mut Hammer,
@@ -16,6 +17,37 @@ pub struct Tokenizer {
 }
 
 unsafe impl Send for Tokenizer{}
+
+// struct Chars {
+//     chars: Cursor<BufReader<File>>,
+// }
+
+
+
+// impl Chars {
+
+//     fn new(f: File) -> Chars {
+//         Chars{
+//             chars: Cursor::new(BufReader::new(f))
+//         }
+//     }
+    
+//     fn peek(&mut self) -> Option<char> {
+//         match self.chars.consume() {
+//             Some(r) => Some(*r.as_ref().unwrap_or_else(|e| panic!("{e}")) as char),
+//             _ => None
+//         }
+//     }
+
+//     fn next(&mut self) -> Option<char> {
+//         match self.chars.next() {
+//             Some(r) => Some(r.unwrap_or_else(|e| panic!("{e}")) as char),
+//             _ => None
+//         }
+//     }
+    
+// }
+
 
 fn build_priority_map() -> HashMap<TokenType, u8> {
     let mut priority_map = HashMap::<TokenType, u8>::new();
@@ -50,9 +82,11 @@ impl<'a> Tokenizer {
         }
     }
 
-    pub fn tokenize(&mut self, input: String) -> Result<(), &'static str> {
+    pub fn tokenize(&mut self, mut input: File) -> Result<(), &'static str> {
         let first_node = self.group_map.get(&TokenType::Program).unwrap();
-        let mut chars = input.chars().peekable();
+        let mut s = String::new();
+        input.read_to_string(&mut s).unwrap();
+        let mut chars = s.chars().peekable();
         while chars.peek().is_some() {  
             match self.curse(first_node, &mut chars) {
                 Ok(()) => (),
@@ -126,13 +160,13 @@ impl<'a> Tokenizer {
 
     fn get_next_token(&self, path_vec: &mut VecDeque<Path>, chars: &mut Peekable<Chars>) -> Result<String, String> {
         //println!("{:?}\n\n", path_vec);
-        let c = *chars.peek().unwrap();
+        let c = chars.peek().unwrap();
         if self.detect_char_token(path_vec, &c.to_string()) {
             return Ok(chars.next().unwrap().to_string()) 
         }
         let mut current_token = String::new();
         for (cond_stop, author_type) in self.identity_map.iter() {
-            if cond_stop(c) {
+            if cond_stop(*c) {
                 if self.clean_son_vec(path_vec, author_type) {
                     self.next_char_while(&mut current_token, chars, *cond_stop);
                     if *cond_stop == is_letter as fn(char)->bool && is_number(*chars.peek().unwrap()) && self.clean_son_vec(path_vec, &vec!(TokenType::Ident)) {  // If we are looking for an ident
@@ -177,11 +211,11 @@ impl<'a> Tokenizer {
     }
 
     fn next_char_while(&self, current_token: &mut String, chars: &mut Peekable<Chars>, continue_cond: fn(char)->bool) {
-        current_token.push(chars.nth(0).unwrap());
+        current_token.push(chars.next().unwrap());
         if continue_cond != is_sign as fn(char) -> bool {
             while let Some(c) = chars.peek() {
                 if continue_cond(*c) {    
-                    current_token.push(chars.nth(0).unwrap());
+                    current_token.push(chars.next().unwrap());
                 }else{
                     break;
                 }

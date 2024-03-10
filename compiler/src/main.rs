@@ -3,8 +3,8 @@ mod tools;
 mod hammer;
 
 use std::env;
+use std::fs;
 use hammer::compile_txt;
-use tools::textfiles::{TextFile, file_exists};
 
 use std::process::{Command, exit, ExitCode};
 use std::time::Instant;
@@ -16,7 +16,6 @@ static BAD_PARAMETER: i8 = 3;
 static INPUT_FILE_MISSING: i8 = 4;
 static OUTPUT_FILE_MISSING: i8 = 5;
 static CONVERT_OPERATOR_MISSING: i8 = 6;
-static FILE_DOESNT_EXISTS: i8 = 7;
 
 
 fn main() -> ExitCode {
@@ -68,7 +67,9 @@ fn main() -> ExitCode {
         exit(CONVERT_OPERATOR_MISSING as i32);
     }
     match operation.unwrap() {
-        "-o" => {compile(input.unwrap(), output.unwrap(), debug);},
+        "-o" => {compile(input.unwrap(), output.unwrap(), debug).unwrap_or_else(|e| {
+            eprintln!("{e}");
+        })},
         _ => panic!("Impossible")
     }
     println!("\n Succès: {:?}", debut.elapsed());
@@ -76,20 +77,17 @@ fn main() -> ExitCode {
 }
 
 
-fn compile(input: &str, output: &str, debug: bool) -> ExitCode {
-    if !file_exists(&input){
-        eprintln!("File {} don't exist.", input);
-        exit(FILE_DOESNT_EXISTS as i32)
-    }
-    let mut input_file = TextFile::new(String::from(input)).unwrap();
-    compile_txt(input.to_string(), String::from(input_file.get_text()), debug).unwrap_or_else(|e| {
+fn compile(input: &str, output: &str, debug: bool) ->  Result<(), std::io::Error> {
+    let input_file: fs::File = fs::File::open(String::from(input))?;
+    compile_txt(input.to_string(), input_file, debug).unwrap_or_else(|e| {
         eprintln!("{e}");
         exit(COMPILATION_ERROR as i32);
     });
     compile_asm_to_executable("asm/script.asm", output);
-    ExitCode::from(OK as u8)
+    Ok(())
 }
 
+#[allow(dead_code)]
 fn compile_asm_to_executable(file_path: &str, output: &str) {
 
     let mut output_object = String::from(output);

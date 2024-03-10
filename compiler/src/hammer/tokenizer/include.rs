@@ -42,13 +42,11 @@ pub enum TokenType {
     DirectChar,
     PointerSymbolSerie,
     ComplexChar,
-
-    EndToken
 }
 
 
 static TYPE_LIST: &[&'static str; 3] = &["int", "char", "void"];
-pub static OPERATORS: &[&'static str; 13] = &["+", "-", "%", "*", "/", "<", "<=", ">", ">=", "==", "!=", "||", "&&"];
+pub static OPERATORS: &[&'static str; 13] = &["+", "-", "*", "/", "%", "<", ">", "<=", ">=", "==", "!=", "||", "&&"];
 pub static AFFECT_OPERATOR: &[&'static str; 5] = &["=", "+=", "-=", "*=", "/="];
 static KEYWORD: &[&'static str; 9] = &["if", "else", "for", "while", "return", "continue", "break", "func", "do"];
 pub static OPERATOR_COMPONENT: &[char; 9] = &['+', '%', '/', '<', '>', '=', '|', '&', '!'];
@@ -63,7 +61,7 @@ impl Clone for TokenType {
     }
 }
 
-
+#[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
     pub content: String

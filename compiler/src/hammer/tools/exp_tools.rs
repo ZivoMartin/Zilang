@@ -15,19 +15,14 @@ pub struct ExpTools {
 
 impl Tool for ExpTools {
     
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<Option<Token>, String>{
-        match token.token_type {
+    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<(), String>{
+        Ok(match token.token_type {
             TokenType::Number => self.new_number(token.content),
             TokenType::Operator => self.new_operator(token.content),
             TokenType::Symbol => self.new_parenthesis(token.content),
             TokenType::ComplexIdent => self.new_cident(token.content),
-            TokenType::EndToken => {
-                self.end();
-                return Ok(Some(Token::new(TokenType::Expression, String::new())))
-            }
             _ => panic_bad_token("expression", token)
-        }
-        Ok(None)
+        })
     }
 
     fn new() -> Box<dyn Tool> {
@@ -38,6 +33,14 @@ impl Tool for ExpTools {
             op_id_map: build_op_id(),
             esp_decal: 0   
         })
+    }
+
+    fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
+        while self.op_stack.size() != 0 {
+            self.push_op_val();
+        }
+        let asm = build_asm(&self.pf_exp);
+        Ok((Token::new(TokenType::Expression, String::new()), asm))
     }
     
 }
@@ -76,14 +79,6 @@ impl ExpTools {
         self.esp_decal += str::parse::<i64>(&size).unwrap();
     }
 
-    pub fn end(&mut self) {
-        while self.op_stack.size() != 0 {
-            self.push_op_val();
-        }
-        // Todo: Mettre le resultat de l'expression dans rax.
-        self.pf_exp.clear();
-    }
-
     fn get_priority(&self, op: &String) -> u8 {
         *self.operator_priority.get(op).unwrap_or_else(
             || panic!("This operator doesn't have priority yet: {op}")
@@ -93,6 +88,14 @@ impl ExpTools {
     fn push_op_val(&mut self) {
         let val = *self.op_id_map.get(&self.op_stack.pop()).unwrap();
         self.pf_exp.push(ExpToken::new(ExpTokenType::Operator, val));    
+    }
+
+    fn _vec_exp(&self) -> Vec<i64> {
+        let mut res = Vec::new();
+        for t in self.pf_exp.iter() {
+            res.push(t.content);
+        }
+        res
     }
 }
 
@@ -135,4 +138,30 @@ impl ExpToken {
     fn new(token_type: ExpTokenType, content: i64) -> ExpToken {
         ExpToken{token_type, content}
     }
+}
+
+fn build_asm(pf: &Vec<ExpToken>) -> String {
+    let mut res = String::from("\n");
+    for t in pf.iter() {
+        let n = t.content;
+        match t.token_type {
+            ExpTokenType::Operator => {
+                res.push_str(&format!("
+mov r12, {n}
+pop r11
+pop r10
+call _operation
+push rax"
+                ))
+
+            },
+            ExpTokenType::Number => {
+                res.push_str(&format!("
+push {n}"
+                ))
+            },
+            ExpTokenType::Ident => todo!("Aller recupérer la valeur sur la stack")
+        }
+    }
+    res
 }

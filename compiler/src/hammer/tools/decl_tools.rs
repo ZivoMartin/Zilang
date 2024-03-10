@@ -3,35 +3,38 @@ use super::program::{Tool, panic_bad_token};
 use crate::hammer::tokenizer::include::{TokenType, Token};
 
 pub struct DeclTools {
-    name: String,
+    addr: usize,
     type_name: String,
     stars: i32,
-    equal_op: String
+    aff: bool
 }
 
 impl Tool for DeclTools {
 
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<Option<Token>, String>{
-        match token.token_type {
+    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<(), String>{
+        Ok(match token.token_type {
             TokenType::Type => self.def_type(token.content),
             TokenType::Ident => self.def_name(token.content, memory),
             TokenType::Symbol => self.new_star(token.content),
-            TokenType::Operator => self.def_equal_operator(token.content),
+            TokenType::Operator => self.def_equal_operator(),
             TokenType::Expression => (),
-            TokenType::EndToken => self.end(memory),
             _ => panic_bad_token("declaration", token)
-        }
-        Ok(None)
+        })
     }
 
 
     fn new() -> Box<dyn Tool> {
         Box::from(DeclTools {
-            name: String::new(),
+            addr: 0,
             type_name: String::new(),
             stars: 0,
-            equal_op: String::new()
+            aff: false
         })
+    }
+
+    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
+        let asm = self.build_asm(memory);
+        Ok((Token::new(TokenType::Declaration, String::new()), asm))
     }
 
 }
@@ -52,23 +55,22 @@ impl DeclTools {
     }
 
     pub fn def_name(&mut self, name: String, memory: &mut Memory) {
-        self.name = name;
-        memory.new_var(self.type_name.clone(), self.name.clone(), self.stars);
+        self.addr = memory.new_var(self.type_name.clone(), name, self.stars);
     }
 
-    pub fn def_equal_operator(&mut self, op: String) {
-        self.equal_op = op;
+    pub fn def_equal_operator(&mut self) {
+        self.aff = true;
     }
 
-
-    pub fn end(&mut self, _memory: &mut Memory) {
-        if !self.equal_op.is_empty() {
-            todo!("Implementer les affectations");
+    fn build_asm(&self, memory: &mut Memory) -> String {
+        let mut res = String::new();
+        if self.aff {
+            res.push_str("
+pop rax"
+           );
+           res.push_str(&memory.affect_to(self.addr));
         }
-        self.name.clear();
-        self.type_name.clear();
-        self.equal_op.clear();
-        self.stars = 0;
+        res
     }
 
 }

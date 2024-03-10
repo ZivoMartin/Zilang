@@ -2,6 +2,10 @@ use crate::tools::collections::Stack;
 use std::collections::HashMap;
 use super::include::*;
 
+
+static ASM_SIZES: [&str; 9] = ["", "byte", "word", "", "dword", "", "", "", "qword"];
+static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
+
 pub struct Memory {
     var_name_map: HashMap<String, Stack<usize>>,
     var_map: HashMap<usize, VariableDefinition>,
@@ -24,7 +28,7 @@ impl Memory {
         }
     }
 
-    pub fn new_var(&mut self, name_type: String, name: String, stars: i32) {
+    pub fn new_var(&mut self, name_type: String, name: String, stars: i32) -> usize {
         let size = *self.type_size.get(&name_type).unwrap(); 
         self.var_map.insert(
             self.stack_index,
@@ -45,15 +49,29 @@ impl Memory {
                 Stack::init(self.stack_index)
             );
         }
+        let res = self.stack_index;
         self.stack_index += size as usize;
+        res
     } 
 
-    pub fn get_var_def(&self, name: &String) -> Result<&VariableDefinition, ()> {
+    pub fn get_var_def_by_name(&self, name: &String) -> Result<&VariableDefinition, ()> {
         let addr = match self.var_name_map.get(name) {
             Some(stack) => stack.val(),
             _ => return Err(()) 
         };
         Ok(self.var_map.get(addr).unwrap())
+    }
+    
+    pub fn get_var_def(&self, addr: &usize) -> Result<&VariableDefinition, ()> {
+        match self.var_map.get(addr) {
+            Some(res) => Ok(res),
+            _ => Err(())
+        }
+    }
+
+    pub fn affect_to(&self, addr: usize) -> String {
+        let size = self.get_var_def(&addr).unwrap().type_var.size as usize;
+        format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
     }
 
 }

@@ -37,14 +37,6 @@ impl Function {
 
 }
 
-#[allow(dead_code)]
-pub struct AsmType{
-    pub long: &'static str,
-    pub short: &'static str,
-    pub register: &'static str,
-    pub mov: &'static str
-}
-
 #[derive(Debug)]
 pub struct VariableDefinition{
     pub name: String,
@@ -55,7 +47,7 @@ impl Clone for VariableDefinition {
     fn clone(&self) -> VariableDefinition {
         VariableDefinition {
             name: self.name.clone(),
-            type_var: self.type_var.clone()
+            type_var: self.type_var.clone(),
         }
     }
 }

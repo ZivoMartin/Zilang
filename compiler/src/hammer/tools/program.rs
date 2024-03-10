@@ -5,12 +5,15 @@ use std::collections::HashMap;
 use crate::hammer::memory::Memory;
 use super::decl_tools::DeclTools;
 use super::cident_tools::CIdentTools;
+use super::macrocall_tools::MacroCallTools;
 
 pub trait Tool {
 
     fn new() -> Box<dyn Tool> where Self: Sized;
+
+    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String>;
     
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<Option<Token>, String>;
+    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<(), String>;
 
 }
 
@@ -19,6 +22,7 @@ fn build_constructor_map() -> HashMap<TokenType, fn() -> Box<dyn Tool>> {
     res.insert(TokenType::Declaration, DeclTools::new);
     res.insert(TokenType::Expression, ExpTools::new);
     res.insert(TokenType::ComplexIdent, CIdentTools::new);
+    res.insert(TokenType::MacroCall, MacroCallTools::new);
     res
 }
 
@@ -46,14 +50,15 @@ impl Program {
         self.tools_stack.push((self.constructor_map.get(&type_token).unwrap())());
     }
 
-    pub fn end_group(&mut self) -> Result<(), String>{
-        self.tools_stack.pop().new_token(Token::new(TokenType::EndToken, String::new()), &mut self.memory)?;
-        Ok(())
+    pub fn end_group(&mut self) -> Result<String, String>{
+        let (token_to_raise, end_txt) = self.tools_stack.pop().end(&mut self.memory)?;
+        if !self.tools_stack.is_empty() {
+            self.tokenize(token_to_raise)?;
+        }
+        Ok(end_txt)
     }
 
-    // pub fn raise_result(&mut self, token_type: TokenType, content: String) -> Result<(), String>{
-    //     (self.group_stack.val())(self, Token::new(token_type, content))
-    // }
+    
 }
 
 
