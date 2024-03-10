@@ -1,5 +1,4 @@
-use crate::hammer::memory::Memory;
-use crate::hammer::include::POINTER_SIZE;
+use crate::hammer::{include::VariableDefinition, memory::Memory};
 use super::program::{Tool, panic_bad_token};
 use crate::hammer::tokenizer::include::{TokenType, Token};
 
@@ -30,29 +29,19 @@ impl Tool for CIdentTools {
         })
     }
 
-    // Fonctionnement: Le problème est comment expliquer à l'appelant quel est la valeur de l'ident qui vient d'etre identifié ?
-    // On calcule sa valeur en assembleur avant de compute l'appelant, exemple dans 2*a avant de compute 2*a on compute a
-    // puis on push a sur la stack on se retrouve donc avec 2 a * a la fin de l'expression mais on a push a sur la stack, plus
-    // qu'a recuperer la valeur de a sur la stack lors de la traduction en assembleur. Il est egalement necessaire de savoir
-    // ou trouver les valeurs par rapport à esp, pour cela on va compter dans l'expression de combien nous avons avancé esp,
-    // puis a chaque identificateur indiquer en partant du bas de la pile l'adresse des valeurs. Exemple pour 2*a+b
-    // avec a et b des ints, on a esp decalé de 8, et l'expression devient alors 2*|0+|4.
+   
     fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
         let var_def = match memory.get_var_def_by_name(&self.name) {
             Ok(var_def) => var_def,
             Err(_) => return Err(format!("{} isn't an axisting variable.", &self.name))
         };
         let stars = var_def.type_var.stars as i32 - self.deref_time;
-        
-        // Todo: Push en assembleur l'extraction de la valeur de var_def et la push dans la stack.
-        Ok((Token::new(TokenType::ComplexIdent, format!("{}",
-        if stars == 0 {
-            var_def.type_var.size
-        }else if stars < -1 {
+        if stars < -1 {
             return Err(format!("Bad dereferencment")) // If you want to modifie this line, care it could be dangerous because of the unsafe
-        }else{
-            POINTER_SIZE
-        })), String::new()))
+        }
+        println!("{}",self.deref_time);
+        let asm = self.build_asm(stars, self.deref_time, &memory, var_def);
+        Ok((Token::new(TokenType::ComplexIdent, String::new()), asm))
     }
 }
 
@@ -90,6 +79,16 @@ impl CIdentTools {
             println!("New expression for tupple");
             // Todo: handle func call 
         }
+    }
+
+    fn build_asm(&self, _stars: i32, deref_time: i32, memory: &Memory, var_def: &VariableDefinition) -> String {
+        // Todo: dereferancer la variable
+
+        let mut res = if deref_time == -1 {format!("\nmov rax, {}", var_def.addr)}else{memory.extract_val_in_rax(var_def)};
+        res.push_str(&memory.deref_var(var_def, deref_time));
+        res.push_str("\npush rax    ; We push the value of a new identificator");
+         
+        res
     }
 
 }

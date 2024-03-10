@@ -9,7 +9,7 @@ pub struct MacroCallTools {
     nb_param_attempt: u8
 }
 
-static MACRO_LIST: [(&str, u8); 1] = [("dn", 1)];
+static MACRO_LIST: [(&str, u8); 2] = [("dn", 1), ("exit", 1)];
 
 static _SIZE_PARAM: u8 = 8;
 
@@ -64,7 +64,7 @@ impl MacroCallTools {
         res.push_str(&format!("\n{} ", self.name));
         for i in (0..self.nb_param).rev() {
             res.push_str(&format!(
-                "[rsp - {}]", i*8
+                "[rsp + {}]", i*8
             ))
         }
         res.push_str(&format!("\nadd rsp, {}", self.nb_param*8));

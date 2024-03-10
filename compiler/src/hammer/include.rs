@@ -1,5 +1,4 @@
 
-pub static POINTER_SIZE: u8 = 4;
 
 pub struct Type {
     pub name: String,
@@ -17,6 +16,7 @@ pub struct Function {
 pub struct VariableDefinition{
     pub name: String,
     pub type_var: Type,
+    pub addr: usize
 }
 
 pub static F_PATHS: [&str; 6] = [

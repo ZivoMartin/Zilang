@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use super::include::*;
 
 
-static ASM_SIZES: [&str; 9] = ["", "byte", "word", "", "dword", "", "", "", "qword"];
+pub static ASM_SIZES: [&str; 9] = ["", "byte", "word", "", "dword", "", "", "", "qword"];
 static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
 
 pub struct Memory {
@@ -38,7 +38,8 @@ impl Memory {
                     size,
                     name: name_type,
                     stars
-                }
+                },
+                addr: self.stack_index
             }
         );
         if self.var_name_map.contains_key(&name) {
@@ -72,6 +73,19 @@ impl Memory {
     pub fn affect_to(&self, addr: usize) -> String {
         let size = self.get_var_def(&addr).unwrap().type_var.size as usize;
         format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
+    }
+
+    pub fn extract_val_in_rax(&self, var_def: &VariableDefinition) -> String {
+        let size = var_def.type_var.size as usize;
+        format!("\nmov {}, {}[_stack + {}]", RAX_SIZE[size], ASM_SIZES[size], var_def.addr)
+    }
+
+    pub fn deref_var(&self, var_def: &VariableDefinition, stars: i32) -> String {
+        if stars > 0 {
+            format!("\n_deref_{} {}", ASM_SIZES[var_def.type_var.size as usize], stars)
+        }else{
+            String::new()
+        }
     }
 
 }

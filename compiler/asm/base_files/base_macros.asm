@@ -74,7 +74,7 @@ ret
         cmp r10, r11
         je %%_deref_end_loop
         inc r10
-        movzx rbx, byte[_stack+rbx]
+        movzx rax, byte[_stack+rax]
         jmp %%_deref_loop 
     %%_deref_end_loop:    
 %endmacro
@@ -87,7 +87,7 @@ ret
         cmp r10, r11
         je %%_deref_end_loop
         inc r10
-        movsx rbx, word[_stack+rbx]
+        movsx rax, word[_stack+rax]
         jmp %%_deref_loop 
     %%_deref_end_loop:    
 %endmacro
@@ -100,7 +100,7 @@ ret
         cmp r10, r11
         je %%_deref_end_loop
         inc r10
-        movsx rbx, dword[_stack+rbx]
+        movsx rax, dword[_stack+rax]
         jmp %%_deref_loop 
     %%_deref_end_loop:    
 %endmacro
@@ -113,7 +113,7 @@ ret
         cmp r10, r11
         je %%_deref_end_loop
         inc r10
-        mov rbx, [_stack+rbx]
+        mov rax, [_stack+rax]
         jmp %%_deref_loop 
     %%_deref_end_loop:    
 %endmacro

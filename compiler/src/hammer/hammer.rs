@@ -44,7 +44,6 @@ impl<'a> Hammer {
                 };
             }
         }
-        self.asm_files[SCRIPTF].write("\nexit 0".as_bytes()).unwrap();
     }
 
     pub fn new_token(&mut self, token: Token) {

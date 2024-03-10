@@ -4,6 +4,10 @@ use crate::hammer::tokenizer::include::OPERATORS;
 use super::program::{Tool, panic_bad_token};
 use crate::hammer::tokenizer::include::{TokenType, Token};
 
+static ASM_TO_REMOVE: [&str; 2] = [
+    "push rax            ; Then save the result\npop rax",
+    "push rax\npop rax"
+    ];
 
 pub struct ExpTools {
     op_stack: Stack<String>,
@@ -20,7 +24,7 @@ impl Tool for ExpTools {
             TokenType::Number => self.new_number(token.content),
             TokenType::Operator => self.new_operator(token.content),
             TokenType::Symbol => self.new_parenthesis(token.content),
-            TokenType::ComplexIdent => self.new_cident(token.content),
+            TokenType::ComplexIdent => self.new_cident(),
             _ => panic_bad_token("expression", token)
         })
     }
@@ -73,10 +77,9 @@ impl ExpTools {
         } 
     }
 
-    pub fn new_cident(&mut self, size: String) {
-        let size = str::parse::<u8>(&size).unwrap();
+    pub fn new_cident(&mut self) {
         self.pf_exp.push(ExpToken::new(ExpTokenType::Ident, self.esp_decal));
-        self.esp_decal += size as i64;
+        self.esp_decal += 8;
     }
 
     fn get_priority(&self, op: &String) -> u8 {
@@ -99,7 +102,7 @@ impl ExpTools {
     }
 
     fn build_asm(&self) -> String {
-        let mut nb_ident = 0;
+        let mut nb_ident = 1;
         let mut res = String::from("\n");
         res.push_str("\nmov rbp, rsp");
         for t in self.pf_exp.iter() {
@@ -107,22 +110,22 @@ impl ExpTools {
             match t.token_type {
                 ExpTokenType::Operator => {
                     res.push_str(&format!("
-mov r12, {n}
-pop r11
-pop r10
-call _operation
-push rax"
+mov r12, {n}        ; We found an operator, lets do the operation
+pop r11             ; First operande
+pop r10             ; Second operande
+call _operation     ; call the operation
+push rax            ; Then save the result"             
                     ))
     
                 },
                 ExpTokenType::Number => {
                     res.push_str(&format!("
-push {n}"
+push {n}            ; We found a number, lets push it"
                     ))
                 },
                 ExpTokenType::Ident => {
                     res.push_str(&format!("      
-mov rax, [rbp+{}]
+mov rax, [rbp+{}]   ; We found an ident, its on the satck, lets keep it.
 push rax", self.esp_decal-nb_ident*8 as i64
                     ));
                     nb_ident += 1;
@@ -130,7 +133,15 @@ push rax", self.esp_decal-nb_ident*8 as i64
                 }
             }
         }
-        res.push_str(&format!("\nadd rsp, {}", nb_ident*8));
+        if nb_ident != 0 {
+            res.push_str(&format!("
+pop rax
+add rsp, {}
+push rax", nb_ident*8));
+        }
+        for a in ASM_TO_REMOVE.iter() {
+            res = res.replace(a, "");
+        }
         res
     }
 
