@@ -1,11 +1,14 @@
-use super::exp_tools::ExpTools;
 use crate::hammer::tokenizer::include::{Token, TokenType};
 use crate::tools::collections::Stack;
 use std::collections::HashMap;
 use crate::hammer::memory::Memory;
-use super::decl_tools::DeclTools;
-use super::cident_tools::CIdentTools;
-use super::macrocall_tools::MacroCallTools;
+use super::tools::{
+            exp_tools::ExpTools,
+            decl_tools::DeclTools,
+            cident_tools::CIdentTools,
+            macrocall_tools::MacroCallTools,
+            complexchar_tools::ComplexCharTools
+        };
 
 pub trait Tool {
 
@@ -23,6 +26,7 @@ fn build_constructor_map() -> HashMap<TokenType, fn() -> Box<dyn Tool>> {
     res.insert(TokenType::Expression, ExpTools::new);
     res.insert(TokenType::ComplexIdent, CIdentTools::new);
     res.insert(TokenType::MacroCall, MacroCallTools::new);
+    res.insert(TokenType::ComplexChar, ComplexCharTools::new);
     res
 }
 

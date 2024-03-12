@@ -1,6 +1,4 @@
-use crate::hammer::{include::VariableDefinition, memory::Memory};
-use super::program::{Tool, panic_bad_token};
-use crate::hammer::tokenizer::include::{TokenType, Token};
+use super::include::*;
 
 pub struct CIdentTools {
     deref_time: i32,
@@ -39,9 +37,9 @@ impl Tool for CIdentTools {
         if stars < -1 {
             return Err(format!("Bad dereferencment")) // If you want to modifie this line, care it could be dangerous because of the unsafe
         }
-        println!("{}",self.deref_time);
+        
         let asm = self.build_asm(stars, self.deref_time, &memory, var_def);
-        Ok((Token::new(TokenType::ComplexIdent, String::new()), asm))
+        Ok((Token::new(TokenType::ComplexIdent, format!("{stars}")), asm))
     }
 }
 

@@ -1,7 +1,4 @@
-use super::program::{Tool, panic_bad_token};
-use crate::hammer::tokenizer::include::Token;
-use crate::hammer::memory::Memory;
-use crate::hammer::tokenizer::include::TokenType;
+use super::include::*;
 
 pub struct MacroCallTools {
     name: String,

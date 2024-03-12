@@ -1,6 +1,4 @@
-use crate::hammer::memory::Memory;
-use super::program::{Tool, panic_bad_token};
-use crate::hammer::tokenizer::include::{TokenType, Token};
+use super::include::*;
 
 pub struct DeclTools {
     addr: usize,

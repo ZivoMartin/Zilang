@@ -1,30 +1,28 @@
-use crate::{hammer::memory::Memory, tools::collections::Stack};
-use std::collections::HashMap;
-use crate::hammer::tokenizer::include::OPERATORS;
-use super::program::{Tool, panic_bad_token};
-use crate::hammer::tokenizer::include::{TokenType, Token};
+use super::include::*;
 
 static ASM_TO_REMOVE: [&str; 2] = [
     "push rax            ; Then save the result\npop rax",
     "push rax\npop rax"
     ];
 
+
 pub struct ExpTools {
     op_stack: Stack<String>,
     pf_exp: Vec<ExpToken>,
     operator_priority: HashMap<String, u8>,
     op_id_map: HashMap<String, i64>,
-    esp_decal: i64
+    esp_decal: i64,
+    stars: i32
 }
 
 impl Tool for ExpTools {
     
     fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<(), String>{
         Ok(match token.token_type {
-            TokenType::Number => self.new_number(token.content),
+            TokenType::Number | TokenType::ComplexChar => self.new_number(token.content),
             TokenType::Operator => self.new_operator(token.content),
             TokenType::Symbol => self.new_parenthesis(token.content),
-            TokenType::ComplexIdent => self.new_cident(),
+            TokenType::ComplexIdent => self.new_cident(token.content)?,
             _ => panic_bad_token("expression", token)
         })
     }
@@ -35,7 +33,8 @@ impl Tool for ExpTools {
             pf_exp : Vec::new(),
             operator_priority: build_prio_map(),
             op_id_map: build_op_id(),
-            esp_decal: 0   
+            esp_decal: 0,
+            stars: NO_TYPE
         })
     }
 
@@ -44,7 +43,7 @@ impl Tool for ExpTools {
             self.push_op_val();
         }
         let asm = self.build_asm();
-        Ok((Token::new(TokenType::Expression, String::new()), asm))
+        Ok((Token::new(TokenType::Expression, format!("{}", self.stars)), asm))
     }
     
 }
@@ -53,14 +52,14 @@ impl Tool for ExpTools {
 impl ExpTools {
 
 
-    pub fn new_operator(&mut self, content: String) {
+    fn new_operator(&mut self, content: String) {
         while !self.op_stack.is_empty() && self.op_stack.val() != "(" && self.get_priority(self.op_stack.val()) >= self.get_priority(&content){
             self.push_op_val();
         }
         self.op_stack.push(content);
     }
 
-    pub fn new_number(&mut self, number: String) {
+    fn new_number(&mut self, number: String) {
         self.pf_exp.push(ExpToken::new(ExpTokenType::Number, str::parse::<i64>(&number).unwrap()));
     }
 
@@ -77,9 +76,17 @@ impl ExpTools {
         } 
     }
 
-    pub fn new_cident(&mut self) {
+
+    fn new_cident(&mut self, ident_stars: String) -> Result<(), String> {
+        let stars = str::parse::<i32>(&ident_stars).unwrap();
+        if self.stars == NO_TYPE {
+            self.stars = stars;
+        }else if stars != self.stars {
+            return Err(String::from("Bad type."))
+        }
         self.pf_exp.push(ExpToken::new(ExpTokenType::Ident, self.esp_decal));
         self.esp_decal += 8;
+        Ok(())
     }
 
     fn get_priority(&self, op: &String) -> u8 {

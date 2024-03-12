@@ -194,14 +194,15 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
             TokenType::ComplexChar,
             vec!(),
             vec!(
-                Node::leaf_c(TokenType::Symbol, vec!("\\", "\"", "\'")).priv_const(),
-                Node::new(
+                Node::leaf_c(TokenType::Symbol, vec!("\\", "\"", "\'")).priv_const().react(Tokenizer::push_token), // N'importe quoi sauf la contrainte
+                Node::new_c(
                     TokenType::Symbol,
                     vec!(),
                     vec!(
-                        Node::leaf(TokenType::Symbol)
-                    )
-                )
+                        Node::leaf(TokenType::Symbol).react(Tokenizer::push_token)
+                    ),
+                    vec!("\\")
+                ).react(Tokenizer::push_token)
             )
         ).react(Tokenizer::push_group)
     );
@@ -221,7 +222,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                             vec!(
                                 Node::leaf_c(TokenType::Symbol, vec!("\'"))
                             ),
-                        )
+                        ).react(Tokenizer::push_group)
                     ),
                     vec!(
                     ),

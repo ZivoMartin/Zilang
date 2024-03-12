@@ -2,7 +2,7 @@ use std::thread::{JoinHandle, spawn};
 use crate::tools::collections::Queue;
 use super::tokenizer::{include::{Token, TokenType}, tokenizer::Tokenizer};
 use std::process::exit;
-use super::tools::program::Program;
+use super::program::Program;
 use std::fs::File;
 use super::include::{F_PATHS, files::*};
 use std::io::{prelude::*, Write};
@@ -47,7 +47,6 @@ impl<'a> Hammer {
     }
 
     pub fn new_token(&mut self, token: Token) {
-        println!("{token:?}");
         self.token_queue.inqueue(token)
     }
 
