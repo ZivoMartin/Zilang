@@ -561,7 +561,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(
                         Node::leaf_c(TokenType::Symbol, vec!(";"))
                     )
-                )
+                ).react(Tokenizer::push_group)
             ), 
             vec!()      
         )
@@ -855,3 +855,5 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
     );
     group_map
 }
+
+

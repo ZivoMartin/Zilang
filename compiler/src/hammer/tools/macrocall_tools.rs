@@ -6,7 +6,7 @@ pub struct MacroCallTools {
     nb_param_attempt: u8
 }
 
-static MACRO_LIST: [(&str, u8); 2] = [("dn", 1), ("exit", 1)];
+static MACRO_LIST: [(&str, u8); 3] = [("dn", 1), ("exit", 1), ("print_char", 1)];
 
 static _SIZE_PARAM: u8 = 8;
 

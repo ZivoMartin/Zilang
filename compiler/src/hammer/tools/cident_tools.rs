@@ -10,7 +10,7 @@ impl Tool for CIdentTools {
 
     fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<(), String>{
         Ok(match token.token_type {
-            TokenType::Symbol => self.new_symbol(token.content),
+            TokenType::Symbol => self.new_symbol(token.content)?,
             TokenType::Ident => self.def_ident(token.content),
             TokenType::Brackets => self.open_brackets(),
             TokenType::ExpressionTuple => self.open_tupple(),
@@ -47,14 +47,18 @@ impl Tool for CIdentTools {
 impl CIdentTools {
 
 
-    pub fn new_symbol(&mut self, s: String) {
+    pub fn new_symbol(&mut self, s: String) -> Result<(), String>{
         if s == "*" {
             self.deref_time += 1;
         }else if s == "&" {
             self.deref_time -= 1;
+            if self.deref_time < -1 {
+                return Err(String::from("You can't dereferance like this.."))
+            }
         }else{
             panic!("Bad symbol for a complxident: {s}")
         }
+        Ok(())
     }
 
     pub fn def_ident(&mut self, name: String){

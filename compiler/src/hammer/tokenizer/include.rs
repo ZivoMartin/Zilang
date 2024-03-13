@@ -3,7 +3,7 @@ use super::tokenizer::Tokenizer;
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub enum TokenType {
     // Primitive Token
-    Ident,
+    Ident,  
     Number,
     Type,
     Symbol,
@@ -11,16 +11,16 @@ pub enum TokenType {
     Keyword,
 
     // Token group
-    Program,
+    Program,        
     BlocProgram,
-    Instruction,
+    Instruction,        // TODO
     Value,
     ComplexType,
     ComplexIdent,              
     Expression,    
     Brackets, 
-    DirectTab, 
-    String,   
+    DirectTab,          // TODO
+    String,             // TODO
     DeclarationTuple,              // (Expression, Expression, ... , Expression)
     ExpressionTuple,
     BrackTuple,

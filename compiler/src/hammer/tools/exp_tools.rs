@@ -34,7 +34,7 @@ impl Tool for ExpTools {
             operator_priority: build_prio_map(),
             op_id_map: build_op_id(),
             esp_decal: 0,
-            stars: NO_TYPE
+            stars: 0
         })
     }
 
@@ -79,9 +79,9 @@ impl ExpTools {
 
     fn new_cident(&mut self, ident_stars: String) -> Result<(), String> {
         let stars = str::parse::<i32>(&ident_stars).unwrap();
-        if self.stars == NO_TYPE {
+        if self.stars == 0 {
             self.stars = stars;
-        }else if stars != self.stars {
+        }else if stars != 0 && stars != self.stars {
             return Err(String::from("Bad type."))
         }
         self.pf_exp.push(ExpToken::new(ExpTokenType::Ident, self.esp_decal));

@@ -7,7 +7,8 @@ use super::tools::{
             decl_tools::DeclTools,
             cident_tools::CIdentTools,
             macrocall_tools::MacroCallTools,
-            complexchar_tools::ComplexCharTools
+            complexchar_tools::ComplexCharTools,
+            instructions_tools::InstructionTools
         };
 
 pub trait Tool {
@@ -22,6 +23,7 @@ pub trait Tool {
 
 fn build_constructor_map() -> HashMap<TokenType, fn() -> Box<dyn Tool>> {
     let mut res = HashMap::<TokenType, fn() -> Box<dyn Tool>>::new();
+    res.insert(TokenType::Instruction, InstructionTools::new);
     res.insert(TokenType::Declaration, DeclTools::new);
     res.insert(TokenType::Expression, ExpTools::new);
     res.insert(TokenType::ComplexIdent, CIdentTools::new);

@@ -38,4 +38,3 @@ pub mod files {
     pub static MACROSF: usize = 5;    
 }
 
-//impl SliceIndex for Files;

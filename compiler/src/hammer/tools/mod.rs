@@ -1,3 +1,4 @@
+pub mod instructions_tools;
 pub mod exp_tools;
 pub mod decl_tools;
 pub mod cident_tools;

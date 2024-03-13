@@ -5,4 +5,3 @@ pub use crate::hammer::{
                     };
 pub use crate::tools::collections::Stack;
 pub use std::collections::HashMap;
-pub static NO_TYPE: i32 = -2;

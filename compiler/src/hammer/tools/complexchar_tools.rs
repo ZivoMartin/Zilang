@@ -26,10 +26,13 @@ impl Tool for ComplexCharTools {
         Ok((Token::new(TokenType::ComplexChar, 
             if self.bs {
                 match self.symb {
-                    'n' => "10",
-                    't' => "9",
-                    'r' => "13",
                     '0' => "0",
+                    't' => "9",
+                    'n' => "10",
+                    'r' => "13",
+                    '\"' => "34",
+                    '\'' => "39",
+                    '\\' => "92",
                     _ => return Err(format!("This char: \\{} doesn't exists.", self.symb))
                 }.to_string()
             }else{

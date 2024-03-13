@@ -15,7 +15,7 @@ impl Tool for DeclTools {
             TokenType::Ident => self.def_name(token.content, memory),
             TokenType::Symbol => self.new_star(token.content),
             TokenType::Operator => self.def_equal_operator(),
-            TokenType::Expression => (),
+            TokenType::Expression => self.check_exp(token.content)?,
             _ => panic_bad_token("declaration", token)
         })
     }
@@ -50,6 +50,14 @@ impl DeclTools {
 
     pub fn def_type(&mut self, t: String) {
         self.type_name = t;
+    }
+
+    pub fn check_exp(&mut self, stars: String) -> Result<(), String>{
+        return if str::parse::<i32>(&stars).unwrap() != self.stars {
+            Err(String::from("Not the good type"))
+        }else{
+            Ok(())
+        }
     }
 
     pub fn def_name(&mut self, name: String, memory: &mut Memory) {
