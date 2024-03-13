@@ -1,4 +1,4 @@
-use crate::tools::collections::Stack;
+use super::collections::Stack;
 use std::collections::HashMap;
 use super::include::*;
 
@@ -75,14 +75,10 @@ impl Memory {
         format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
     }
 
-    pub fn extract_val_in_rax(&self, var_def: &VariableDefinition) -> String {
-        let size = var_def.type_var.size as usize;
-        format!("\nmov {}, {}[_stack + {}]", RAX_SIZE[size], ASM_SIZES[size], var_def.addr)
-    }
 
-    pub fn deref_var(&self, var_def: &VariableDefinition, stars: i32) -> String {
+    pub fn deref_var(&self, size: usize, stars: i32) -> String {
         if stars > 0 {
-            format!("\n_deref_{} {}", ASM_SIZES[var_def.type_var.size as usize], stars)
+            format!("\n_deref_{} {}", ASM_SIZES[size], stars)
         }else{
             String::new()
         }

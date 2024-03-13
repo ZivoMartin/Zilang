@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
-// use crate::tools::collections::Stack;
 use crate::hammer::Hammer;
 use super::include::*;
 use super::grammar_tree::build_grammar_tree;

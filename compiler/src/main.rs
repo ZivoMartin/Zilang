@@ -1,5 +1,3 @@
-
-mod tools;
 mod hammer;
 
 use std::env;

@@ -39,7 +39,7 @@ impl Tool for CIdentTools {
         }
         
         let asm = self.build_asm(stars, self.deref_time, &memory, var_def);
-        Ok((Token::new(TokenType::ComplexIdent, format!("{stars}")), asm))
+        Ok((Token::new(TokenType::ComplexIdent, format!("{stars} {}", var_def.get_size())), asm))
     }
 }
 
@@ -84,12 +84,10 @@ impl CIdentTools {
     }
 
     fn build_asm(&self, _stars: i32, deref_time: i32, memory: &Memory, var_def: &VariableDefinition) -> String {
-        // Todo: dereferancer la variable
-
-        let mut res = if deref_time == -1 {format!("\nmov rax, {}", var_def.addr)}else{memory.extract_val_in_rax(var_def)};
-        res.push_str(&memory.deref_var(var_def, deref_time));
+        let mut res = format!("\nmov rax, {}", var_def.addr);
+        res.push_str(&memory.deref_var(var_def.type_var.size as usize, deref_time));
         res.push_str("\npush rax    ; We push the value of a new identificator");
-         
+        println!("RES: {res}");
         res
     }
 

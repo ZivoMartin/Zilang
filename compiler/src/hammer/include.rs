@@ -19,6 +19,18 @@ pub struct VariableDefinition{
     pub addr: usize
 }
 
+impl VariableDefinition {
+
+    pub fn get_size(&self) -> u8{
+        if self.type_var.stars == 0 {
+            self.type_var.size
+        }else{
+            4
+        }
+    }
+
+}
+
 pub static F_PATHS: [&str; 6] = [
                 "asm/script.asm",
                 "asm/base_files/base_script.asm",

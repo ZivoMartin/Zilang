@@ -1,5 +1,5 @@
 use crate::hammer::tokenizer::include::{Token, TokenType};
-use crate::tools::collections::Stack;
+use super::collections::Stack;
 use std::collections::HashMap;
 use crate::hammer::memory::Memory;
 use super::tools::{

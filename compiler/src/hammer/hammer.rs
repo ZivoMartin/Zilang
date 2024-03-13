@@ -1,5 +1,5 @@
 use std::thread::{JoinHandle, spawn};
-use crate::tools::collections::Queue;
+use super::collections::Queue;
 use super::tokenizer::{include::{Token, TokenType}, tokenizer::Tokenizer};
 use std::process::exit;
 use super::program::Program;

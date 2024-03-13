@@ -38,11 +38,11 @@ impl Tool for ExpTools {
         })
     }
 
-    fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
         while self.op_stack.size() != 0 {
             self.push_op_val();
         }
-        let asm = self.build_asm();
+        let asm = self.build_asm(memory);
         Ok((Token::new(TokenType::Expression, format!("{}", self.stars)), asm))
     }
     
@@ -76,15 +76,19 @@ impl ExpTools {
         } 
     }
 
+    fn extract_cident_data(&self, d: &str) -> (i32, i64) {
+        let mut split = d.split_whitespace();
+        (str::parse::<i32>(split.next().unwrap()).unwrap(), str::parse::<i64>(split.next().unwrap()).unwrap())
+    }
 
     fn new_cident(&mut self, ident_stars: String) -> Result<(), String> {
-        let stars = str::parse::<i32>(&ident_stars).unwrap();
+        let (stars, size) = self.extract_cident_data(&ident_stars);
         if self.stars == 0 {
             self.stars = stars;
         }else if stars != 0 && stars != self.stars {
             return Err(String::from("Bad type."))
         }
-        self.pf_exp.push(ExpToken::new(ExpTokenType::Ident, self.esp_decal));
+        self.pf_exp.push(ExpToken::new(ExpTokenType::Ident, size));
         self.esp_decal += 8;
         Ok(())
     }
@@ -108,9 +112,9 @@ impl ExpTools {
         res
     }
 
-    fn build_asm(&self) -> String {
+    fn build_asm(&self, memory: &Memory) -> String {
         let mut nb_ident = 1;
-        let mut res = String::from("\n");
+        let mut res = String::new();
         res.push_str("\nmov rbp, rsp");
         for t in self.pf_exp.iter() {
             let n = t.content;
@@ -133,7 +137,8 @@ push {n}            ; We found a number, lets push it"
                 ExpTokenType::Ident => {
                     res.push_str(&format!("      
 mov rax, [rbp+{}]   ; We found an ident, its on the satck, lets keep it.
-push rax", self.esp_decal-nb_ident*8 as i64
+{}
+push rax", self.esp_decal-nb_ident*8 as i64, memory.deref_var(n as usize, 1)
                     ));
                     nb_ident += 1;
 
