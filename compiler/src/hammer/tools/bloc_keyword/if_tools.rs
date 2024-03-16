@@ -1,21 +1,11 @@
 use crate::hammer::tools::include::*;
 
-pub struct IfTools {
-    id_bloc: u128,
-    nb_cond: u16
-}
+pub struct IfTools {}
 
 impl Tool for IfTools {
 
     fn new() -> Box<dyn Tool> where Self: Sized {
-        unsafe{
-            BLOC_COUNT += 1;
-            Box::from(IfTools{
-                id_bloc: BLOC_COUNT,
-                nb_cond: 0
-            })
-        }
-        
+        Box::from(IfTools{})
     }
 
     fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
@@ -23,12 +13,12 @@ impl Tool for IfTools {
         Ok((Token::new(TokenType::IfKeyword, String::new()), asm))
     }
 
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String> {
+    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
         Ok(match token.token_type {
-            TokenType::Expression => self.compare_exp(),
+            TokenType::Expression => self.compare_exp(memory),
             TokenType::Keyword => self.new_keyword(token.content),
-            TokenType::Bloc => self.end_bloc(),
-            TokenType::Instruction => String::new(),
+            TokenType::Bloc => self.end_bloc(memory),
+            TokenType::Instruction | TokenType::IfKeyword => String::new(),
             _ => {panic_bad_token("if keyword", token);String::new()}
         })
     }
@@ -40,25 +30,23 @@ impl IfTools {
         String::new()
     }
 
-    fn compare_exp(&self) -> String {
+    fn compare_exp(&self, memory: &Memory) -> String {
         format!("
 pop rax
 and rax, rax
-je next_comp_if_{}_{}", self.id_bloc, self.nb_cond)
+je next_comp_if_{}_{}", memory.bloc_id, memory.if_count)
     }
 
-    fn end_bloc(&mut self) -> String {
+    fn end_bloc(&mut self, memory: &mut Memory) -> String {
         let res = format!("
 jmp global_end_if_{}
-next_comp_if_{}_{}:", self.id_bloc, self.id_bloc, self.nb_cond);
-        self.nb_cond += 1;
+next_comp_if_{}_{}:", memory.bloc_id, memory.bloc_id, memory.if_count);
+        memory.if_count += 1;
         res
     }
 
     fn build_asm(&self) -> String {
-        format!("
-next_comp_if_{}_{}:
-global_end_if_{}:", self.id_bloc, self.nb_cond, self.id_bloc)
+        String::new()
     }
 
 }

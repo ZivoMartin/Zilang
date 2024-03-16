@@ -5,7 +5,6 @@ pub use crate::hammer::{
                     };
 pub use crate::hammer::collections::Stack;
 pub use std::collections::HashMap;
-pub static mut BLOC_COUNT: u128 = 0;
 
 /// (deref_time, stars, size)
 pub fn extract_cident_data(d: &str) -> (i8, i32, u32) {

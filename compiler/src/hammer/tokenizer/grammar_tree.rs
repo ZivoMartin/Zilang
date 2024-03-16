@@ -559,7 +559,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     TokenType::Instruction,
                     vec!(),
                     vec!(
-                        Node::leaf_c(TokenType::Symbol, vec!(";"))
+                        Node::leaf_c(TokenType::Symbol, vec!(";")).react(Tokenizer::end_group)
                     )
                 ).react(Tokenizer::push_once)
             ), 
@@ -697,32 +697,32 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                                                         Node::new_c(
                                                                             TokenType::Symbol,
                                                                             vec!(
-                                                                                Node::leaf(TokenType::Bloc)
+                                                                                Node::leaf(TokenType::Bloc).react(Tokenizer::push_once)
                                                                             ),
                                                                             vec!(),
                                                                             vec!(")")
-                                                                        )
+                                                                        ).react(Tokenizer::end_group)
                                                                     )
-                                                                ).react(Tokenizer::push_group)
+                                                                ).react(Tokenizer::push_once)
                                                             ),
                                                             vec!(),
                                                             vec!(";")
-                                                        )
+                                                        ).react(Tokenizer::end_group)
                                                     )
-                                                ).react(Tokenizer::push_group)
+                                                ).react(Tokenizer::push_once)
                                             ),
                                             vec!(),
                                             vec!(";")
-                                        )
+                                        ).react(Tokenizer::end_group)
                                     )
-                                ).react(Tokenizer::push_group)
+                                ).react(Tokenizer::push_once)
                             ),
                             vec!(),
                             vec!("(")
                         )
                     ),
                     vec!("for")
-                )
+                ).react(Tokenizer::push_token)
             )
         )
     );
@@ -746,8 +746,8 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                         Node::new_c(
                                             TokenType::Keyword, 
                                             vec!(
-                                                Node::leaf(TokenType::Bloc).react(Tokenizer::push_ending_group),
-                                                Node::leaf(TokenType::IfKeyword).react(Tokenizer::push_ending_group)
+                                                Node::leaf(TokenType::Bloc).react(Tokenizer::push_once),
+                                                Node::leaf(TokenType::IfKeyword).react(Tokenizer::push_group)
                                             ),
                                             vec!(),
                                             vec!("else")
@@ -812,13 +812,13 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(
                         Node::new(
                             TokenType::Expression,
-                            vec!(Node::leaf(TokenType::Bloc).react(Tokenizer::end_group)),
+                            vec!(Node::leaf(TokenType::Bloc).react(Tokenizer::push_ending_group)),
                             vec!()
                         ).react(Tokenizer::push_once)
                     ),
                     vec!(),
                     vec!("while")
-                )
+                ).react(Tokenizer::push_token)
             ),
         )
     );

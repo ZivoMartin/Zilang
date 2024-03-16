@@ -50,7 +50,7 @@ fn build_constructor_map() -> HashMap<TokenType, fn() -> Box<dyn Tool>> {
 pub struct Program {
     memory: Memory,
     tools_stack: Stack<Box<dyn Tool>>,
-    constructor_map: HashMap<TokenType, fn() -> Box<dyn Tool>>
+    constructor_map: HashMap<TokenType, fn() -> Box<dyn Tool>>,
 }
 
 impl Program {
@@ -58,7 +58,7 @@ impl Program {
         Program {
             memory: Memory::new(),
             tools_stack: Stack::new(),
-            constructor_map: build_constructor_map()
+            constructor_map: build_constructor_map(),
         }
     }
 
@@ -72,6 +72,7 @@ impl Program {
     }
 
     pub fn end_group(&mut self) -> Result<String, String>{
+        println!("new end");
         let (token_to_raise, mut end_txt) = self.tools_stack.pop().unwrap().end(&mut self.memory)?;
         println!("end           {:?}", token_to_raise.token_type);
         let asm = if !self.tools_stack.is_empty() {
@@ -90,4 +91,3 @@ impl Program {
 pub fn panic_bad_token(receiver: &str, token: Token) {
     panic!("Unknow token type for a {receiver}: {:?}    {}", token.token_type, token.content)
 }
-

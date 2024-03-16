@@ -12,6 +12,8 @@ pub struct Memory {
     //func_map: HashMap<usize, Function>,
     type_size: HashMap<String, u8>, 
     stack_index: usize,
+    pub bloc_id: u128,
+    pub if_count: u32
     //nb_func: usize
 }
 
@@ -24,6 +26,8 @@ impl Memory {
             //func_map: HashMap::new(),
             type_size: build_tab_size_map(),
             stack_index: 0,
+            bloc_id: 0,
+            if_count: 0
             //nb_func: 0
         }
     }

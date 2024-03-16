@@ -91,7 +91,6 @@ impl<'a> Tokenizer {
                 Ok(()) => (),
                 Err(_) => return Err("Failed to tokenise")
             }
-            self.end_group(TokenType::Instruction, &String::new());
             self.skip_garbage(&mut chars); 
         }   
         unsafe{
