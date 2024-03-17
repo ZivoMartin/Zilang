@@ -21,8 +21,8 @@ je end_loop_{}", memory.bloc_id)
 
     fn new_keyword(&self, kw: &str, memory: &mut Memory) -> String {
         match kw {
-            "for" => String::new(),     // Nothing yet, later we are gonna need to jump on a new bloc
-            "while" => format!("\nbegin_loop_{}:", memory.bloc_id),
+            "for" => String::new(),     
+            "while" | "do" => format!("\nbegin_loop_{}:", memory.bloc_id),
             _ => panic!("Unknow keyword in a for loop: {kw}")
         }
     }

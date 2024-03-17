@@ -9,12 +9,11 @@ pub static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
 pub struct Memory {
     var_name_map: HashMap<String, Stack<usize>>,
     var_map: HashMap<usize, VariableDefinition>,
-    //func_map: HashMap<usize, Function>,
     type_size: HashMap<String, u8>, 
     stack_index: usize,
     pub bloc_id: u128,
-    pub if_count: u32
-    //nb_func: usize
+    pub if_count: u32,
+    jump_stack: Stack<Jump>
 }
 
 impl Memory {
@@ -23,12 +22,11 @@ impl Memory {
         Memory {
             var_name_map: HashMap::new(),
             var_map: HashMap::new(),
-            //func_map: HashMap::new(),
             type_size: build_tab_size_map(),
             stack_index: 0,
             bloc_id: 0,
-            if_count: 0
-            //nb_func: 0
+            if_count: 0,
+            jump_stack: Stack::init(Jump::new(0))
         }
     }
 
@@ -55,6 +53,7 @@ impl Memory {
             );
         }
         let res = self.stack_index;
+        self.jump_stack.val_mut().expect("jump stack empty").add_addr(self.stack_index);
         self.stack_index += size as usize;
         res
     } 
@@ -87,6 +86,28 @@ impl Memory {
         }
     }
 
+    pub fn get_type_size(&self, nb_s: i32, name: &str) -> u8 {
+        if nb_s != 0 {
+            4
+        }else{
+            *self.type_size.get(name).expect("type doesn't exists")
+        }
+    }
+
+    pub fn jump_in(&mut self) {
+        self.jump_stack.push(Jump::new(self.stack_index));
+    }
+
+    pub fn jump_out(&mut self) {
+        let last_jump = self.jump_stack.pop().expect("Can t jump out, stack empty");
+        for addr in last_jump.addr_to_remove.iter() {
+            let var_def = self.var_map.remove(addr).expect("Adress unvalid");
+            self.var_name_map
+                .get_mut(&var_def.name).expect("The name doesn't exists")
+                .pop().expect("The varname stack is empty");
+        }
+        self.stack_index = last_jump.stack_index;
+    }
 }
 
 fn build_tab_size_map() -> HashMap<String, u8> {

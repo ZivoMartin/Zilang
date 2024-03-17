@@ -28,7 +28,7 @@ impl Tool for ExpTools {
         Ok(String::new())
     }
 
-    fn new() -> Box<dyn Tool> {
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
         Box::from(ExpTools{
             op_stack : Stack::new(),
             pf_exp : Vec::new(),
@@ -140,7 +140,7 @@ push rax", self.esp_decal-nb_ident*8 as i64, if *is_ref==-1 {String::new()}else{
             res.push_str(&format!("
 pop rax
 add rsp, {}
-push rax", nb_ident))
+push rax", nb_ident*8))
         }
         for a in ASM_TO_REMOVE.iter() {
             res = res.replace(a, "");

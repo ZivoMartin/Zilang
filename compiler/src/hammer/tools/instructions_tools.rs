@@ -21,7 +21,7 @@ impl Tool for InstructionTools {
     }
 
 
-    fn new() -> Box<dyn Tool> {
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
         Box::from(InstructionTools {
             size_aff: 0,
             equal_code: String::new()

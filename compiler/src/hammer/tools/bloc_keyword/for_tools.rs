@@ -10,7 +10,7 @@ impl LoopTrait for ForTools{}
 
 impl Tool for ForTools {
 
-    fn new() -> Box<dyn Tool> where Self: Sized {
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
         Box::from(ForTools{
             inst_number: 0
         })
@@ -25,7 +25,7 @@ impl Tool for ForTools {
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
         Ok(match token.token_type {
             TokenType::Keyword => self.new_keyword(&token.content, memory),
-            TokenType::Expression => self.compare_exp(memory),
+            TokenType::Expression => self.compare_exp(memory)            ,
             TokenType::Instruction => self.new_inst(memory),
             TokenType::Bloc => String::new(),
             _ => {panic_bad_token("while keyword", token);String::new()}
@@ -37,17 +37,15 @@ impl Tool for ForTools {
 impl ForTools {
 
     fn new_inst(&mut self, memory: &mut Memory) -> String {
-        inst_number += 1;
+        self.inst_number += 1;
         match self.inst_number {
-            1 => format!("\nbegin_loop_{}:", memory.bloc_id),
-            2 => 
+            1 => format!("
+
+jmp skip_first_loop_{id}
+begin_loop_{id}:", id=memory.bloc_id),
+            
+            2 => format!("\nskip_first_loop_{}:", memory.bloc_id),
             _ => String::new()
         }
-            self.inst_number = false;
-            
-        }else{
-            String::new()
-        }
     }
-
 }

@@ -8,8 +8,8 @@ impl LoopTrait for WhileTools{}
 
 impl Tool for WhileTools {
 
-    fn new() -> Box<dyn Tool> where Self: Sized {
-        Box::from(WhileTools{})
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
+        Box::from(WhileTools)
     }
 
     fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {

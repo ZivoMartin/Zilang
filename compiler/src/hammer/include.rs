@@ -1,10 +1,38 @@
 
+pub struct Jump {
+    pub stack_index: usize,
+    pub addr_to_remove: Vec<usize>
+}
+
+impl Jump {
+
+    pub fn new(stack_index: usize) -> Jump {
+        Jump{stack_index, addr_to_remove: Vec::new()}
+    }
+
+    pub fn add_addr(&mut self, addr: usize) {
+        self.addr_to_remove.push(addr);
+    }
+
+}
+
 
 pub struct Type {
     pub name: String,
     pub size: u8,
     pub stars: i32
 }
+
+impl Clone for Type {
+    fn clone(&self) -> Type {
+        Type{
+            name: self.name.clone(),
+            size: self.size,
+            stars: self.stars
+        }
+    }
+}
+
 
 #[allow(dead_code)]
 pub struct Function {

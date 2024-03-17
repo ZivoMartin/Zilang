@@ -93,14 +93,11 @@ ret
 %endmacro
 
 %macro _deref_dword 1
-    xor r11, r11
-    xor r10, r10
-    mov r11, %1
+    mov rcx, %1
     %%_deref_loop:
-        cmp r10, r11
-        je %%_deref_end_loop
-        inc r10
-        movsx rax, dword[_stack+rax]
+        dec rcx
+        jl %%_deref_end_loop
+        mov eax, dword[_stack+eax]
         jmp %%_deref_loop 
     %%_deref_end_loop:    
 %endmacro

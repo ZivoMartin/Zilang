@@ -14,14 +14,16 @@ use super::tools::{
             bloc_keyword::{
                 if_tools::IfTools,
                 while_tools::WhileTools,
-                for_tools::ForTools
+                for_tools::ForTools,
+                do_tools::DoTools,
+                func_tools::FuncTools
             }
             
         };
 
 pub trait Tool {
 
-    fn new() -> Box<dyn Tool> where Self: Sized;
+    fn new(memory: &mut Memory) -> Box<dyn Tool> where Self: Sized;
 
     fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String>;
     
@@ -29,8 +31,8 @@ pub trait Tool {
 
 }
 
-fn build_constructor_map() -> HashMap<TokenType, fn() -> Box<dyn Tool>> {
-    let mut res = HashMap::<TokenType, fn() -> Box<dyn Tool>>::new();
+fn build_constructor_map() -> HashMap<TokenType, fn(&mut Memory) -> Box<dyn Tool>> {
+    let mut res = HashMap::<TokenType, fn(memory: &mut Memory) -> Box<dyn Tool>>::new();
     res.insert(TokenType::Instruction, InstructionTools::new);
     res.insert(TokenType::Declaration, DeclTools::new);
     res.insert(TokenType::Expression, ExpTools::new);
@@ -42,15 +44,15 @@ fn build_constructor_map() -> HashMap<TokenType, fn() -> Box<dyn Tool>> {
     res.insert(TokenType::IfKeyword, IfTools::new);
     res.insert(TokenType::ForKeyword, ForTools::new);
     res.insert(TokenType::WhileKeyword, WhileTools::new);
-    // res.insert(TokenType::FuncKeyword, FuncTools::new());
-    // res.insert(TokenType::DoKeyWord, DoTools::new());
+    res.insert(TokenType::FuncKeyword, FuncTools::new);
+    res.insert(TokenType::DoKeyWord, DoTools::new);
     res
 }
 
 pub struct Program {
     memory: Memory,
     tools_stack: Stack<Box<dyn Tool>>,
-    constructor_map: HashMap<TokenType, fn() -> Box<dyn Tool>>,
+    constructor_map: HashMap<TokenType, fn(memory: &mut Memory) -> Box<dyn Tool>>,
 }
 
 impl Program {
@@ -68,11 +70,10 @@ impl Program {
 
     pub fn new_group(&mut self, type_token: TokenType) {
         println!("new           {type_token:?}");
-        self.tools_stack.push((self.constructor_map.get(&type_token).unwrap())());
+        self.tools_stack.push((self.constructor_map.get(&type_token).unwrap())(&mut self.memory));
     }
 
     pub fn end_group(&mut self) -> Result<String, String>{
-        println!("new end");
         let (token_to_raise, mut end_txt) = self.tools_stack.pop().unwrap().end(&mut self.memory)?;
         println!("end           {:?}", token_to_raise.token_type);
         let asm = if !self.tools_stack.is_empty() {

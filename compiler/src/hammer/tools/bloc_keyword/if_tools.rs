@@ -1,11 +1,11 @@
 use crate::hammer::tools::include::*;
 
-pub struct IfTools {}
+pub struct IfTools;
 
 impl Tool for IfTools {
 
-    fn new() -> Box<dyn Tool> where Self: Sized {
-        Box::from(IfTools{})
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
+        Box::from(IfTools)
     }
 
     fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
@@ -16,7 +16,7 @@ impl Tool for IfTools {
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
         Ok(match token.token_type {
             TokenType::Expression => self.compare_exp(memory),
-            TokenType::Keyword => self.new_keyword(token.content),
+            TokenType::Keyword => self.new_keyword(memory, token.content),
             TokenType::Bloc => self.end_bloc(memory),
             TokenType::Instruction | TokenType::IfKeyword => String::new(),
             _ => {panic_bad_token("if keyword", token);String::new()}
@@ -26,7 +26,12 @@ impl Tool for IfTools {
 
 impl IfTools {
 
-    fn new_keyword(&self, _kw: String) -> String {
+    fn new_keyword(&self, memory: &mut Memory, kw: String) -> String {
+        if kw == "else" {
+            println!("in");
+            memory.jump_out();
+            memory.jump_in();
+        }
         String::new()
     }
 

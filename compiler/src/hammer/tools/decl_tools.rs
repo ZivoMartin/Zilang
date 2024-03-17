@@ -22,7 +22,7 @@ impl Tool for DeclTools {
     }
 
 
-    fn new() -> Box<dyn Tool> {
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
         Box::from(DeclTools {
             addr: 0,
             type_name: String::new(),
@@ -33,7 +33,7 @@ impl Tool for DeclTools {
 
     fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
         let asm = self.build_asm(memory);
-        Ok((Token::new(TokenType::Declaration, String::new()), asm))
+        Ok((Token::new(TokenType::Declaration, self.addr.to_string()), asm))
     }
 
 }

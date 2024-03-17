@@ -15,7 +15,7 @@ impl Tool for ComplexCharTools {
         Ok(String::new())
     }
     
-    fn new() -> Box<dyn Tool> {
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
         Box::from(ComplexCharTools {
             bs: false,
             symb: '\0'

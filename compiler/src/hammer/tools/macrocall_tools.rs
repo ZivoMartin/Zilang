@@ -12,7 +12,7 @@ static _SIZE_PARAM: u8 = 8;
 
 impl Tool for MacroCallTools {
 
-    fn new() -> Box<dyn Tool> where Self: Sized {
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
         Box::from(MacroCallTools{
             name: String::new(),
             nb_param: 0,

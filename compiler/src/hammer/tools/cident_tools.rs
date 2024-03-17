@@ -20,7 +20,7 @@ impl Tool for CIdentTools {
         Ok(String::new())
     }
     
-    fn new() -> Box<dyn Tool> {
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
         Box::from(CIdentTools {
             deref_time: 0,
             name: String::new(),

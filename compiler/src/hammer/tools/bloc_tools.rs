@@ -13,9 +13,8 @@ impl Tool for BlocTools {
     }
 
 
-    fn new() -> Box<dyn Tool> {
-        Box::from(BlocTools {
-        })
+    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
+        Box::from(BlocTools)
     }
 
     fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {

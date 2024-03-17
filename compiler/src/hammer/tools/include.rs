@@ -1,5 +1,8 @@
 pub use crate::hammer::{
-                        {memory::Memory, include::VariableDefinition},
+                        {memory::Memory, include::{
+                            VariableDefinition, 
+                            Type
+                        }},
                         program::{Tool, panic_bad_token},
                         tokenizer::include::{TokenType, Token, OPERATORS}
                     };
