@@ -64,8 +64,8 @@ impl Program {
         }
     }
 
-    pub fn tokenize(&mut self, token: Token) -> Result<String, String> {
-        self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory)
+    pub fn tokenize(&mut self, token: Token) -> Result<(String, usize), String> {
+        Ok((self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory).unwrap(), self.memory.current_file))
     }
 
     pub fn new_group(&mut self, type_token: TokenType) {
@@ -73,16 +73,16 @@ impl Program {
         self.tools_stack.push((self.constructor_map.get(&type_token).unwrap())(&mut self.memory));
     }
 
-    pub fn end_group(&mut self) -> Result<String, String>{
+    pub fn end_group(&mut self) -> Result<(String, usize), String>{
         let (token_to_raise, mut end_txt) = self.tools_stack.pop().unwrap().end(&mut self.memory)?;
         println!("end           {:?}", token_to_raise.token_type);
         let asm = if !self.tools_stack.is_empty() {
-            self.tokenize(token_to_raise)?
+            self.tokenize(token_to_raise)?.0
         }else{
             String::new()
         };
         end_txt.push_str(&asm);
-        Ok(end_txt)
+        Ok((end_txt, self.memory.current_file))
     }
 
     

@@ -39,7 +39,7 @@ impl<'a> Hammer {
             if !self.token_queue.is_empty() {
                 let token = self.token_queue.dequeue().expect("Queue empty");
                 match self.tools.tokenize(token) {
-                    Ok(asm) => self.push_script(&asm),
+                    Ok((asm, file_path)) => self.push_script(&asm, file_path),
                     Err(e) => panic!("{e}")
                 };
             }
@@ -60,13 +60,13 @@ impl<'a> Hammer {
 
     pub fn end_group(&mut self) {
         match self.tools.end_group() {
-            Ok(end_txt) => self.push_script(&end_txt),
+            Ok((end_txt, file_path)) => self.push_script(&end_txt, file_path),
             Err(e) => panic!("{e}")
         };
     }
     
-    fn push_script(&mut self, txt: &str) {
-        self.asm_files[SCRIPTF].write(txt.as_bytes()).unwrap();
+    fn push_script(&mut self, txt: &str, file_path: usize) {
+        self.asm_files[file_path].write(txt.as_bytes()).unwrap();
     }
 
 }

@@ -1,3 +1,5 @@
+use self::files::{FUNCTIONSF, SCRIPTF};
+
 use super::collections::Stack;
 use std::collections::HashMap;
 use super::include::*;
@@ -13,7 +15,8 @@ pub struct Memory {
     stack_index: usize,
     pub bloc_id: u128,
     pub if_count: u32,
-    jump_stack: Stack<Jump>
+    jump_stack: Stack<Jump>,
+    pub current_file: usize
 }
 
 impl Memory {
@@ -26,7 +29,8 @@ impl Memory {
             stack_index: 0,
             bloc_id: 0,
             if_count: 0,
-            jump_stack: Stack::init(Jump::new(0))
+            jump_stack: Stack::init(Jump::new(0)),
+            current_file: SCRIPTF
         }
     }
 
@@ -107,6 +111,14 @@ impl Memory {
                 .pop().expect("The varname stack is empty");
         }
         self.stack_index = last_jump.stack_index;
+    }
+
+    pub fn in_func(&mut self) {
+        self.current_file = FUNCTIONSF;
+    }
+
+    pub fn out_func(&mut self) {
+        self.current_file = SCRIPTF;
     }
 }
 

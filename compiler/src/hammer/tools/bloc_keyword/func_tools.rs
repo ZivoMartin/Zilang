@@ -8,7 +8,8 @@ pub struct FuncTools {
 
 impl Tool for FuncTools {
 
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
+    fn new(memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
+        memory.in_func();
         Box::from(
             FuncTools{
                 name: String::new(),
@@ -19,19 +20,21 @@ impl Tool for FuncTools {
     }
 
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
+        let mut res = String::new();
         match token.token_type {
             TokenType::Declaration => self.new_arg(memory, token.content),
-            TokenType::Ident => self.set_ident(token.content),
+            TokenType::Ident => res = self.set_ident(token.content),
             TokenType::Type => self.set_type_name(memory, token.content),
             TokenType::Symbol => self.new_star(),
             TokenType::Bloc => (),
             _ => panic_bad_token("func keyword", token)
         }
-        Ok(String::new())
+        Ok(res)
     }
 
     
-    fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
+        memory.out_func();
         Ok((Token::new(TokenType::FuncKeyword, String::new()), String::new()))
     }
 }
@@ -43,8 +46,9 @@ impl FuncTools {
         self.type_args.push(var_def.type_var.clone())
     }
 
-    fn set_ident(&mut self, name: String) {
+    fn set_ident(&mut self, name: String) -> String {
         self.name = name;
+        format!("{}:", self.name)
     } 
 
     fn new_star(&mut self) {
