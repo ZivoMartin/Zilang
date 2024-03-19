@@ -36,6 +36,7 @@ pub enum TokenType {
     IfKeyword,
     ForKeyword,
     WhileKeyword,
+    FuncCall,
     FuncKeyword,
     DoKeyWord,
     MacroCall,

@@ -469,9 +469,9 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                 )
                             ),
                             vec!()   
-                        ).react(Tokenizer::push_token)
+                        ).react(Tokenizer::push_ending_token)
                     )   
-                )
+                ).react(Tokenizer::push_once)
             ),
             vec!()   
         )
@@ -784,10 +784,10 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                         Node::new(
                                             TokenType::ComplexType,
                                             vec!(
-                                                Node::leaf(TokenType::Bloc).react(Tokenizer::push_once)
+                                                Node::leaf(TokenType::Bloc).react(Tokenizer::push_ending_once)
                                             ),
                                             vec!()
-                                        )
+                                        ).react(Tokenizer::push_once)
                                     ),
                                     vec!()
                                 )

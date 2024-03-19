@@ -3,28 +3,31 @@ use super::include::*;
 pub struct CIdentTools {
     deref_time: i32,
     name: String,
-    for_bracket: bool // If we catch an exp, its determine if its between a bracket or a tupple
+    for_bracket: bool, // If we catch an exp, its determine if its between a bracket or a tupple
+    nb_exp: u8
 }
 
 impl Tool for CIdentTools {
 
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String>{
-        match token.token_type {
+    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String>{
+        let mut res = String::new();
+         match token.token_type {
             TokenType::Symbol => self.new_symbol(token.content)?,
             TokenType::Ident => self.def_ident(token.content),
             TokenType::Brackets => self.open_brackets(),
-            TokenType::ExpressionTuple => self.open_tupple(),
-            TokenType::Expression => self.new_expression(),
+            TokenType::ExpressionTuple => self.open_tupple(memory)?,
+            TokenType::Expression => res = self.new_expression(memory, token.content)?,
             _ => panic_bad_token("complex ident", token)
         }
-        Ok(String::new())
+        Ok(res)
     }
     
     fn new(_memory: &mut Memory) -> Box<dyn Tool> {
         Box::from(CIdentTools {
             deref_time: 0,
             name: String::new(),
-            for_bracket: true
+            for_bracket: true,
+            nb_exp: 0
         })
     }
 
@@ -37,17 +40,11 @@ impl Tool for CIdentTools {
     /// the value 8, we are gonna push 3, then if we want the value of a
     /// we keep the adress on the stack and keep the value in the memory.
     fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
-        let var_def = match memory.get_var_def_by_name(&self.name) {
-            Ok(var_def) => var_def,
-            Err(_) => return Err(format!("{} isn't an axisting variable.", &self.name))
-        };
-        let stars = var_def.type_var.stars as i32 - self.deref_time;
-        if stars < -1 {
-            return Err(format!("Bad dereferencment")) // If you want to modifie this line, care it could be dangerous because of the unsafe
+        if !self.for_bracket { // We are catching a function call.
+            self.raise_func_call(memory)
+        }else{
+            self.raise_mem_spot(memory)
         }
-        
-        let asm = self.build_asm(stars, self.deref_time, &memory, var_def);
-        Ok((Token::new(TokenType::ComplexIdent, format!("{} {stars} {}", self.deref_time, var_def.get_size())), asm))
     }
 }
 
@@ -74,21 +71,50 @@ impl CIdentTools {
     }
 
     pub fn open_brackets(&mut self) {
+        self.nb_exp = 0;
         self.for_bracket = true;
     }
 
-    pub fn open_tupple(&mut self) {
-        self.for_bracket = false;
+    pub fn open_tupple(&mut self, memory: &Memory) -> Result<(), String> {
+        self.nb_exp = 0;
+        if !memory.is_function(&self.name) {
+            Err(format!("{} isn't a function", self.name))
+        }else{
+            Ok(self.for_bracket = false)
+        }
     }
 
-    pub fn new_expression(&mut self) {
+    pub fn new_expression(&mut self, memory: &mut Memory, stars: String) -> Result<String, String>{
+        self.nb_exp += 1;
         if self.for_bracket {
-            println!("New expression for bracket");
-            // Todo: Push the result of the exp on the stack ? No, think more
+            todo!("New expression for bracket");
         }else{
-            println!("New expression for tupple");
-            // Todo: handle func call 
+            memory.handle_arg(&self.name, stars.parse::<i32>().unwrap(), (self.nb_exp-1) as usize)
         }
+
+    }
+
+    fn raise_mem_spot(&self, memory: &mut Memory) -> Result<(Token, String), String> {
+        let var_def = match memory.get_var_def_by_name(&self.name) {
+            Ok(var_def) => var_def,
+            Err(_) => return Err(format!("{} isn't an axisting variable.", &self.name))
+        };
+        let stars = var_def.type_var.stars as i32 - self.deref_time;
+        if stars < -1 {
+            return Err(format!("Bad dereferencment")) // If you want to modifie this line, care it could be dangerous because of the unsafe
+        }
+
+        let asm = self.build_asm(stars, self.deref_time, &memory, var_def);
+        Ok((Token::new(TokenType::ComplexIdent, format!("{} {stars} {}", self.deref_time, var_def.get_size())), asm))
+    }
+
+    fn raise_func_call(&self, memory: &mut Memory) -> Result<(Token, String), String> {
+        memory.good_nb_arg(&self.name, self.nb_exp)?;
+        let asm = format!("
+call {}
+push rax", self.name);
+        Ok((Token::new(TokenType::FuncCall, format!("{} {stars}", self.deref_time, var_def.get_size())), asm))
+
     }
 
     fn build_asm(&self, _stars: i32, deref_time: i32, memory: &Memory, var_def: &VariableDefinition) -> String {

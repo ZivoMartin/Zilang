@@ -24,8 +24,7 @@ impl Tool for FuncTools {
         match token.token_type {
             TokenType::Declaration => self.new_arg(memory, token.content),
             TokenType::Ident => res = self.set_ident(token.content),
-            TokenType::Type => self.set_type_name(memory, token.content),
-            TokenType::Symbol => self.new_star(),
+            TokenType::ComplexType => res = self.set_type(memory, token.content),
             TokenType::Bloc => (),
             _ => panic_bad_token("func keyword", token)
         }
@@ -51,14 +50,15 @@ impl FuncTools {
         format!("{}:", self.name)
     } 
 
-    fn new_star(&mut self) {
-        self.return_type.size = 4;
-        self.return_type.stars += 1;
+    fn set_type(&mut self, memory: &mut Memory, t: String) -> String {
+        let (name, stars, size) = extract_ctype_data(&t);
+        self.return_type = Type{name, stars: stars as i32, size: size as u8};
+        let res = format!("
+mov [_stack + {}], {}", memory.si(), self.name
+        );
+        memory.new_function(self.name.clone(), self.type_args.clone(), self.return_type.clone());
+        res
     }
 
-    fn set_type_name(&mut self, memory: &Memory, name: String) {
-        self.return_type.size = memory.get_type_size(0, &name);
-        self.return_type.name = name;
-    }
 
 }

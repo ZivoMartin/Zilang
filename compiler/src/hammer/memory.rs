@@ -11,6 +11,7 @@ pub static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
 pub struct Memory {
     var_name_map: HashMap<String, Stack<usize>>,
     var_map: HashMap<usize, VariableDefinition>,
+    func_map: HashMap<String, Stack<Function>>,
     type_size: HashMap<String, u8>, 
     stack_index: usize,
     pub bloc_id: u128,
@@ -25,6 +26,7 @@ impl Memory {
         Memory {
             var_name_map: HashMap::new(),
             var_map: HashMap::new(),
+            func_map: HashMap::new(),
             type_size: build_tab_size_map(),
             stack_index: 0,
             bloc_id: 0,
@@ -32,6 +34,19 @@ impl Memory {
             jump_stack: Stack::init(Jump::new(0)),
             current_file: SCRIPTF
         }
+    }
+
+    pub fn is_function(&self, name: &str) -> bool {
+        self.func_map.contains_key(name) && !self.func_map.get(name).unwrap().is_empty()
+    }
+
+    pub fn new_function(&mut self, name: String, args: Vec<Type>, return_type: Type) {
+        let f = Function{name: name.clone(), args, return_type, addr: self.stack_index};
+        match self.func_map.get_mut(&name) {
+            Some(s) => s.push(f),
+            _ => {self.func_map.insert(name, Stack::init(f));}
+        };
+        self.stack_index += 8;
     }
 
     pub fn new_var(&mut self, name_type: String, name: String, stars: i32) -> usize {
@@ -119,6 +134,29 @@ impl Memory {
 
     pub fn out_func(&mut self) {
         self.current_file = SCRIPTF;
+    }
+
+    pub fn si(&self) -> usize {
+        self.stack_index
+    }
+
+    pub fn handle_arg(&mut self, f_name: &str, stars: i32, nth: usize) -> Result<String, String> {
+        let f = self.func_map.get_mut(f_name).unwrap().pop().unwrap();
+        if f.args[nth as usize].stars != stars {
+            return Err("Not the good type for the call.".to_string())
+        }
+        let size = self.get_type_size(stars, &f.args[nth as usize].name) as usize;
+        let res = format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], self.stack_index, RAX_SIZE[size]);
+        self.stack_index += size;
+        Ok(res)
+    }
+
+    pub fn good_nb_arg(&self, name: &str, nb_arg: u8) -> Result<(), String>{
+        if self.func_map.get_mut(name).unwrap().pop().unwrap().args.len() != nb_arg as usize {
+            Err(String::from("not the good number of arg"))
+        }else{
+            Ok(())
+        }
     }
 }
 

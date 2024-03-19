@@ -16,6 +16,12 @@ impl Jump {
 
 }
 
+pub struct Function {
+    pub addr: usize,
+    pub name: String,
+    pub args: Vec<Type>,
+    pub return_type: Type
+}
 
 pub struct Type {
     pub name: String,
@@ -31,14 +37,6 @@ impl Clone for Type {
             stars: self.stars
         }
     }
-}
-
-
-#[allow(dead_code)]
-pub struct Function {
-    pub args: Vec::<VariableDefinition>,
-    pub return_type: Type,
-    name: String
 }
 
 pub struct VariableDefinition{

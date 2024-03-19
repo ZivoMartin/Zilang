@@ -11,9 +11,8 @@ impl Tool for DeclTools {
 
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String>{
         match token.token_type {
-            TokenType::Type => self.def_type(token.content),
+            TokenType::ComplexType => self.def_type(token.content),
             TokenType::Ident => self.def_name(token.content, memory),
-            TokenType::Symbol => self.new_star(token.content),
             TokenType::Operator => self.def_equal_operator(),
             TokenType::Expression => self.check_exp(token.content)?,
             _ => panic_bad_token("declaration", token)
@@ -41,19 +40,15 @@ impl Tool for DeclTools {
 impl DeclTools {
 
 
-    pub fn new_star(&mut self, content: String) {
-        if content == "*" {
-            self.stars += 1;
-        }else{
-            panic!("Bad symbol: {} when a star was expected", content);
-        }
-    }
 
     pub fn def_type(&mut self, t: String) {
-        self.type_name = t;
+        let (name_t, stars, _) = extract_ctype_data(&t);
+        self.type_name = name_t;
+        self.stars = stars as i32;
     }
 
     pub fn check_exp(&mut self, stars: String) -> Result<(), String>{
+        println!("{} {}", self.stars, stars);
         return if str::parse::<i32>(&stars).unwrap() != self.stars {
             Err(String::from("Not the good type"))
         }else{

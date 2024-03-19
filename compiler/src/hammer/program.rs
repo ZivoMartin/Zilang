@@ -11,6 +11,7 @@ use super::tools::{
             instructions_tools::InstructionTools,
             keyword_tools::KeyWordTools,
             bloc_tools::BlocTools,
+            complex_type_tools::ComplexTypeTools,
             bloc_keyword::{
                 if_tools::IfTools,
                 while_tools::WhileTools,
@@ -38,6 +39,7 @@ fn build_constructor_map() -> HashMap<TokenType, fn(&mut Memory) -> Box<dyn Tool
     res.insert(TokenType::Expression, ExpTools::new);
     res.insert(TokenType::ComplexIdent, CIdentTools::new);
     res.insert(TokenType::MacroCall, MacroCallTools::new);
+    res.insert(TokenType::ComplexType, ComplexTypeTools::new);
     res.insert(TokenType::ComplexChar, ComplexCharTools::new);
     res.insert(TokenType::Bloc, BlocTools::new);
     res.insert(TokenType::KeywordInstruction, KeyWordTools::new);
@@ -65,7 +67,7 @@ impl Program {
     }
 
     pub fn tokenize(&mut self, token: Token) -> Result<(String, usize), String> {
-        Ok((self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory).unwrap(), self.memory.current_file))
+        Ok((self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory)?, self.memory.current_file))
     }
 
     pub fn new_group(&mut self, type_token: TokenType) {

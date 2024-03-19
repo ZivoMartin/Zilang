@@ -39,6 +39,7 @@ impl Tool for ExpTools {
         })
     }
 
+    /// The expressions raise the number of stars of the expression. The result is push on the stack
     fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
         while self.op_stack.size() != 0 {
             self.push_op_val();

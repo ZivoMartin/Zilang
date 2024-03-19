@@ -7,4 +7,5 @@ pub mod complexchar_tools;
 pub mod include;
 pub mod keyword_tools;
 pub mod bloc_keyword;
+pub mod complex_type_tools;
 pub mod bloc_tools;
