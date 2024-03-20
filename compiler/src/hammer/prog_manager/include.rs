@@ -1,3 +1,10 @@
+pub use crate::hammer::collections::Stack;
+pub use std::collections::HashMap;
+pub use self::files::{FUNCTIONSF, SCRIPTF};
+
+pub static ASM_SIZES: [&str; 9] = ["", "byte", "word", "", "dword", "", "", "", "qword"];
+pub static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
+
 
 pub struct Jump {
     pub stack_index: usize,
@@ -17,17 +24,47 @@ impl Jump {
 }
 
 pub struct Function {
-    pub addr: usize,
-    pub name: String,
-    pub args: Vec<Type>,
-    pub return_type: Type
+    addr: usize,
+    name: String,
+    args: Vec<Type>,
+    return_type: Type
 }
+
+#[allow(dead_code)]
+impl Function {
+
+    pub fn new(addr: usize, name: String, args: Vec<Type>, return_type: Type) -> Function {
+        Function{addr, name, args, return_type}
+    }
+
+    pub fn addr(&self) -> usize {
+        self.addr
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn args(&self) -> &Vec<Type> {
+        &self.args
+    }
+
+    pub fn return_type(&self) -> &Type {
+        &self.return_type
+    }
+
+
+    pub fn nb_arg(&self) -> usize {
+        self.args().len()
+    }
+}
+
 
 #[derive(Debug)]
 pub struct Type {
-    pub name: String,
-    pub size: u8,
-    pub stars: i32
+    name: String,
+    size: u8,
+    stars: u32
 }
 
 impl std::hash::Hash for Type{
@@ -58,8 +95,20 @@ impl Clone for Type {
 }
 
 impl Type {
-    pub fn new(name: String, size: u8, stars: i32) -> Type {
+    pub fn new(name: String, size: u8, stars: u32) -> Type {
         Type{name, size, stars}
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn size(&self) -> u8 {
+        self.size
+    }
+
+    pub fn stars(&self) -> u32 {
+        self.stars
     }
 }
 

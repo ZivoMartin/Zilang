@@ -1,5 +1,5 @@
 pub use crate::hammer::{
-                        {memory::Memory, include::{
+                        prog_manager::{prog_manager::ProgManager, include::{
                             VariableDefinition, 
                             Type
                         }},

@@ -4,7 +4,7 @@ use super::tokenizer::{include::{Token, TokenType}, tokenizer::Tokenizer};
 use std::process::exit;
 use super::program::Program;
 use std::fs::File;
-use super::include::{F_PATHS, files::*};
+use super::prog_manager::include::{F_PATHS, files::*};
 use std::io::{prelude::*, Write};
 pub struct Hammer {
     token_queue: Queue<Token>,

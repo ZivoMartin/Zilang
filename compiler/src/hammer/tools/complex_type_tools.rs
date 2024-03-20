@@ -8,7 +8,7 @@ pub struct ComplexTypeTools {
 
 impl Tool for ComplexTypeTools {
 
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
         Box::from(ComplexTypeTools{
             stars: 0,
             name: String::new(),
@@ -16,15 +16,14 @@ impl Tool for ComplexTypeTools {
         })   
     }
 
-    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
-        Ok((TokenType::RaiseComplexType( 
-            Type::new(self.name.clone(), self.size, self.stars)), String::new()))             
+    fn end(&mut self, _pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        Ok((TokenType::RaiseComplexType(self.stars, self.size), String::new()))             
     }
 
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         match token.token_type {
             TokenType::Symbol => self.new_star(),
-            TokenType::Type => self.set_name(token.content, memory),
+            TokenType::Type => self.set_name(token.content, pm),
             _ => panic_bad_token("complex type", token)
         }
         Ok(String::new())
@@ -38,9 +37,9 @@ impl ComplexTypeTools {
         self.stars += 1;
     }
 
-    fn set_name(&mut self, name: String, memory: &mut Memory) {
+    fn set_name(&mut self, name: String, pm: &mut ProgManager) {
         self.name = name;
-        self.size = memory.get_type_size(0, &self.name);
+        self.size = pm.get_type_size(0, &self.name);
     }
 
 }

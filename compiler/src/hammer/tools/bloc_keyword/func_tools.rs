@@ -8,23 +8,23 @@ pub struct FuncTools {
 
 impl Tool for FuncTools {
 
-    fn new(memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
-        memory.in_func();
+    fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
+        pm.in_func();
         Box::from(
             FuncTools{
                 name: String::new(),
                 type_args: Vec::new(),
-                return_type: Type{name: String::new(), size: 0, stars: 0}
+                return_type: Type::new(String::new(), 0, 0)
             }
         )
     }
 
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         let mut res = String::new();
         match token.token_type {
-            TokenType::Declaration => self.new_arg(memory, token.content),
+            TokenType::Declaration => self.new_arg(pm, token.content),
             TokenType::Ident => res = self.set_ident(token.content),
-            TokenType::ComplexType => res = self.set_type(memory, token.content),
+            TokenType::ComplexType => res = self.set_type(pm, token.content),
             TokenType::Bloc => (),
             _ => panic_bad_token("func keyword", token)
         }
@@ -32,16 +32,16 @@ impl Tool for FuncTools {
     }
 
     
-    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
-        memory.out_func();
+    fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        pm.out_func();
         Ok((TokenType::FuncKeyword, String::new()))
     }
 }
 
 impl FuncTools {
 
-    fn new_arg(&mut self, memory: &mut Memory, dec_data: String) {
-        let var_def = memory.get_var_def(&str::parse::<usize>(&dec_data).unwrap()).unwrap();
+    fn new_arg(&mut self, pm: &mut ProgManager, dec_data: String) {
+        let var_def = pm.get_var_def(&str::parse::<usize>(&dec_data).unwrap()).unwrap();
         self.type_args.push(var_def.type_var.clone())
     }
 
@@ -50,13 +50,13 @@ impl FuncTools {
         format!("{}:", self.name)
     } 
 
-    fn set_type(&mut self, memory: &mut Memory, t: String) -> String {
+    fn set_type(&mut self, pm: &mut ProgManager, t: String) -> String {
         let (name, stars, size) = extract_ctype_data(&t);
-        self.return_type = Type{name, stars: stars as i32, size: size as u8};
+        self.return_type = Type::new(name, stars, size);
         let res = format!("
-mov [_stack + {}], {}", memory.si(), self.name
+mov [_stack + {}], {}", pm.si(), self.name
         );
-        memory.new_function(self.name.clone(), self.type_args.clone(), self.return_type.clone());
+        pm.new_function(self.name.clone(), self.type_args.clone(), self.return_type.clone());
         res
     }
 

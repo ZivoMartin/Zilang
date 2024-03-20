@@ -17,7 +17,7 @@ pub struct ExpTools {
 
 impl Tool for ExpTools {
     
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String>{
+    fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String>{
         match token.token_type {
             TokenType::Number | TokenType::ComplexChar => self.new_number(token.content),
             TokenType::Operator => self.new_operator(token.content),
@@ -28,7 +28,7 @@ impl Tool for ExpTools {
         Ok(String::new())
     }
 
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> {
         Box::from(ExpTools{
             op_stack : Stack::new(),
             pf_exp : Vec::new(),
@@ -40,11 +40,11 @@ impl Tool for ExpTools {
     }
 
     /// The expressions raise the number of stars of the expression. The result is push on the stack
-    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
+    fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         while self.op_stack.size() != 0 {
             self.push_op_val();
         }
-        let asm = self.build_asm(memory);
+        let asm = self.build_asm(pm);
         Ok((TokenType::RaiseExpression(self.stars), asm))
     }
     
@@ -104,7 +104,7 @@ impl ExpTools {
         self.pf_exp.push(ExpTokenType::Operator(val));    
     }
 
-    fn build_asm(&self, memory: &Memory) -> String {
+    fn build_asm(&self, pm: &ProgManager) -> String {
         let mut nb_ident = 1;
         let mut res = String::new();
         res.push_str("\nmov rbp, rsp");
@@ -129,7 +129,7 @@ push {v}            ; We found a number, lets push it"
                     res.push_str(&format!("      
 mov rax, [rbp+{}]   ; We found an ident, its on the satck, lets keep it.
 {}
-push rax", self.esp_decal-nb_ident*8 as i64, if *is_ref==-1 {String::new()}else{memory.deref_var(*size as usize, 1)}
+push rax", self.esp_decal-nb_ident*8 as i64, if *is_ref==-1 {String::new()}else{pm.deref_var(*size as usize, 1)}
                     ));
                     nb_ident += 1;
 

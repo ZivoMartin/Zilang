@@ -8,19 +8,19 @@ impl LoopTrait for WhileTools{}
 
 impl Tool for WhileTools {
 
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
         Box::from(WhileTools)
     }
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
-        let asm = self.end_loop(memory);
+    fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        let asm = self.end_loop(pm);
         Ok((TokenType::WhileKeyword, asm))
     }
 
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         Ok(match token.token_type {
-            TokenType::Keyword => self.new_keyword(&token.content, memory),
-            TokenType::Expression => self.compare_exp(memory),
+            TokenType::Keyword => self.new_keyword(&token.content, pm),
+            TokenType::Expression => self.compare_exp(pm),
             TokenType::Bloc | TokenType::Instruction => String::new(),
             _ => {panic_bad_token("while keyword", token);String::new()}
         })

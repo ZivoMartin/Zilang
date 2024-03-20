@@ -12,7 +12,7 @@ static _SIZE_PARAM: u8 = 8;
 
 impl Tool for MacroCallTools {
 
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
         Box::from(MacroCallTools{
             name: String::new(),
             nb_param: 0,
@@ -20,7 +20,7 @@ impl Tool for MacroCallTools {
         })
     }
 
-    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
+    fn end(&mut self, _pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         if self.nb_param != self.nb_param_attempt {
             Err(format!("{} args has been found for the macro {} when {} was attempts", self.nb_param, self.name, self.nb_param_attempt))
         }else{
@@ -29,7 +29,7 @@ impl Tool for MacroCallTools {
         }
     }
 
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String> {
+    fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String> {
         match token.token_type {
             TokenType::Ident => self.def_name(token.content)?,
             TokenType::Expression => self.new_expression(),

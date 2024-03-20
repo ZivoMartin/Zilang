@@ -10,21 +10,21 @@ impl LoopTrait for DoTools{}
 
 impl Tool for DoTools {
 
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
         Box::from(DoTools)
     }
 
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         let mut res = String::new();
         match token.token_type {
-            TokenType::Keyword => res = self.new_keyword(&token.content, memory),
+            TokenType::Keyword => res = self.new_keyword(&token.content, pm),
             TokenType::Bloc => (),
             _ => panic_bad_token("do", token)
         }
         Ok(res)
     }
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
-        Ok((TokenType::RaiseDoKeyWord(memory.bloc_id), String::new()))
+    fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        Ok((TokenType::RaiseDoKeyWord(pm.bloc_id()), String::new()))
     }
 }

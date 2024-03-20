@@ -7,7 +7,7 @@ pub struct ComplexCharTools {
 
 impl Tool for ComplexCharTools {
 
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String>{
+    fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String>{
         match token.token_type {
             TokenType::Symbol => self.new_symbol(token.content.chars().next().unwrap()),
             _ => panic_bad_token("complex ident", token)
@@ -15,7 +15,7 @@ impl Tool for ComplexCharTools {
         Ok(String::new())
     }
     
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> {
         Box::from(ComplexCharTools {
             bs: false,
             symb: '\0'
@@ -23,21 +23,21 @@ impl Tool for ComplexCharTools {
     }
 
    
-    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
+    fn end(&mut self, _pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         Ok((TokenType::RaiseComplexChar( 
             if self.bs {
                 match self.symb {
-                    '0' => "0",
-                    't' => "9",
-                    'n' => "10",
-                    'r' => "13",
-                    '\"' => "34",
-                    '\'' => "39",
-                    '\\' => "92",
+                    '0' => 0,
+                    't' => 9,
+                    'n' => 10,
+                    'r' => 13,
+                    '\"' => 34,
+                    '\'' => 39,
+                    '\\' => 92,
                     _ => return Err(format!("This char: \\{} doesn't exists.", self.symb))
-                }.to_string()
+                }
             }else{
-                self.symb.to_string()
+                self.symb as u8
             }
         ), String::new()))
         

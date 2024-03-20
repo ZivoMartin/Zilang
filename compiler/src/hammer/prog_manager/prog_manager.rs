@@ -1,38 +1,25 @@
-use self::files::{FUNCTIONSF, SCRIPTF};
 
-use super::collections::Stack;
-use std::collections::HashMap;
 use super::include::*;
+use super::prog_datas::ProgData;
 
 
-pub static ASM_SIZES: [&str; 9] = ["", "byte", "word", "", "dword", "", "", "", "qword"];
-pub static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
-
-pub struct Memory {
+pub struct ProgManager {
     var_name_map: HashMap<String, Stack<usize>>,
     var_map: HashMap<usize, VariableDefinition>,
     func_map: HashMap<String, Stack<Function>>,
     type_size: HashMap<String, u8>, 
-    stack_index: usize,
-    pub bloc_id: u128,
-    pub if_count: u32,
-    jump_stack: Stack<Jump>,
-    pub current_file: usize
+    prog_data: ProgData
 }
 
-impl Memory {
+impl ProgManager {
 
-    pub fn new() -> Memory {
-        Memory {
+    pub fn new() -> ProgManager {
+        ProgManager {
             var_name_map: HashMap::new(),
             var_map: HashMap::new(),
             func_map: HashMap::new(),
             type_size: build_tab_size_map(),
-            stack_index: 0,
-            bloc_id: 0,
-            if_count: 0,
-            jump_stack: Stack::init(Jump::new(0)),
-            current_file: SCRIPTF
+            prog_data: ProgData::new()
         }
     }
 
@@ -41,39 +28,43 @@ impl Memory {
     }
 
     pub fn new_function(&mut self, name: String, args: Vec<Type>, return_type: Type) {
-        let f = Function{name: name.clone(), args, return_type, addr: self.stack_index};
+        let f = Function::new(self.si(), name.clone(), args, return_type);
         match self.func_map.get_mut(&name) {
             Some(s) => s.push(f),
             _ => {self.func_map.insert(name, Stack::init(f));}
         };
-        self.stack_index += 8;
+        self.si() += 8;
     }
 
-    pub fn new_var(&mut self, name_type: String, name: String, stars: i32) -> usize {
+    pub fn get_func_addr(&self, name: &str) -> usize {
+        self.pick_func(name).addr()
+    }
+
+    pub fn pick_func(&self, name: &str) -> &Function {
+        self.func_map.get(name).unwrap().val().unwrap()
+    }
+
+    pub fn new_var(&mut self, name_type: String, name: String, stars: u32) -> usize {
         let size = *self.type_size.get(&name_type).unwrap(); 
         self.var_map.insert(
-            self.stack_index,
+            self.si(),
             VariableDefinition{
                 name: name.clone(),
-                type_var: Type{
-                    size,
-                    name: name_type,
-                    stars
-                },
-                addr: self.stack_index
+                type_var: Type::new(name_type, size, stars),
+                addr: self.si()
             }
         );
         if self.var_name_map.contains_key(&name) {
-            self.var_name_map.get_mut(&name).unwrap().push(self.stack_index);
+            self.var_name_map.get_mut(&name).unwrap().push(self.si());
         }else{
             self.var_name_map.insert(
                 name,
-                Stack::init(self.stack_index)
+                Stack::init(self.si())
             );
         }
-        let res = self.stack_index;
-        self.jump_stack.val_mut().expect("jump stack empty").add_addr(self.stack_index);
-        self.stack_index += size as usize;
+        let res = self.si();
+        self.jump_stack.val_mut().expect("jump stack empty").add_addr(self.si());
+        self.si() += size as usize;
         res
     } 
 
@@ -93,7 +84,7 @@ impl Memory {
     }
 
     pub fn affect_to(&self, addr: usize) -> String {
-        let size = self.get_var_def(&addr).unwrap().type_var.size as usize;
+        let size = self.get_var_def(&addr).unwrap().type_var.size() as usize;
         format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
     }
 
@@ -114,7 +105,7 @@ impl Memory {
     }
 
     pub fn jump_in(&mut self) {
-        self.jump_stack.push(Jump::new(self.stack_index));
+        self.jump_stack.push(Jump::new(self.si()));
     }
 
     pub fn jump_out(&mut self) {
@@ -125,38 +116,62 @@ impl Memory {
                 .get_mut(&var_def.name).expect("The name doesn't exists")
                 .pop().expect("The varname stack is empty");
         }
-        self.stack_index = last_jump.stack_index;
+        self.si() = last_jump.stack_index;
     }
 
     pub fn in_func(&mut self) {
-        self.current_file = FUNCTIONSF;
+        self.prog_data.in_func();
     }
 
     pub fn out_func(&mut self) {
-        self.current_file = SCRIPTF;
+        self.prog_data.out_func();
     }
 
     pub fn si(&self) -> usize {
-        self.stack_index
+        self.prog_data.si()
     }
 
     pub fn handle_arg(&mut self, f_name: &str, stars: i32, nth: usize) -> Result<String, String> {
-        let f = self.func_map.get_mut(f_name).unwrap().pop().unwrap();
-        if f.args[nth as usize].stars != stars {
+        let f = self.pick_func(f_name);
+        if f.args()[nth as usize].stars() as i32 != stars {
             return Err("Not the good type for the call.".to_string())
         }
-        let size = self.get_type_size(stars, &f.args[nth as usize].name) as usize;
-        let res = format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], self.stack_index, RAX_SIZE[size]);
-        self.stack_index += size;
+        let size = self.get_type_size(stars, &f.args()[nth as usize].name()) as usize;
+        let res = format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[size]);
+        self.si() += size;
         Ok(res)
     }
 
     pub fn good_nb_arg(&mut self, name: &str, nb_arg: u8) -> Result<(), String>{
-        if self.func_map.get_mut(name).unwrap().pop().unwrap().args.len() != nb_arg as usize {
+        if self.pick_func(name).nb_arg() != nb_arg as usize {
             Err(String::from("not the good number of arg"))
         }else{
             Ok(())
         }
+    }
+
+    pub fn bloc_id(&self) -> u128 {
+        self.prog_data.bloc_id()
+    }
+
+    pub fn cf(&self) -> usize {
+        self.prog_data.cf()
+    }
+
+    pub fn if_count(&self) -> u32 {
+        self.prog_data.if_count()
+    }
+
+    pub fn set_if_count(&mut self, v: u32) {
+        self.prog_data.set_if_count(v);
+    }
+
+    pub fn inc_bi(&mut self) {
+        self.prog_data.inc_bi();
+    }
+
+    pub fn inc_if_count(&mut self) {
+        self.prog_data.inc_if_count();
     }
 }
 

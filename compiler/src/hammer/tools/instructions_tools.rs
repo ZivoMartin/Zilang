@@ -1,5 +1,5 @@
 use super::include::*;
-use crate::hammer::memory::{ASM_SIZES, RAX_SIZE};
+use crate::hammer::prog_manager::prog_manager::{ASM_SIZES, RAX_SIZE};
 pub struct InstructionTools {
     size_aff: u32,
     equal_code: String
@@ -8,7 +8,7 @@ pub struct InstructionTools {
 impl Tool for InstructionTools {
 
 
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String>{
+    fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String>{
         match token.token_type {
             TokenType::Operator => self.set_equal_code(token.content),
             TokenType::Expression => (),
@@ -21,14 +21,14 @@ impl Tool for InstructionTools {
     }
 
 
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> {
         Box::from(InstructionTools {
             size_aff: 0,
             equal_code: String::new()
         })
     }
 
-    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
+    fn end(&mut self, _pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         let asm = self.build_asm();
         Ok((TokenType::Instruction, asm))
     }

@@ -9,20 +9,20 @@ pub struct CIdentTools {
 
 impl Tool for CIdentTools {
 
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String>{
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String>{
         let mut res = String::new();
          match token.token_type {
             TokenType::Symbol => self.new_symbol(token.content)?,
             TokenType::Ident => self.def_ident(token.content),
             TokenType::Brackets => self.open_brackets(),
-            TokenType::ExpressionTuple => self.open_tupple(memory)?,
-            TokenType::Expression => res = self.new_expression(memory, token.content)?,
+            TokenType::ExpressionTuple => self.open_tupple(pm)?,
+            TokenType::Expression => res = self.new_expression(pm, token.content)?,
             _ => panic_bad_token("complex ident", token)
         }
         Ok(res)
     }
     
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> {
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> {
         Box::from(CIdentTools {
             deref_time: 0,
             name: String::new(),
@@ -39,11 +39,11 @@ impl Tool for CIdentTools {
     /// In asm we are gonna push on the stack the reference of the value we are looking for, exemple if 'a' has address 3 and 
     /// the value 8, we are gonna push 3, then if we want the value of a
     /// we keep the adress on the stack and keep the value in the memory.
-    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
+    fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         if !self.for_bracket { // We are catching a function call.
-            self.raise_func_call(memory)
+            self.raise_func_call(pm)
         }else{
-            self.raise_mem_spot(memory)
+            self.raise_mem_spot(pm)
         }
     }
 }
@@ -75,52 +75,52 @@ impl CIdentTools {
         self.for_bracket = true;
     }
 
-    pub fn open_tupple(&mut self, memory: &Memory) -> Result<(), String> {
+    pub fn open_tupple(&mut self, pm: &mut ProgManager) -> Result<(), String> {
         self.nb_exp = 0;
-        if !memory.is_function(&self.name) {
+        if !pm.is_function(&self.name) {
             Err(format!("{} isn't a function", self.name))
         }else{
             Ok(self.for_bracket = false)
         }
     }
 
-    pub fn new_expression(&mut self, memory: &mut Memory, stars: String) -> Result<String, String>{
+    pub fn new_expression(&mut self, pm: &mut ProgManager, stars: String) -> Result<String, String>{
         self.nb_exp += 1;
         if self.for_bracket {
             todo!("New expression for bracket");
         }else{
-            memory.handle_arg(&self.name, stars.parse::<i32>().unwrap(), (self.nb_exp-1) as usize)
+            pm.handle_arg(&self.name, stars.parse::<i32>().unwrap(), (self.nb_exp-1) as usize)
         }
 
     }
 
-    fn raise_mem_spot(&self, memory: &mut Memory) -> Result<(TokenType, String), String> {
-        let var_def = match memory.get_var_def_by_name(&self.name) {
+    fn raise_mem_spot(&self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        let var_def = match pm.get_var_def_by_name(&self.name) {
             Ok(var_def) => var_def,
             Err(_) => return Err(format!("{} isn't an axisting variable.", &self.name))
         };
-        let stars = var_def.type_var.stars as i32 - self.deref_time;
+        let stars = var_def.type_var.stars() as i32 - self.deref_time;
         if stars < -1 {
             return Err(format!("Bad dereferencment")) // If you want to modifie this line, care it could be dangerous because of the unsafe
         }
 
-        let asm = self.build_asm(stars, self.deref_time, &memory, var_def);
+        let asm = self.build_asm(stars, self.deref_time, pm, var_def);
         Ok((TokenType::MemorySpot(self.deref_time, stars, var_def.get_size()), asm))
     }
 
-    fn raise_func_call(&self, memory: &mut Memory) -> Result<(TokenType, String), String> {
-        memory.good_nb_arg(&self.name, self.nb_exp)?;
+    fn raise_func_call(&self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        pm.good_nb_arg(&self.name, self.nb_exp)?;
         let asm = format!("
 call {}
 ; Todo: dereferanecer le retour (eventuellement)
 push rax", self.name);
-        Ok((TokenType::FuncCall(self.name.clone()), asm))
+        Ok((TokenType::FuncCall(pm.get_func_addr(&self.name)), asm))
 
     }
 
-    fn build_asm(&self, _stars: i32, deref_time: i32, memory: &Memory, var_def: &VariableDefinition) -> String {
+    fn build_asm(&self, _stars: i32, deref_time: i32, pm: &ProgManager, var_def: &VariableDefinition) -> String {
         let mut res = format!("\nmov rax, {}", var_def.addr);
-        res.push_str(&memory.deref_var(var_def.type_var.size as usize, deref_time));
+        res.push_str(&pm.deref_var(var_def.type_var.size() as usize, deref_time));
         res.push_str("\npush rax    ; We push the value of a new identificator");
         res
     }

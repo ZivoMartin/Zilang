@@ -1,5 +1,4 @@
 use super::tokenizer::Tokenizer;
-use crate::hammer::include::Type;
 
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub enum TokenType {
@@ -45,13 +44,13 @@ pub enum TokenType {
     ComplexChar,
 
     // Raise up token
-    FuncCall(String),
+    FuncCall(usize),
     MemorySpot(i32, i32, u8),
     Adress(usize),
     RaiseExpression(i32),
     RaiseDeclaration(usize),
-    RaiseComplexChar(String),   
-    RaiseComplexType(Type),
+    RaiseComplexChar(u8),   
+    RaiseComplexType(i32, u8), // Todo: Rajouter la transmission du nom
     RaiseDoKeyWord(u128)
 }
 
@@ -82,6 +81,13 @@ impl Token {
     }
 }
 
+impl Copy for TokenType{}
+
+impl Clone for TokenType {
+    fn clone(&self) -> TokenType {
+        return *self
+    }
+}
 
 #[derive(Debug)]
 #[derive(PartialEq)]

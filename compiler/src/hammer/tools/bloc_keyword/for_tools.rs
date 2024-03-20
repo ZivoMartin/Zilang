@@ -10,23 +10,23 @@ impl LoopTrait for ForTools{}
 
 impl Tool for ForTools {
 
-    fn new(_memory: &mut Memory) -> Box<dyn Tool> where Self: Sized {
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
         Box::from(ForTools{
             inst_number: 0
         })
 
     }
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
-        let asm = self.end_loop(memory);
+    fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        let asm = self.end_loop(pm);
         Ok((TokenType::ForKeyword, asm))
     }
 
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         Ok(match token.token_type {
-            TokenType::Keyword => self.new_keyword(&token.content, memory),
-            TokenType::Expression => self.compare_exp(memory)            ,
-            TokenType::Instruction => self.new_inst(memory),
+            TokenType::Keyword => self.new_keyword(&token.content, pm),
+            TokenType::Expression => self.compare_exp(pm)            ,
+            TokenType::Instruction => self.new_inst(pm),
             TokenType::Bloc => String::new(),
             _ => {panic_bad_token("while keyword", token);String::new()}
         })
@@ -36,15 +36,15 @@ impl Tool for ForTools {
 
 impl ForTools {
 
-    fn new_inst(&mut self, memory: &mut Memory) -> String {
+    fn new_inst(&mut self, pm: &mut ProgManager) -> String {
         self.inst_number += 1;
         match self.inst_number {
             1 => format!("
 
 jmp skip_first_loop_{id}
-begin_loop_{id}:", id=memory.bloc_id),
+begin_loop_{id}:", id=pm.bloc_id()),
             
-            2 => format!("\nskip_first_loop_{}:", memory.bloc_id),
+            2 => format!("\nskip_first_loop_{}:", pm.bloc_id()),
             _ => String::new()
         }
     }

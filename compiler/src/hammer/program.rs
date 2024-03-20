@@ -1,7 +1,8 @@
 use crate::hammer::tokenizer::include::{Token, TokenType};
 use super::collections::Stack;
 use std::collections::HashMap;
-use crate::hammer::memory::Memory;
+use super::prog_manager::prog_manager::ProgManager;
+
 use super::tools::{
             exp_tools::ExpTools,
             decl_tools::DeclTools,
@@ -24,16 +25,16 @@ use super::tools::{
 
 pub trait Tool {
 
-    fn new(memory: &mut Memory) -> Box<dyn Tool> where Self: Sized;
+    fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized;
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String>;
+    fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String>;
     
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String>;
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String>;
 
 }
 
-fn build_constructor_map() -> HashMap<TokenType, fn(&mut Memory) -> Box<dyn Tool>> {
-    let mut res = HashMap::<TokenType, fn(memory: &mut Memory) -> Box<dyn Tool>>::new();
+fn build_constructor_map() -> HashMap<TokenType, fn(&mut ProgManager) -> Box<dyn Tool>> {
+    let mut res = HashMap::<TokenType, fn(pm: &mut ProgManager) -> Box<dyn Tool>>::new();
     res.insert(TokenType::Instruction, InstructionTools::new);
     res.insert(TokenType::Declaration, DeclTools::new);
     res.insert(TokenType::Expression, ExpTools::new);
@@ -52,22 +53,22 @@ fn build_constructor_map() -> HashMap<TokenType, fn(&mut Memory) -> Box<dyn Tool
 }
 
 pub struct Program {
-    memory: Memory,
+    memory: ProgManager,
     tools_stack: Stack<Box<dyn Tool>>,
-    constructor_map: HashMap<TokenType, fn(memory: &mut Memory) -> Box<dyn Tool>>,
+    constructor_map: HashMap<TokenType, fn(pm: &mut ProgManager) -> Box<dyn Tool>>,
 }
 
 impl Program {
     pub fn new() -> Program {
         Program {
-            memory: Memory::new(),
+            memory: ProgManager::new(),
             tools_stack: Stack::new(),
             constructor_map: build_constructor_map(),
         }
     }
 
     pub fn tokenize(&mut self, token: Token) -> Result<(String, usize), String> {
-        Ok((self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory)?, self.memory.current_file))
+        Ok((self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory)?, self.memory.cf()))
     }
 
     pub fn new_group(&mut self, type_token: TokenType) {
@@ -84,7 +85,7 @@ impl Program {
             String::new()
         };
         end_txt.push_str(&asm);
-        Ok((end_txt, self.memory.current_file))
+        Ok((end_txt, self.memory.cf()))
     }
 
     
