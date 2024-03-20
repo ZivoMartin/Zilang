@@ -32,9 +32,9 @@ impl Tool for FuncTools {
     }
 
     
-    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
         memory.out_func();
-        Ok((Token::new(TokenType::FuncKeyword, String::new()), String::new()))
+        Ok((TokenType::FuncKeyword, String::new()))
     }
 }
 

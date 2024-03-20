@@ -17,7 +17,7 @@ impl Tool for BlocTools {
         Box::from(BlocTools)
     }
 
-    fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
-        Ok((Token::new(TokenType::Bloc, String::new()), String::new()))
+    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
+        Ok((TokenType::Bloc, String::new()))
     }
 }

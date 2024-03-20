@@ -24,10 +24,7 @@ impl Tool for DoTools {
         Ok(res)
     }
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
-        Ok((Token::new(TokenType::DoKeyWord, format!("
-        pop rax
-        and rax, rax
-        jne begin_loop_{}", memory.bloc_id)), String::new()))
+    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
+        Ok((TokenType::RaiseDoKeyWord(memory.bloc_id), String::new()))
     }
 }

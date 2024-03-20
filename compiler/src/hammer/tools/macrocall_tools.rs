@@ -20,12 +20,12 @@ impl Tool for MacroCallTools {
         })
     }
 
-    fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
         if self.nb_param != self.nb_param_attempt {
             Err(format!("{} args has been found for the macro {} when {} was attempts", self.nb_param, self.name, self.nb_param_attempt))
         }else{
             let asm = self.build_asm();
-            Ok((Token::new(TokenType::MacroCall, String::new()), asm))
+            Ok((TokenType::MacroCall, asm))
         }
     }
 

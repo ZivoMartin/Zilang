@@ -8,9 +8,9 @@ impl Tool for IfTools {
         Box::from(IfTools)
     }
 
-    fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
         let asm = self.build_asm();
-        Ok((Token::new(TokenType::IfKeyword, String::new()), asm))
+        Ok((TokenType::IfKeyword, asm))
     }
 
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {

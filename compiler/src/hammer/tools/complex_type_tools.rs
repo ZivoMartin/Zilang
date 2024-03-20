@@ -1,7 +1,7 @@
 use super::include::*;
 
 pub struct ComplexTypeTools {
-    stars: u8,
+    stars: i32,
     name: String,
     size: u8
 }
@@ -16,9 +16,9 @@ impl Tool for ComplexTypeTools {
         })   
     }
 
-    fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
-        Ok((Token::new(TokenType::ComplexType, 
-            format!("{} {} {}", self.name, self.stars, self.size)), String::new()))                
+    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
+        Ok((TokenType::RaiseComplexType( 
+            Type::new(self.name.clone(), self.size, self.stars)), String::new()))             
     }
 
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {

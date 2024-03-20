@@ -1,4 +1,5 @@
 use super::tokenizer::Tokenizer;
+use crate::hammer::include::Type;
 
 #[derive(Eq, Hash, PartialEq, Debug)]
 pub enum TokenType {
@@ -19,9 +20,9 @@ pub enum TokenType {
     ComplexIdent,              
     Expression,    
     Brackets, 
-    DirectTab,          // TODO
-    String,             // TODO
-    DeclarationTuple,              // (Expression, Expression, ... , Expression)
+    DirectTab,          
+    String,             
+    DeclarationTuple,             
     ExpressionTuple,
     BrackTuple,
     SerieExpression,
@@ -30,19 +31,28 @@ pub enum TokenType {
     SerieDeclaration,
     SerieChar,
     Declaration,    
-    Affectation,        // = Expression
+    Affectation,        
     Bloc,
     KeywordInstruction,
     IfKeyword,
     ForKeyword,
     WhileKeyword,
-    FuncCall,
     FuncKeyword,
     DoKeyWord,
     MacroCall,
     DirectChar,
     PointerSymbolSerie,
     ComplexChar,
+
+    // Raise up token
+    FuncCall(String),
+    MemorySpot(i32, i32, u8),
+    Adress(usize),
+    RaiseExpression(i32),
+    RaiseDeclaration(usize),
+    RaiseComplexChar(String),   
+    RaiseComplexType(Type),
+    RaiseDoKeyWord(u128)
 }
 
 
@@ -54,13 +64,7 @@ pub static OPERATOR_COMPONENT: &[char; 9] = &['+', '%', '/', '<', '>', '=', '|',
 pub static DEFAULT_GARBAGE_CHARACTER: &[char; 3] = &[' ', '\n', '\t'];
 static PRIMITIVE_TOKENTYPE: &[TokenType; 6] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator, TokenType::Keyword];
 
-impl Copy for TokenType {}
 
-impl Clone for TokenType {
-    fn clone(&self) -> TokenType {
-        *self
-    }
-}
 
 #[derive(Debug)]
 pub struct Token {
@@ -71,6 +75,10 @@ pub struct Token {
 impl Token {
     pub fn new(token_type: TokenType, content: String) -> Token {
         Token{token_type, content}
+    }
+
+    pub fn empty(token_type: TokenType) -> Token {
+        Token{token_type, content: String::new()}
     }
 }
 

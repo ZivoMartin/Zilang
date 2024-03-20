@@ -39,7 +39,7 @@ impl Tool for CIdentTools {
     /// In asm we are gonna push on the stack the reference of the value we are looking for, exemple if 'a' has address 3 and 
     /// the value 8, we are gonna push 3, then if we want the value of a
     /// we keep the adress on the stack and keep the value in the memory.
-    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
         if !self.for_bracket { // We are catching a function call.
             self.raise_func_call(memory)
         }else{
@@ -94,7 +94,7 @@ impl CIdentTools {
 
     }
 
-    fn raise_mem_spot(&self, memory: &mut Memory) -> Result<(Token, String), String> {
+    fn raise_mem_spot(&self, memory: &mut Memory) -> Result<(TokenType, String), String> {
         let var_def = match memory.get_var_def_by_name(&self.name) {
             Ok(var_def) => var_def,
             Err(_) => return Err(format!("{} isn't an axisting variable.", &self.name))
@@ -105,15 +105,16 @@ impl CIdentTools {
         }
 
         let asm = self.build_asm(stars, self.deref_time, &memory, var_def);
-        Ok((Token::new(TokenType::ComplexIdent, format!("{} {stars} {}", self.deref_time, var_def.get_size())), asm))
+        Ok((TokenType::MemorySpot(self.deref_time, stars, var_def.get_size()), asm))
     }
 
-    fn raise_func_call(&self, memory: &mut Memory) -> Result<(Token, String), String> {
+    fn raise_func_call(&self, memory: &mut Memory) -> Result<(TokenType, String), String> {
         memory.good_nb_arg(&self.name, self.nb_exp)?;
         let asm = format!("
 call {}
+; Todo: dereferanecer le retour (eventuellement)
 push rax", self.name);
-        Ok((Token::new(TokenType::FuncCall, format!("{} {stars}", self.deref_time, var_def.get_size())), asm))
+        Ok((TokenType::FuncCall(self.name.clone()), asm))
 
     }
 

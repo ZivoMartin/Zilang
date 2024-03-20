@@ -12,9 +12,9 @@ impl Tool for WhileTools {
         Box::from(WhileTools)
     }
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
         let asm = self.end_loop(memory);
-        Ok((Token::new(TokenType::WhileKeyword, String::new()), asm))
+        Ok((TokenType::WhileKeyword, asm))
     }
 
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {

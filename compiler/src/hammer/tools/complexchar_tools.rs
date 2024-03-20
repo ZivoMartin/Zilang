@@ -23,8 +23,8 @@ impl Tool for ComplexCharTools {
     }
 
    
-    fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
-        Ok((Token::new(TokenType::ComplexChar, 
+    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
+        Ok((TokenType::RaiseComplexChar( 
             if self.bs {
                 match self.symb {
                     '0' => "0",
@@ -37,7 +37,7 @@ impl Tool for ComplexCharTools {
                     _ => return Err(format!("This char: \\{} doesn't exists.", self.symb))
                 }.to_string()
             }else{
-                format!("{}", self.symb as u8)
+                self.symb.to_string()
             }
         ), String::new()))
         

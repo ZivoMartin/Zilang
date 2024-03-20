@@ -28,9 +28,9 @@ impl Tool for InstructionTools {
         })
     }
 
-    fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, _memory: &mut Memory) -> Result<(TokenType, String), String> {
         let asm = self.build_asm();
-        Ok((Token::new(TokenType::Instruction, String::new()), asm))
+        Ok((TokenType::Instruction, asm))
     }
 }
 

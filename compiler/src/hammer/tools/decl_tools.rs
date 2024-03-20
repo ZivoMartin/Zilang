@@ -30,9 +30,9 @@ impl Tool for DeclTools {
         })
     }
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
         let asm = self.build_asm(memory);
-        Ok((Token::new(TokenType::Declaration, self.addr.to_string()), asm))
+        Ok((TokenType::RaiseDeclaration(self.addr), asm))
     }
 
 }

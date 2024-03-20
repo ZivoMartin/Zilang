@@ -17,9 +17,9 @@ impl Tool for ForTools {
 
     }
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
         let asm = self.end_loop(memory);
-        Ok((Token::new(TokenType::ForKeyword, String::new()), asm))
+        Ok((TokenType::ForKeyword, asm))
     }
 
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {

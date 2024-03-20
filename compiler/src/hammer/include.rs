@@ -23,10 +23,28 @@ pub struct Function {
     pub return_type: Type
 }
 
+#[derive(Debug)]
 pub struct Type {
     pub name: String,
     pub size: u8,
     pub stars: i32
+}
+
+impl std::hash::Hash for Type{
+    fn hash<H>(&self, state: &mut H)
+    where H: std::hash::Hasher{
+        self.name.hash(state);
+        self.size.hash(state);
+        self.stars.hash(state);
+    }
+}
+ 
+impl Eq for Type{}
+
+impl PartialEq for Type {
+    fn eq(&self, other: &Type) -> bool {
+        self.stars == other.stars && self.size == other.size && self.name == other.name
+    }
 }
 
 impl Clone for Type {
@@ -36,6 +54,12 @@ impl Clone for Type {
             size: self.size,
             stars: self.stars
         }
+    }
+}
+
+impl Type {
+    pub fn new(name: String, size: u8, stars: i32) -> Type {
+        Type{name, size, stars}
     }
 }
 

@@ -40,12 +40,12 @@ impl Tool for ExpTools {
     }
 
     /// The expressions raise the number of stars of the expression. The result is push on the stack
-    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
         while self.op_stack.size() != 0 {
             self.push_op_val();
         }
         let asm = self.build_asm(memory);
-        Ok((Token::new(TokenType::Expression, format!("{}", self.stars)), asm))
+        Ok((TokenType::RaiseExpression(self.stars), asm))
     }
     
 }

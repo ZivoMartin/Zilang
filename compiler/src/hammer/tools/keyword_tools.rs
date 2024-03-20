@@ -14,9 +14,9 @@ impl Tool for KeyWordTools {
         })
     }
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
+    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String> {
         memory.jump_out();
-        Ok((Token::new(TokenType::KeywordInstruction, String::new()), String::new()))
+        Ok((TokenType::KeywordInstruction, String::new()))
     }   
 
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String> {
@@ -25,7 +25,7 @@ impl Tool for KeyWordTools {
             TokenType::WhileKeyword | 
             TokenType::ForKeyword |
             TokenType::FuncKeyword => self.end_kw(memory),
-            TokenType::DoKeyWord => self.end_do_kw(token.content),
+            TokenType::RaiseDoKeyWord(id) => self.end_do_kw(id),
             TokenType::Expression => self.push_save(),
             _ => {panic_bad_token("keyword inst", token);String::new()}
         };
@@ -52,8 +52,10 @@ impl KeyWordTools {
         res
     }
 
-    fn end_do_kw(&mut self, save: String) -> String {
-        self.save = save;
+    fn end_do_kw(&mut self, id: u128) -> String {
+        self.save = format!( "pop rax
+            and rax, rax
+            jne begin_loop_{}", id);
         String::new()
     }
 }

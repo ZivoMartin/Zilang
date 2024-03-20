@@ -151,7 +151,7 @@ impl Memory {
         Ok(res)
     }
 
-    pub fn good_nb_arg(&self, name: &str, nb_arg: u8) -> Result<(), String>{
+    pub fn good_nb_arg(&mut self, name: &str, nb_arg: u8) -> Result<(), String>{
         if self.func_map.get_mut(name).unwrap().pop().unwrap().args.len() != nb_arg as usize {
             Err(String::from("not the good number of arg"))
         }else{

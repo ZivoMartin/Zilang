@@ -26,7 +26,7 @@ pub trait Tool {
 
     fn new(memory: &mut Memory) -> Box<dyn Tool> where Self: Sized;
 
-    fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String>;
+    fn end(&mut self, memory: &mut Memory) -> Result<(TokenType, String), String>;
     
     fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String>;
 
@@ -77,9 +77,9 @@ impl Program {
 
     pub fn end_group(&mut self) -> Result<(String, usize), String>{
         let (token_to_raise, mut end_txt) = self.tools_stack.pop().unwrap().end(&mut self.memory)?;
-        println!("end           {:?}", token_to_raise.token_type);
+        println!("end           {:?}", token_to_raise);
         let asm = if !self.tools_stack.is_empty() {
-            self.tokenize(token_to_raise)?.0
+            self.tokenize(Token::empty(token_to_raise))?.0
         }else{
             String::new()
         };
