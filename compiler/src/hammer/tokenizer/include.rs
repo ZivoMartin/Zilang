@@ -38,6 +38,7 @@ pub enum TokenType {
     ForKeyword,
     WhileKeyword,
     FuncKeyword,
+    ReturnKeyword,
     DoKeyWord,
     MacroCall,
     DirectChar,
@@ -52,7 +53,7 @@ pub enum TokenType {
     RaiseDeclaration(usize),
     RaiseComplexChar(u8),   
     RaiseComplexType(usize, i32, u8), 
-    RaiseDoKeyWord(u128)
+    RaiseDoKeyWord(u128),
 }
 
 

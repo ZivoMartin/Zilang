@@ -53,9 +53,16 @@ impl Function {
         &self.return_type
     }
 
-
     pub fn nb_arg(&self) -> usize {
         self.args().len()
+    }
+
+    pub fn check_valid_return_type(&self, stars: i32) -> bool {
+        if stars == -1 {
+            self.return_type.name() == "void"
+        }else{
+            self.return_type.stars() == stars as u32
+        }
     }
 }
 

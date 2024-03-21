@@ -516,12 +516,6 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
             ),
             vec!(
                 Node::leaf_c(TokenType::Keyword, vec!("break", "continue")).react(Tokenizer::push_token),
-                Node::new_end_c(
-                    TokenType::Keyword,
-                    vec!(Node::leaf(TokenType::Expression).react(Tokenizer::push_group)),
-                    vec!(),
-                    vec!("return")
-                ).react(Tokenizer::push_token)
             )
         )
     );
@@ -636,6 +630,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 Node::leaf(TokenType::WhileKeyword).react(Tokenizer::push_group),
                 Node::leaf(TokenType::FuncKeyword).react(Tokenizer::push_group),
                 Node::leaf(TokenType::DoKeyWord).react(Tokenizer::push_once),
+                Node::leaf(TokenType::ReturnKeyword).react(Tokenizer::push_group),
             ),
             vec!()
         )
@@ -659,6 +654,24 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     1
                 )
             )
+        )
+    );
+
+    group_map.insert(
+        TokenType::ReturnKeyword,
+        Node::new(
+            TokenType::ReturnKeyword,
+            vec!(),
+            vec!(
+                Node::new_end_c(
+                    TokenType::Keyword,
+                    vec!(
+                        Node::leaf(TokenType::Expression).react(Tokenizer::push_group)
+                    ),
+                    vec!(),
+                    vec!("return")
+                )
+            )   
         )
     );
 

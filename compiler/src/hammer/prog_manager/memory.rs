@@ -14,6 +14,7 @@ impl ProgManager {
             _ => {self.func_name_map.insert(name, Stack::init(self.si()));}
         };
         self.func_map.insert(self.si(), f);
+        self.current_func = Some(self.si());
         self.stack_index += 8;
     }
 
@@ -72,5 +73,12 @@ impl ProgManager {
             Some(res) => Ok(res),
             _ => Err(())
         }
+    }
+
+    pub fn current_func(&self) -> &Function {
+        if self.current_func.is_none() {
+            panic!("You tried to get the address of the current function without being in a function")
+        }
+        self.get_func_by_addr(self.current_func.unwrap())
     }
 }

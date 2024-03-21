@@ -11,6 +11,7 @@ pub struct ProgManager {
     pub if_count: u32,
     pub jump_stack: Stack<Jump>,
     pub current_file: usize,
+    pub current_func: Option<usize>,
     pub titn: Vec::<String>,
     pub tnti: HashMap<String, (u8, usize)>,
     pub preload: String
@@ -31,7 +32,8 @@ impl ProgManager {
             if_count: 0,
             jump_stack: Stack::init(Jump::new(0)),
             current_file: SCRIPTF,
-            preload: String::from("\npreload:")
+            preload: String::from("\npreload:"),
+            current_func: None
         }
     }
 
@@ -83,6 +85,10 @@ mov {}[_stack + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[size]);
 
     pub fn end_prog(&mut self) {
         self.preload.push_str("\nret");
+    }
+
+    pub fn is_in_func(&self) -> bool {
+        self.current_func.is_some()
     }
 }
 

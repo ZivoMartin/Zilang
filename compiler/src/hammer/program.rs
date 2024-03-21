@@ -18,7 +18,8 @@ use super::tools::{
                 while_tools::WhileTools,
                 for_tools::ForTools,
                 do_tools::DoTools,
-                func_tools::FuncTools
+                func_tools::FuncTools,
+                return_tools::ReturnTools
             }
             
         };
@@ -49,6 +50,7 @@ fn build_constructor_map() -> HashMap<TokenType, fn(&mut ProgManager) -> Box<dyn
     res.insert(TokenType::WhileKeyword, WhileTools::new);
     res.insert(TokenType::FuncKeyword, FuncTools::new);
     res.insert(TokenType::DoKeyWord, DoTools::new);
+    res.insert(TokenType::ReturnKeyword, ReturnTools::new);
     res
 }
 

@@ -1,5 +1,6 @@
-func f(int a) void {
+func f(int a) int {
     !dn(a);
+    return 2;  
 };
 
 f(2);

@@ -25,7 +25,8 @@ impl Tool for KeyWordTools {
             TokenType::IfKeyword => res = self.if_keyword(pm),
             TokenType::WhileKeyword | 
             TokenType::ForKeyword |
-            TokenType::FuncKeyword => res = self.end_kw(pm),
+            TokenType::FuncKeyword |
+            TokenType::ReturnKeyword => res = self.end_kw(pm),
             TokenType::RaiseDoKeyWord(id) => self.end_do_kw(id),
             TokenType::RaiseExpression(_) => res = self.push_save(),
             _ => panic_bad_token("keyword inst", token)

@@ -8,7 +8,8 @@ pub struct InstructionTools {
 impl Tool for InstructionTools {
 
 
-    fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String>{
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String>{
+        let mut res = String::new();
         match token.token_type {
             TokenType::Operator => self.set_equal_code(token.content),
             TokenType::RaiseExpression(_) => (),
@@ -16,9 +17,10 @@ impl Tool for InstructionTools {
             TokenType::RaiseDeclaration(_) | TokenType::MacroCall => (),
             TokenType::KeywordInstruction => (),
             TokenType::FuncCall(_) => (),
+            TokenType::Keyword => res = self.new_kw(pm, token.content)?,
             _ => panic_bad_token("instruction", token)
         }
-        Ok(String::new())
+        Ok(res)
     }
 
 
@@ -37,15 +39,24 @@ impl Tool for InstructionTools {
 
 impl InstructionTools {
 
-    pub fn set_ident(&mut self, size: u8) {
+    fn set_ident(&mut self, size: u8) {
         self.size_aff = size;
     }
 
-    pub fn set_equal_code(&mut self, equal_code: String) {
+    fn set_equal_code(&mut self, equal_code: String) {
         self.equal_code = equal_code;
     }
 
-    pub fn build_asm(&self) -> String {
+    fn new_kw(&self, _pm: &mut ProgManager, kw: String) -> Result<String, String> {
+        match &kw as &str {
+            "break" => todo!("Handle break"),
+            "continue" => todo!("Handle continue"),
+            _ => panic!("Unknow kw: {kw}")
+        }
+    }
+
+
+    fn build_asm(&self) -> String {
         if self.size_aff != 0 {
             format!("
 pop rax     ; result of the expression
@@ -62,5 +73,5 @@ pop rbx     ; addr of the left ident
             String::new()
         }
     }
-
+    
 }
