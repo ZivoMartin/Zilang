@@ -88,6 +88,13 @@ impl Program {
         Ok((end_txt, self.memory.cf()))
     }
 
+    pub fn get_preload(&self) -> &String {
+        &self.memory.get_preload()
+    }
+
+    pub fn end_prog(&mut self) {
+        self.memory.end_prog();
+    }
     
 }
 

@@ -24,8 +24,8 @@ impl Tool for FuncTools {
         match token.token_type {
             TokenType::RaiseDeclaration(addr) => self.new_arg(pm, addr),
             TokenType::Ident => res = self.set_ident(token.content),
-            TokenType::RaiseComplexType(id, stars, size) => res = self.set_type(pm, id, stars as u32, size),
-            TokenType::Bloc => (),
+            TokenType::RaiseComplexType(id, stars, size) => self.set_type(pm, id, stars as u32, size),
+            TokenType::Bloc => res = self.end_of_func(),
             _ => panic_bad_token("func keyword", token)
         }
         Ok(res)
@@ -50,15 +50,17 @@ impl FuncTools {
         format!("{}:", self.name)
     } 
 
-    fn set_type(&mut self, pm: &mut ProgManager, id: usize, stars: u32, size: u8) -> String {
+    fn set_type(&mut self, pm: &mut ProgManager, id: usize, stars: u32, size: u8) {
         let name = pm.get_type_name_with_id(id);
         self.return_type = Type::new(name, size, stars);
-        let res = format!("
-mov [_stack + {}], {}", pm.si(), self.name
-        );
+        pm.preload(format!("
+mov qword[_stack + {}], {}", pm.si(), self.name
+        ));
         pm.new_function(self.name.clone(), self.type_args.clone(), self.return_type.clone());
-        res
     }
 
+    fn end_of_func(&self) -> String {
+        String::from("\nret")
+    }
 
 }

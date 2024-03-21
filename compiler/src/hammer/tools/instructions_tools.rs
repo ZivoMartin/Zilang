@@ -15,6 +15,7 @@ impl Tool for InstructionTools {
             TokenType::MemorySpot(_, _, size) => self.set_ident(size),
             TokenType::RaiseDeclaration(_) | TokenType::MacroCall => (),
             TokenType::KeywordInstruction => (),
+            TokenType::FuncCall(_) => (),
             _ => panic_bad_token("instruction", token)
         }
         Ok(String::new())

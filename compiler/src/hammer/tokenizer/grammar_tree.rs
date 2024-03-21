@@ -507,10 +507,10 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 Node::new_end(
                     TokenType::ComplexIdent,
                     vec!(
-                        Node::leaf(TokenType::Affectation).react(Tokenizer::end_group),
+                        Node::leaf(TokenType::Affectation),
                     ),
                     vec!()
-                ).react(Tokenizer::push_once),
+                ).react(Tokenizer::push_group),
                 Node::leaf(TokenType::Declaration).react(Tokenizer::push_group),
                 Node::leaf(TokenType::MacroCall).react(Tokenizer::push_group)
             ),

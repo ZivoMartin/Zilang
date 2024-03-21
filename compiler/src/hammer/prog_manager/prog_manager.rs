@@ -13,6 +13,7 @@ pub struct ProgManager {
     pub current_file: usize,
     pub titn: Vec::<String>,
     pub tnti: HashMap<String, (u8, usize)>,
+    pub preload: String
 }
 
 impl ProgManager {
@@ -23,13 +24,14 @@ impl ProgManager {
             var_map: HashMap::new(),
             func_name_map: HashMap::new(),
             func_map: HashMap::new(),
-            titn: Vec::new(),
-            tnti: HashMap::new(),
+            titn: build_base_type_vec(),
+            tnti: build_tab_size_map(),
             stack_index: 0,
             bloc_id: 0,
             if_count: 0,
             jump_stack: Stack::init(Jump::new(0)),
-            current_file: SCRIPTF
+            current_file: SCRIPTF,
+            preload: String::from("\npreload:")
         }
     }
 
@@ -56,7 +58,9 @@ impl ProgManager {
             return Err("Not the good type for the call.".to_string())
         }
         let size = self.get_type_size(stars, &f.args()[nth as usize].name()) as usize;
-        let res = format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[size]);
+        let res = format!("
+pop rax
+mov {}[_stack + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[size]);
         self.stack_index += size;
         Ok(res)
     }
@@ -68,6 +72,22 @@ impl ProgManager {
             Ok(())
         }
     }
+
+    pub fn preload(&mut self, script: String) {
+        self.preload.push_str(&script)
+    }
+
+    pub fn get_preload(&self) -> &String {
+        &self.preload
+    }
+
+    pub fn end_prog(&mut self) {
+        self.preload.push_str("\nret");
+    }
+}
+
+fn build_base_type_vec() -> Vec<String> {
+    vec!("int", "char", "void").iter().map(|e| e.to_string()).collect()
 }
 
 fn build_tab_size_map() -> HashMap<String, (u8, usize)> {

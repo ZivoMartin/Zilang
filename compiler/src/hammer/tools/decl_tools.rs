@@ -14,7 +14,7 @@ impl Tool for DeclTools {
             TokenType::RaiseComplexType(id, stars, _) => self.def_type(pm, id, stars as u32),
             TokenType::Ident => self.def_name(token.content, pm),
             TokenType::Operator => self.def_equal_operator(),
-            TokenType::Expression => self.check_exp(token.content)?,
+            TokenType::RaiseExpression(stars) => self.check_exp(stars)?,
             _ => panic_bad_token("declaration", token)
         }
         Ok(String::new())
@@ -47,9 +47,8 @@ impl DeclTools {
         self.stars = stars;
     }
 
-    pub fn check_exp(&mut self, stars: String) -> Result<(), String>{
-        println!("{} {}", self.stars, stars);
-        return if str::parse::<u32>(&stars).unwrap() != self.stars {
+    pub fn check_exp(&mut self, stars: i32) -> Result<(), String>{
+        return if stars as u32 != self.stars {
             Err(String::from("Not the good type"))
         }else{
             Ok(())

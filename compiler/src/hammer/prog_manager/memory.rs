@@ -10,7 +10,7 @@ impl ProgManager {
     pub fn new_function(&mut self, name: String, args: Vec<Type>, return_type: Type) {
         let f = Function::new(self.si(), name.clone(), args, return_type);
         match self.func_name_map.get_mut(&name) {
-            Some(s) => s.push(self.si()),
+            Some(s) => s.push(self.stack_index),
             _ => {self.func_name_map.insert(name, Stack::init(self.si()));}
         };
         self.func_map.insert(self.si(), f);
@@ -46,7 +46,7 @@ impl ProgManager {
             }
         );
         if self.var_name_map.contains_key(&name) {
-            self.var_name_map.get_mut(&name).unwrap().push(self.si());
+            self.var_name_map.get_mut(&name).unwrap().push(self.stack_index);
         }else{
             self.var_name_map.insert(
                 name,
@@ -54,7 +54,7 @@ impl ProgManager {
             );
         }
         let res = self.si();
-        self.jump_stack.val_mut().expect("jump stack empty").add_addr(self.si());
+        self.jump_stack.val_mut().expect("jump stack empty").add_addr(self.stack_index);
         self.stack_index += size as usize;
         res
     } 

@@ -1,9 +1,7 @@
-for(int i=0; 
-    do {
-        i = i + 1;
-        !dn(i);
-    }; i<10){
-        !dn(2*i);
-    };
+func f(int a) void {
+    !dn(a);
+};
+
+f(2);
 
 !exit(0);

@@ -1,6 +1,7 @@
 use super::tokenizer::Tokenizer;
 
 #[derive(Eq, Hash, PartialEq, Debug)]
+#[allow(dead_code)]
 pub enum TokenType {
     // Primitive Token
     Ident,  
