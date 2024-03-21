@@ -1,7 +1,7 @@
 use super::include::*;
-use crate::hammer::prog_manager::prog_manager::{ASM_SIZES, RAX_SIZE};
+use crate::hammer::prog_manager::include::{ASM_SIZES, RAX_SIZE};
 pub struct InstructionTools {
-    size_aff: u32,
+    size_aff: u8,
     equal_code: String
 }
 
@@ -11,9 +11,9 @@ impl Tool for InstructionTools {
     fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String>{
         match token.token_type {
             TokenType::Operator => self.set_equal_code(token.content),
-            TokenType::Expression => (),
-            TokenType::ComplexIdent => self.set_ident(token.content),
-            TokenType::Declaration | TokenType::MacroCall => (),
+            TokenType::RaiseExpression(_) => (),
+            TokenType::MemorySpot(_, _, size) => self.set_ident(size),
+            TokenType::RaiseDeclaration(_) | TokenType::MacroCall => (),
             TokenType::KeywordInstruction => (),
             _ => panic_bad_token("instruction", token)
         }
@@ -36,8 +36,7 @@ impl Tool for InstructionTools {
 
 impl InstructionTools {
 
-    pub fn set_ident(&mut self, cident_data: String) {
-        let (_, _, size) = extract_cident_data(&cident_data);
+    pub fn set_ident(&mut self, size: u8) {
         self.size_aff = size;
     }
 

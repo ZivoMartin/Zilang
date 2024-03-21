@@ -22,9 +22,9 @@ impl Tool for FuncTools {
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         let mut res = String::new();
         match token.token_type {
-            TokenType::Declaration => self.new_arg(pm, token.content),
+            TokenType::RaiseDeclaration(addr) => self.new_arg(pm, addr),
             TokenType::Ident => res = self.set_ident(token.content),
-            TokenType::ComplexType => res = self.set_type(pm, token.content),
+            TokenType::RaiseComplexType(id, stars, size) => res = self.set_type(pm, id, stars as u32, size),
             TokenType::Bloc => (),
             _ => panic_bad_token("func keyword", token)
         }
@@ -40,8 +40,8 @@ impl Tool for FuncTools {
 
 impl FuncTools {
 
-    fn new_arg(&mut self, pm: &mut ProgManager, dec_data: String) {
-        let var_def = pm.get_var_def(&str::parse::<usize>(&dec_data).unwrap()).unwrap();
+    fn new_arg(&mut self, pm: &mut ProgManager, addr: usize) {
+        let var_def = pm.get_var_def(&addr).unwrap();
         self.type_args.push(var_def.type_var.clone())
     }
 
@@ -50,9 +50,9 @@ impl FuncTools {
         format!("{}:", self.name)
     } 
 
-    fn set_type(&mut self, pm: &mut ProgManager, t: String) -> String {
-        let (name, stars, size) = extract_ctype_data(&t);
-        self.return_type = Type::new(name, stars, size);
+    fn set_type(&mut self, pm: &mut ProgManager, id: usize, stars: u32, size: u8) -> String {
+        let name = pm.get_type_name_with_id(id);
+        self.return_type = Type::new(name, size, stars);
         let res = format!("
 mov [_stack + {}], {}", pm.si(), self.name
         );

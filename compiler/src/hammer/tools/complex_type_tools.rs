@@ -16,8 +16,10 @@ impl Tool for ComplexTypeTools {
         })   
     }
 
-    fn end(&mut self, _pm: &mut ProgManager) -> Result<(TokenType, String), String> {
-        Ok((TokenType::RaiseComplexType(self.stars, self.size), String::new()))             
+    // Raise the type id, the number of stars and the size.
+    fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        Ok((TokenType::RaiseComplexType(pm.get_type_id_with_type_name(&self.name),  
+                                        self.stars, self.size), String::new()))             
     }
 
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {

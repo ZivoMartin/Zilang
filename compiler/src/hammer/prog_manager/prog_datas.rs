@@ -1,25 +1,9 @@
-use super::include::*;
-
-pub struct ProgData {
-    stack_index: usize,
-    bloc_id: u128,
-    if_count: u32,
-    jump_stack: Stack<Jump>,
-    current_file: usize
-}
+use super::{include::*, prog_manager::ProgManager};
 
 
-impl ProgData {
 
-    pub fn new() -> ProgData {
-        ProgData{
-            stack_index: 0,
-            bloc_id: 0,
-            if_count: 0,
-            jump_stack: Stack::init(Jump::new(0)),
-            current_file: SCRIPTF
-        }
-    }
+impl ProgManager {
+
 
     pub fn bloc_id(&self) -> u128 {
         self.bloc_id
@@ -69,6 +53,6 @@ impl ProgData {
                 .get_mut(&var_def.name).expect("The name doesn't exists")
                 .pop().expect("The varname stack is empty");
         }
-        self.si() = last_jump.stack_index;
+        self.stack_index = last_jump.stack_index;
     }
 }

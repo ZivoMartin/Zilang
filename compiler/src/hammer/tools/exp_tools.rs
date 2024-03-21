@@ -19,10 +19,12 @@ impl Tool for ExpTools {
     
     fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String>{
         match token.token_type {
-            TokenType::Number | TokenType::ComplexChar => self.new_number(token.content),
+            TokenType::Number => self.new_number(token.content.parse::<i128>().unwrap()),
+            TokenType::RaiseComplexChar(v) => self.new_number(v as i128),
             TokenType::Operator => self.new_operator(token.content),
             TokenType::Symbol => self.new_parenthesis(token.content),
-            TokenType::ComplexIdent => self.new_cident(token.content)?,
+            TokenType::MemorySpot(nb_deref, stars, size) => self.new_cident(nb_deref, stars, size)?,
+            TokenType::FuncCall(addr) => self.new_funccall(addr),
             _ => panic_bad_token("expression", token)
         }
         Ok(String::new())
@@ -53,6 +55,9 @@ impl Tool for ExpTools {
 
 impl ExpTools {
 
+    fn new_funccall(&self, _addr: usize) {
+        // Todo: Handle func call
+    }
 
     fn new_operator(&mut self, content: String) {
         while !self.op_stack.is_empty() && 
@@ -63,8 +68,8 @@ impl ExpTools {
         self.op_stack.push(content);
     }
 
-    fn new_number(&mut self, number: String) {
-        self.pf_exp.push(ExpTokenType::Number(str::parse::<i128>(&number).unwrap()));
+    fn new_number(&mut self, number: i128) {
+        self.pf_exp.push(ExpTokenType::Number(number));
     }
 
     pub fn new_parenthesis(&mut self, par: String) {
@@ -81,8 +86,7 @@ impl ExpTools {
     }
 
 
-    fn new_cident(&mut self, ident_stars: String) -> Result<(), String> {
-        let (deref_t, stars, size) = extract_cident_data(&ident_stars);
+    fn new_cident(&mut self, deref_t: i32, stars: i32, size: u8) -> Result<(), String> {
         if self.stars == 0 {
             self.stars = stars;
         }else if stars != 0 && stars != self.stars {
@@ -177,6 +181,6 @@ fn build_op_id() -> HashMap<String, u8> {
 enum ExpTokenType {
     Operator(u8),
     Number(i128),
-    Ident(i8, u32)
+    Ident(i8, u8)
 }
 

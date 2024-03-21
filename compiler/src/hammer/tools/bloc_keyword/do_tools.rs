@@ -24,6 +24,7 @@ impl Tool for DoTools {
         Ok(res)
     }
 
+    // Raise the id of the bloc
     fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         Ok((TokenType::RaiseDoKeyWord(pm.bloc_id()), String::new()))
     }

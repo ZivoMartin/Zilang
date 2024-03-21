@@ -15,7 +15,7 @@ impl Tool for IfTools {
 
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         Ok(match token.token_type {
-            TokenType::Expression => self.compare_exp(pm),
+            TokenType::RaiseExpression(_) => self.compare_exp(pm),
             TokenType::Keyword => self.new_keyword(pm, token.content),
             TokenType::Bloc => self.end_bloc(pm),
             TokenType::Instruction | TokenType::IfKeyword => String::new(),

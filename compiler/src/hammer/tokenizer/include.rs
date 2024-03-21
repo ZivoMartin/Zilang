@@ -50,7 +50,7 @@ pub enum TokenType {
     RaiseExpression(i32),
     RaiseDeclaration(usize),
     RaiseComplexChar(u8),   
-    RaiseComplexType(i32, u8), // Todo: Rajouter la transmission du nom
+    RaiseComplexType(usize, i32, u8), 
     RaiseDoKeyWord(u128)
 }
 

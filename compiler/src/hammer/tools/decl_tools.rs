@@ -11,7 +11,7 @@ impl Tool for DeclTools {
 
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String>{
         match token.token_type {
-            TokenType::ComplexType => self.def_type(token.content),
+            TokenType::RaiseComplexType(id, stars, _) => self.def_type(pm, id, stars as u32),
             TokenType::Ident => self.def_name(token.content, pm),
             TokenType::Operator => self.def_equal_operator(),
             TokenType::Expression => self.check_exp(token.content)?,
@@ -30,6 +30,7 @@ impl Tool for DeclTools {
         })
     }
 
+    // Raise the address of the new var
     fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         let asm = self.build_asm(pm);
         Ok((TokenType::RaiseDeclaration(self.addr), asm))
@@ -41,10 +42,9 @@ impl DeclTools {
 
 
 
-    pub fn def_type(&mut self, t: String) {
-        let (name_t, stars, _) = extract_ctype_data(&t);
-        self.type_name = name_t;
-        self.stars = stars as u32;
+    pub fn def_type(&mut self, pm: &ProgManager, id: usize, stars: u32) {
+        self.type_name = pm.get_type_name_with_id(id);
+        self.stars = stars;
     }
 
     pub fn check_exp(&mut self, stars: String) -> Result<(), String>{

@@ -25,7 +25,7 @@ impl Tool for ForTools {
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         Ok(match token.token_type {
             TokenType::Keyword => self.new_keyword(&token.content, pm),
-            TokenType::Expression => self.compare_exp(pm)            ,
+            TokenType::RaiseExpression(_) => self.compare_exp(pm)            ,
             TokenType::Instruction => self.new_inst(pm),
             TokenType::Bloc => String::new(),
             _ => {panic_bad_token("while keyword", token);String::new()}

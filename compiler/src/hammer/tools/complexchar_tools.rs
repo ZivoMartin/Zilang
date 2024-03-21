@@ -22,7 +22,7 @@ impl Tool for ComplexCharTools {
         })
     }
 
-   
+   // We raise the ascii value of the char
     fn end(&mut self, _pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         Ok((TokenType::RaiseComplexChar( 
             if self.bs {

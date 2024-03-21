@@ -20,14 +20,15 @@ impl Tool for KeyWordTools {
     }   
 
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
-        let res = match token.token_type {
-            TokenType::IfKeyword => self.if_keyword(pm),
+        let mut res = String::new();
+        match token.token_type {
+            TokenType::IfKeyword => res = self.if_keyword(pm),
             TokenType::WhileKeyword | 
             TokenType::ForKeyword |
-            TokenType::FuncKeyword => self.end_kw(pm),
+            TokenType::FuncKeyword => res = self.end_kw(pm),
             TokenType::RaiseDoKeyWord(id) => self.end_do_kw(id),
-            TokenType::Expression => self.push_save(),
-            _ => {panic_bad_token("keyword inst", token);String::new()}
+            TokenType::RaiseExpression(_) => res = self.push_save(),
+            _ => panic_bad_token("keyword inst", token)
         };
         Ok(res)
     }
@@ -52,10 +53,9 @@ impl KeyWordTools {
         res
     }
 
-    fn end_do_kw(&mut self, id: u128) -> String {
+    fn end_do_kw(&mut self, id: u128) {
         self.save = format!( "pop rax
             and rax, rax
             jne begin_loop_{}", id);
-        String::new()
     }
 }

@@ -16,7 +16,7 @@ impl Tool for CIdentTools {
             TokenType::Ident => self.def_ident(token.content),
             TokenType::Brackets => self.open_brackets(),
             TokenType::ExpressionTuple => self.open_tupple(pm)?,
-            TokenType::Expression => res = self.new_expression(pm, token.content)?,
+            TokenType::RaiseExpression(stars) => res = self.new_expression(pm, stars)?,
             _ => panic_bad_token("complex ident", token)
         }
         Ok(res)
@@ -84,16 +84,17 @@ impl CIdentTools {
         }
     }
 
-    pub fn new_expression(&mut self, pm: &mut ProgManager, stars: String) -> Result<String, String>{
+    pub fn new_expression(&mut self, pm: &mut ProgManager, stars: i32) -> Result<String, String>{
         self.nb_exp += 1;
         if self.for_bracket {
             todo!("New expression for bracket");
         }else{
-            pm.handle_arg(&self.name, stars.parse::<i32>().unwrap(), (self.nb_exp-1) as usize)
+            pm.handle_arg(&self.name, stars, (self.nb_exp-1) as usize)
         }
 
     }
 
+    // Raise the deref time, the number of stars and the size
     fn raise_mem_spot(&self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         let var_def = match pm.get_var_def_by_name(&self.name) {
             Ok(var_def) => var_def,
@@ -108,6 +109,7 @@ impl CIdentTools {
         Ok((TokenType::MemorySpot(self.deref_time, stars, var_def.get_size()), asm))
     }
 
+    // We raise the address of the function
     fn raise_func_call(&self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         pm.good_nb_arg(&self.name, self.nb_exp)?;
         let asm = format!("

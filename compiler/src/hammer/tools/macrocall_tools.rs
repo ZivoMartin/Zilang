@@ -32,7 +32,7 @@ impl Tool for MacroCallTools {
     fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String> {
         match token.token_type {
             TokenType::Ident => self.def_name(token.content)?,
-            TokenType::Expression => self.new_expression(),
+            TokenType::RaiseExpression(_) => self.new_expression(),
             TokenType::ExpressionTuple => (),
             _ => panic_bad_token("macro call", token)
         }
