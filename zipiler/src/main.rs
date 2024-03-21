@@ -1,8 +1,8 @@
-mod hammer;
+mod zipiler;
 
 use std::env;
 use std::fs;
-use hammer::compile_txt;
+use zipiler::compile_txt;
 
 use std::process::{Command, exit, ExitCode};
 use std::time::Instant;

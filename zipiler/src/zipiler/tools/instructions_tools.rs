@@ -1,5 +1,5 @@
 use super::include::*;
-use crate::hammer::prog_manager::include::{ASM_SIZES, RAX_SIZE};
+use crate::zipiler::prog_manager::include::{ASM_SIZES, RAX_SIZE};
 pub struct InstructionTools {
     size_aff: u8,
     equal_code: String

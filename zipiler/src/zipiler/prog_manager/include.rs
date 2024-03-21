@@ -1,4 +1,4 @@
-pub use crate::hammer::collections::Stack;
+pub use crate::zipiler::collections::Stack;
 pub use std::collections::HashMap;
 pub use self::files::{FUNCTIONSF, SCRIPTF};
 
