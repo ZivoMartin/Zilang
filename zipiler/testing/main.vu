@@ -1,8 +1,10 @@
-func f(int a) int {
-    !dn(a);
-    return 2;  
+func f(int a) int* {
+    return &a;  
 };
 
-f(2);
+int c;
+int b;
+
+!dn(&b);
 
 !exit(0);

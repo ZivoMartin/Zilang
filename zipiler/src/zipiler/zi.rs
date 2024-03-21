@@ -7,7 +7,7 @@ use super::program::Program;
 use std::fs::File;
 use super::prog_manager::include::{F_PATHS, files::*};
 use std::io::{prelude::*, Write};
-pub struct Hammer {
+pub struct ZiLang {
     token_queue: Queue<Token>,
     tokenizing_thread: Vec<JoinHandle<()>>,
     keep_compile: bool,
@@ -16,10 +16,10 @@ pub struct Hammer {
 }
 
 
-impl<'a> Hammer {
+impl<'a> ZiLang {
 
-    pub fn new() -> Hammer {
-        Hammer{
+    pub fn new() -> ZiLang {
+        ZiLang{
             token_queue: Queue::new(),
             tokenizing_thread: Vec::new(),
             keep_compile: true,

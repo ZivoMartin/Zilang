@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use crate::zipiler::Hammer;
+use crate::zipiler::ZiLang;
 use super::include::*;
 use super::grammar_tree::build_grammar_tree;
 use std::iter::Peekable;
@@ -9,43 +9,13 @@ use std::str::Chars;
 use std::io::prelude::*;
 
 pub struct Tokenizer {
-    hammer: *mut Hammer,
+    zilang: *mut ZiLang,
     group_map: HashMap<TokenType, Node>,
     priority_map: HashMap<TokenType, u8>,
     identity_map: HashMap<fn(char)->bool, Vec<TokenType>>
 }
 
 unsafe impl Send for Tokenizer{}
-
-// struct Chars {
-//     chars: Cursor<BufReader<File>>,
-// }
-
-
-
-// impl Chars {
-
-//     fn new(f: File) -> Chars {
-//         Chars{
-//             chars: Cursor::new(BufReader::new(f))
-//         }
-//     }
-    
-//     fn peek(&mut self) -> Option<char> {
-//         match self.chars.consume() {
-//             Some(r) => Some(*r.as_ref().unwrap_or_else(|e| panic!("{e}")) as char),
-//             _ => None
-//         }
-//     }
-
-//     fn next(&mut self) -> Option<char> {
-//         match self.chars.next() {
-//             Some(r) => Some(r.unwrap_or_else(|e| panic!("{e}")) as char),
-//             _ => None
-//         }
-//     }
-    
-// }
 
 
 fn build_priority_map() -> HashMap<TokenType, u8> {
@@ -72,12 +42,12 @@ fn build_identity_map() -> HashMap<fn(char)->bool, Vec<TokenType>> {
 
 impl<'a> Tokenizer {
 
-    pub fn new(hammer: &'a mut Hammer) -> Tokenizer {
+    pub fn new(zilang: &'a mut ZiLang) -> Tokenizer {
         Tokenizer{
             group_map: build_grammar_tree(),
             priority_map: build_priority_map(),
             identity_map: build_identity_map(),
-            hammer
+            zilang
         }
     }
 
@@ -94,7 +64,7 @@ impl<'a> Tokenizer {
             self.skip_garbage(&mut chars); 
         }   
         unsafe{
-            (**&self.hammer).end_of_tokenizing_thread();
+            (**&self.zilang).end_of_tokenizing_thread();
         }
         Ok(())
     } 
@@ -267,15 +237,15 @@ impl<'a> Tokenizer {
     }
 
     pub fn push_token(&self, token_type: TokenType, content: &String) {
-        unsafe{(**&self.hammer).new_token(Token::new(token_type, content.clone()));}
+        unsafe{(**&self.zilang).new_token(Token::new(token_type, content.clone()));}
     }
 
     pub fn push_group(&self, token_type: TokenType, _content: &String) {
-        unsafe{(**&self.hammer).new_group(token_type);}
+        unsafe{(**&self.zilang).new_group(token_type);}
     }
 
     pub fn end_group(&self, _token_type: TokenType, _content: &String) {
-        unsafe{(**&self.hammer).end_group();}
+        unsafe{(**&self.zilang).end_group();}
     }
 
     pub fn push_once(&self, token_type: TokenType, content: &String) {

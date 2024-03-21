@@ -17,17 +17,18 @@ pub struct ExpTools {
 
 impl Tool for ExpTools {
     
-    fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String>{
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String>{
+        let mut res = String::new();
         match token.token_type {
             TokenType::Number => self.new_number(token.content.parse::<i128>().unwrap()),
             TokenType::RaiseComplexChar(v) => self.new_number(v as i128),
             TokenType::Operator => self.new_operator(token.content),
             TokenType::Symbol => self.new_parenthesis(token.content),
             TokenType::MemorySpot(nb_deref, stars, size) => self.new_cident(nb_deref, stars, size)?,
-            TokenType::FuncCall(addr) => self.new_funccall(addr),
+            TokenType::FuncCall(addr) => res = self.new_funccall(pm, addr)?,
             _ => panic_bad_token("expression", token)
         }
-        Ok(String::new())
+        Ok(res)
     }
 
     fn new(_pm: &mut ProgManager) -> Box<dyn Tool> {
@@ -55,8 +56,11 @@ impl Tool for ExpTools {
 
 impl ExpTools {
 
-    fn new_funccall(&self, _addr: usize) {
-        // Todo: Handle func call
+    fn new_funccall(&mut self, pm: &ProgManager, addr: usize) -> Result<String, String> {
+        let f = pm.get_func_by_addr(addr);
+        let stars = f.return_type().stars();
+        self.new_cident(-1, stars as i32, pm.get_type_size(stars as i32, f.return_type().name()))?;
+        Ok(String::from("\npush rax"))
     }
 
     fn new_operator(&mut self, content: String) {
