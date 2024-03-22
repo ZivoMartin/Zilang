@@ -100,4 +100,5 @@ _invalid_address:
     exit 1
 
 _start:
+xor rdx, rdx
 call preload

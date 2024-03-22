@@ -38,14 +38,15 @@ impl ProgManager {
 
     pub fn new_var(&mut self, name_type: String, name: String, stars: u32) -> usize {
         let size = self.get_type_size_with_type_name(&name_type); 
-        self.var_map.insert(
-            self.si(),
-            VariableDefinition{
-                name: name.clone(),
-                type_var: Type::new(name_type, size, stars),
-                addr: self.si()
-            }
-        );
+        let var_def =  VariableDefinition{
+            name: name.clone(),
+            type_var: Type::new(name_type, size, stars),
+            addr: self.si()
+        };
+        match self.var_map.get_mut(&self.si()) {
+            Some(s) => s.push(var_def),
+            _ => {self.var_map.insert(self.si(), Stack::init(var_def));}
+        }
         if self.var_name_map.contains_key(&name) {
             self.var_name_map.get_mut(&name).unwrap().push(self.stack_index);
         }else{
@@ -65,12 +66,12 @@ impl ProgManager {
             Some(stack) => stack.val().expect("The stack of a var name is empty"),
             _ => return Err(()) 
         };
-        Ok(self.var_map.get(addr).unwrap())
+        Ok(self.var_map.get(addr).expect("Adress unvalid").val().expect("addr stack empty."))
     }
     
     pub fn get_var_def(&self, addr: &usize) -> Result<&VariableDefinition, ()> {
         match self.var_map.get(addr) {
-            Some(res) => Ok(res),
+            Some(res) => Ok(res.val().expect("addr stack is empty")),
             _ => Err(())
         }
     }

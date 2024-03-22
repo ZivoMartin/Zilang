@@ -3,7 +3,7 @@ use super::include::*;
 
 pub struct ProgManager {
     pub var_name_map: HashMap<String, Stack<usize>>,
-    pub var_map: HashMap<usize, VariableDefinition>,
+    pub var_map: HashMap<usize, Stack<VariableDefinition>>,
     pub func_name_map: HashMap<String, Stack<usize>>,
     pub func_map: HashMap<usize, Function>,
     pub stack_index: usize,
@@ -41,7 +41,7 @@ impl ProgManager {
 
     pub fn affect_to(&self, addr: usize) -> String {
         let size = self.get_var_def(&addr).unwrap().type_var.size() as usize;
-        format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
+        format!("\nmov {}[_stack + rdx + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
     }
 
     pub fn deref_var(&self, size: usize, stars: i32) -> String {
@@ -62,7 +62,7 @@ impl ProgManager {
         let size = self.get_type_size(stars, &f.args()[nth as usize].name()) as usize;
         let res = format!("
 pop rax
-mov {}[_stack + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[size]);
+mov {}[_stack + rdx + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[size]);
         self.stack_index += size;
         Ok(res)
     }

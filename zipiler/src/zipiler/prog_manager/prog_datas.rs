@@ -34,6 +34,7 @@ impl ProgManager {
     }
 
     pub fn in_func(&mut self) {
+        self.stack_index = 0;
         self.current_file = FUNCTIONSF;
     }
 
@@ -48,11 +49,19 @@ impl ProgManager {
     pub fn jump_out(&mut self) {
         let last_jump = self.jump_stack.pop().expect("Can t jump out, stack empty");
         for addr in last_jump.addr_to_remove.iter() {
-            let var_def = self.var_map.remove(addr).expect("Adress unvalid");
+            let addr_stack = self.var_map.get_mut(addr).expect("Adress unvalid"); 
+            let var_def = addr_stack.pop().expect("satck empty");
+            if addr_stack.is_empty() {
+                self.var_map.remove(addr);
+            };
             self.var_name_map
                 .get_mut(&var_def.name).expect("The name doesn't exists")
                 .pop().expect("The varname stack is empty");
         }
         self.stack_index = last_jump.stack_index;
+    }
+
+    pub fn set_si(&mut self, n: usize) {
+        self.stack_index = n;
     }
 }

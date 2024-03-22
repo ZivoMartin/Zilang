@@ -113,15 +113,20 @@ impl CIdentTools {
     fn raise_func_call(&self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         pm.good_nb_arg(&self.name, self.nb_exp)?;
         let asm = format!("
+push rdx
+add rdx, {}
 call {}
+pop rdx
 ; Todo: dereferanecer le retour (eventuellement)
-push rax", self.name);
+push rax", pm.si(), self.name);
         Ok((TokenType::FuncCall(pm.get_func_addr(&self.name)), asm))
 
     }
 
     fn build_asm(&self, _stars: i32, deref_time: i32, pm: &ProgManager, var_def: &VariableDefinition) -> String {
-        let mut res = format!("\nmov rax, {}", var_def.addr);
+        let mut res = format!("
+mov rax, {}
+add rax, rbx", var_def.addr);
         res.push_str(&pm.deref_var(var_def.type_var.size() as usize, deref_time));
         res.push_str("\npush rax    ; We push the value of a new identificator");
         res
