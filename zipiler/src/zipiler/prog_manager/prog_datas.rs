@@ -61,7 +61,4 @@ impl ProgManager {
         self.stack_index = last_jump.stack_index;
     }
 
-    pub fn set_si(&mut self, n: usize) {
-        self.stack_index = n;
-    }
 }
