@@ -1,10 +1,3 @@
-func f(int a) int* {
-    return &a;  
-};
-
-int c;
-int b;
-
-!dn(&b);
+int a[10][1][7];
 
 !exit(0);

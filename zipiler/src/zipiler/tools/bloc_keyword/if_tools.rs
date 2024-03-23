@@ -4,7 +4,10 @@ pub struct IfTools;
 
 impl Tool for IfTools {
 
-    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
+    fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
+        if pm.if_count() == 0 {
+            pm.jump_in();
+        }
         Box::from(IfTools)
     }
 

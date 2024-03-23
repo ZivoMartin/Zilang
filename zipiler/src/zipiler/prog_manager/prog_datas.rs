@@ -9,8 +9,8 @@ impl ProgManager {
         self.bloc_id
     }
 
-    pub fn cf(&self) -> usize {
-        self.current_file
+    pub fn inc_si(&mut self, n: usize) {
+        self.stack_index += n;
     }
 
     pub fn if_count(&self) -> u32 {
@@ -34,12 +34,12 @@ impl ProgManager {
     }
 
     pub fn in_func(&mut self) {
+        self.stage += 1;
         self.stack_index = 0;
-        self.current_file = FUNCTIONSF;
     }
 
     pub fn out_func(&mut self) {
-        self.current_file = SCRIPTF;
+        self.stage -= 1;
     }
 
     pub fn jump_in(&mut self) {
@@ -55,13 +55,11 @@ impl ProgManager {
                 self.var_map.remove(addr);
             };
             self.var_name_map
-                .get_mut(&var_def.name).expect("The name doesn't exists")
+                .get_mut(var_def.name()).expect("The name doesn't exists")
                 .pop().expect("The varname stack is empty");
         }
+        println!("here: {}", last_jump.stack_index);
         self.stack_index = last_jump.stack_index;
     }
 
-    pub fn set_si(&mut self, n: usize) {
-        self.stack_index = n;
-    }
 }

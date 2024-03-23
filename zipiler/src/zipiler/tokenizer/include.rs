@@ -25,6 +25,7 @@ pub enum TokenType {
     DeclarationTuple,             
     ExpressionTuple,
     BrackTuple,
+    DeclBracket,
     SerieExpression,
     SerieSerieExpression,
     SerieDTab,

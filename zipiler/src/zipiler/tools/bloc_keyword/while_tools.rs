@@ -8,7 +8,8 @@ impl LoopTrait for WhileTools{}
 
 impl Tool for WhileTools {
 
-    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
+    fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
+        pm.jump_in();
         Box::from(WhileTools)
     }
 

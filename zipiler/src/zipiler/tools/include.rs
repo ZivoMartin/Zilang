@@ -1,7 +1,8 @@
 pub use crate::zipiler::{
                         prog_manager::{prog_manager::ProgManager, include::{
                             VariableDefinition, 
-                            Type
+                            Type,
+                            POINTER_SIZE
                         }},
                         program::{Tool, panic_bad_token},
                         tokenizer::include::{TokenType, Token, OPERATORS}

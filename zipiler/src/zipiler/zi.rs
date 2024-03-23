@@ -1,6 +1,5 @@
 use std::thread::{JoinHandle, spawn};
 use super::collections::Queue;
-use super::prog_manager::include::files::FUNCTIONSF;
 use super::tokenizer::{include::{Token, TokenType}, tokenizer::Tokenizer};
 use std::process::exit;
 use super::program::Program;
@@ -46,7 +45,6 @@ impl<'a> ZiLang {
             }
         }
         self.tools.end_prog();
-        self.push_script(&self.tools.get_preload().clone(), FUNCTIONSF);
     }
 
     pub fn new_token(&mut self, token: Token) {
@@ -85,7 +83,6 @@ fn open_asm_files() -> Vec<File> {
         }))
     }
     replace_txt(&mut res, SCRIPTF, BASE_SCRIPTF);
-    replace_txt(&mut res, FUNCTIONSF, BASEFUNCTIONSF);
     res
 }
 

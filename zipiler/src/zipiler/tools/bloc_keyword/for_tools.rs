@@ -10,7 +10,8 @@ impl LoopTrait for ForTools{}
 
 impl Tool for ForTools {
 
-    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
+    fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
+        pm.jump_in();
         Box::from(ForTools{
             inst_number: 0
         })

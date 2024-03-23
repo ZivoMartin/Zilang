@@ -461,7 +461,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                             vec!(
                                 Node::leaf(TokenType::Affectation),
                                 Node::new_end(
-                                    TokenType::Brackets,
+                                    TokenType::DeclBracket,
                                     vec!(
                                         Node::leaf(TokenType::Affectation)
                                     ),
@@ -474,6 +474,37 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 ).react(Tokenizer::push_once)
             ),
             vec!()   
+        )
+    );
+
+    group_map.insert(
+        TokenType::DeclBracket,
+        Node::new(
+            TokenType::DeclBracket,
+            vec!(),
+            vec!(
+                Node::new_c(
+                    TokenType::Symbol,
+                    vec!(),
+                    vec!(
+                        Node::new(
+                            TokenType::Number,
+                            vec!(),
+                            vec!(
+                                Node::new_end_c(
+                                    TokenType::Symbol,
+                                    vec!(
+                                        Node::leaf(TokenType::DeclBracket)
+                                    ),
+                                    vec!(),
+                                    vec!("]")
+                                )
+                            )
+                        ).react(Tokenizer::push_token)
+                    ),
+                    vec!("[")
+                )
+            )
         )
     );
 

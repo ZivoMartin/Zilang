@@ -1,3 +1,4 @@
+use crate::zipiler::prog_manager::include::files::SCRIPTF;
 use crate::zipiler::tokenizer::include::{Token, TokenType};
 use super::collections::Stack;
 use std::collections::HashMap;
@@ -70,7 +71,7 @@ impl Program {
     }
 
     pub fn tokenize(&mut self, token: Token) -> Result<(String, usize), String> {
-        Ok((self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory)?, self.memory.cf()))
+        Ok((self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory)?, SCRIPTF))
     }
 
     pub fn new_group(&mut self, type_token: TokenType) {
@@ -87,11 +88,11 @@ impl Program {
             String::new()
         };
         end_txt.push_str(&asm);
-        Ok((end_txt, self.memory.cf()))
+        Ok((end_txt, SCRIPTF))
     }
 
-    pub fn get_preload(&self) -> &String {
-        &self.memory.get_preload()
+    pub fn _get_preload(&self) -> &String {
+        &self.memory._get_preload()
     }
 
     pub fn end_prog(&mut self) {

@@ -1,11 +1,10 @@
 pub use crate::zipiler::collections::Stack;
 pub use std::collections::HashMap;
-pub use self::files::{FUNCTIONSF, SCRIPTF};
 
 pub static ASM_SIZES: [&str; 9] = ["", "byte", "word", "", "dword", "", "", "", "qword"];
 pub static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
-
-
+pub static STACK_REG: &str = "r15";
+pub static POINTER_SIZE: usize = 4; 
 pub struct Jump {
     pub stack_index: usize,
     pub addr_to_remove: Vec<usize>
@@ -120,12 +119,33 @@ impl Type {
 }
 
 pub struct VariableDefinition{
-    pub name: String,
-    pub type_var: Type,
-    pub addr: usize
+    name: String,
+    type_var: Type,
+    addr: usize,
+    stage: u32
 }
 
 impl VariableDefinition {
+
+    pub fn new(addr: usize, name: String, type_var: Type, stage: u32) -> VariableDefinition {
+        VariableDefinition{name, addr, type_var, stage}
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn type_var(&self) -> &Type {
+        &self.type_var
+    }
+
+    pub fn stage(&self) -> u32 {
+        self.stage
+    }
+
+    pub fn addr(&self) -> usize {
+        self.addr
+    }
 
     pub fn get_size(&self) -> u8{
         if self.type_var.stars == 0 {
@@ -137,11 +157,9 @@ impl VariableDefinition {
 
 }
 
-pub static F_PATHS: [&str; 6] = [
+pub static F_PATHS: [&str; 4] = [
                 "asm/script.asm",
                 "asm/base_files/base_script.asm",
-                "asm/functions.asm",
-                "asm/base_files/base_functions.asm",
                 "asm/base_files/base_data.asm",
                 "asm/base_files/base_macros.asm"
                 ]; 
@@ -150,9 +168,6 @@ pub static F_PATHS: [&str; 6] = [
 pub mod files {
     pub static SCRIPTF: usize = 0;
     pub static BASE_SCRIPTF: usize = 1;
-    pub static FUNCTIONSF: usize = 2;
-    pub static BASEFUNCTIONSF: usize = 3;
-    pub static DATAF: usize = 4;
-    pub static MACROSF: usize = 5;    
+    pub static MACROSF: usize = 2;    
 }
 

@@ -9,6 +9,7 @@ pub struct FuncTools {
 impl Tool for FuncTools {
 
     fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
+        pm.jump_in();
         pm.in_func();
         Box::from(
             FuncTools{
@@ -34,7 +35,8 @@ impl Tool for FuncTools {
     
     fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         pm.out_func();
-        Ok((TokenType::FuncKeyword, String::new()))
+        let asm = format!("\n_end_of_{}:", self.name);
+        Ok((TokenType::FuncKeyword, asm))
     }
 }
 
@@ -42,12 +44,14 @@ impl FuncTools {
 
     fn new_arg(&mut self, pm: &mut ProgManager, addr: usize) {
         let var_def = pm.get_var_def(&addr).unwrap();
-        self.type_args.push(var_def.type_var.clone())
+        self.type_args.push(var_def.type_var().clone())
     }
 
     fn set_ident(&mut self, name: String) -> String {
         self.name = name;
-        format!("{}:", self.name)
+        format!("
+jmp _end_of_{n}
+{n}:", n=self.name)
     } 
 
     fn set_type(&mut self, pm: &mut ProgManager, id: usize, stars: u32, size: u8) {

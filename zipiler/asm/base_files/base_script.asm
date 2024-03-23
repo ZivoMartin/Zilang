@@ -1,4 +1,4 @@
-%include "asm/functions.asm"
+%include "./asm/base_files/base_macros.asm"
 
 global _start
 
@@ -100,5 +100,4 @@ _invalid_address:
     exit 1
 
 _start:
-xor rdx, rdx
-call preload
+xor r15, r15

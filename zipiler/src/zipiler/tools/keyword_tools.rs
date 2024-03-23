@@ -2,25 +2,31 @@
 use super::include::*;
 
 pub struct KeyWordTools {
-    save: String
+    save: String,
+    kw_type: TokenType
 }
+
+static DONT_JUMP_OUT_KW: [TokenType; 1] =  [TokenType::ReturnKeyword];
 
 impl Tool for KeyWordTools {
 
-    fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
-        pm.jump_in();
+    fn new(_pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
         Box::from(KeyWordTools{
-            save: String::new()
+            save: String::new(),
+            kw_type: TokenType::KeywordInstruction
         })
     }
 
     fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
-        pm.jump_out();
+        if !DONT_JUMP_OUT_KW.contains(&self.kw_type) {
+            pm.jump_out();
+        }
         Ok((TokenType::KeywordInstruction, String::new()))
     }   
 
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         let mut res = String::new();
+        self.kw_type = token.token_type;
         match token.token_type {
             TokenType::IfKeyword => res = self.if_keyword(pm),
             TokenType::WhileKeyword | 

@@ -10,11 +10,11 @@ pub struct ProgManager {
     pub bloc_id: u128,
     pub if_count: u32,
     pub jump_stack: Stack<Jump>,
-    pub current_file: usize,
     pub current_func: Option<usize>,
     pub titn: Vec::<String>,
     pub tnti: HashMap<String, (u8, usize)>,
-    pub preload: String
+    pub preload: String,
+    pub stage: u32
 }
 
 impl ProgManager {
@@ -31,17 +31,21 @@ impl ProgManager {
             bloc_id: 0,
             if_count: 0,
             jump_stack: Stack::init(Jump::new(0)),
-            current_file: SCRIPTF,
             preload: String::from("\npreload:"),
-            current_func: None
+            current_func: None,
+            stage: 0
         }
     }
 
     
 
     pub fn affect_to(&self, addr: usize) -> String {
-        let size = self.get_var_def(&addr).unwrap().type_var.size() as usize;
-        format!("\nmov {}[_stack + rdx + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
+        let size = self.get_var_def(&addr).unwrap().type_var().size() as usize;
+        format!("\nmov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
+    }
+
+    pub fn affect_to_wsize(&self, addr: usize, size: usize, val: usize) -> String {
+        format!("\nmov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], addr, val)        
     }
 
     pub fn deref_var(&self, size: usize, stars: i32) -> String {
@@ -62,7 +66,7 @@ impl ProgManager {
         let size = self.get_type_size(stars, &f.args()[nth as usize].name()) as usize;
         let res = format!("
 pop rax
-mov {}[_stack + rdx + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[size]);
+mov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[size]);
         self.stack_index += size;
         Ok(res)
     }
@@ -79,7 +83,7 @@ mov {}[_stack + rdx + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[size]);
         self.preload.push_str(&script)
     }
 
-    pub fn get_preload(&self) -> &String {
+    pub fn _get_preload(&self) -> &String {
         &self.preload
     }
 
