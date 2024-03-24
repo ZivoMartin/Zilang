@@ -4,15 +4,25 @@ use super::loop_trait::LoopTrait;
 
 
 
-pub struct DoTools;
+pub struct DoTools {
+    bi: u128
+}
 
-impl LoopTrait for DoTools{}
+impl LoopTrait for DoTools{
+    fn bi(&self) -> u128 {
+        self.bi
+    }
+}
 
 impl Tool for DoTools {
 
     fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
         pm.jump_in();
-        Box::from(DoTools)
+        let res = DoTools{
+            bi: pm.bloc_id()
+        };
+        res.init(pm);
+        Box::from(res)
     }
 
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {

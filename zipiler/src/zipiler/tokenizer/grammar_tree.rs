@@ -128,7 +128,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!("&", "*")
                 ).react(Tokenizer::push_token),
             )
-        ).react(Tokenizer::push_group)
+        )
     );
 
     group_map.insert(
@@ -139,14 +139,14 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 Node::new_end(
                     TokenType::Brackets,
                     vec!(
-                        Node::leaf(TokenType::BrackTuple)
+                        Node::leaf(TokenType::BrackTuple).react(Tokenizer::push_token)
                     ),
                     vec!()
-                ),
+                ).react(Tokenizer::push_token),
                 Node::new_end(
                     TokenType::ExpressionTuple,
                     vec!(
-                        Node::leaf(TokenType::BrackTuple)
+                        Node::leaf(TokenType::BrackTuple).react(Tokenizer::push_token)
                     ),
                     vec!()
                 ).react(Tokenizer::push_token)
@@ -538,10 +538,10 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 Node::new_end(
                     TokenType::ComplexIdent,
                     vec!(
-                        Node::leaf(TokenType::Affectation),
+                        Node::leaf(TokenType::Affectation).react(Tokenizer::end_group),
                     ),
                     vec!()
-                ).react(Tokenizer::push_group),
+                ).react(Tokenizer::push_once),
                 Node::leaf(TokenType::Declaration).react(Tokenizer::push_group),
                 Node::leaf(TokenType::MacroCall).react(Tokenizer::push_group)
             ),

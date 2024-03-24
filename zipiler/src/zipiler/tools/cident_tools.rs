@@ -15,7 +15,8 @@ impl Tool for CIdentTools {
          match token.token_type {
             TokenType::Symbol => self.new_symbol(token.content)?,
             TokenType::Ident => self.def_ident(token.content),
-            TokenType::Brackets => self.open_brackets(),
+            TokenType::BrackTuple => self.close(),
+            TokenType::Brackets => self.open_brackets()?,
             TokenType::ExpressionTuple => self.open_tupple(pm)?,
             TokenType::RaiseExpression(stars) => res = self.new_expression(pm, stars)?,
             _ => panic_bad_token("complex ident", token)
@@ -54,7 +55,7 @@ impl Tool for CIdentTools {
 impl CIdentTools {
 
 
-    pub fn new_symbol(&mut self, s: String) -> Result<(), String>{
+    fn new_symbol(&mut self, s: String) -> Result<(), String>{
         if s == "*" {
             self.deref_time += 1;
         }else if s == "&" {
@@ -68,16 +69,20 @@ impl CIdentTools {
         Ok(())
     }
 
-    pub fn def_ident(&mut self, name: String){
+    fn def_ident(&mut self, name: String){
         self.name = name;
     }
 
-    pub fn open_brackets(&mut self) {
+    fn open_brackets(&mut self) -> Result<(), String>{
         self.nb_exp = 0;
         self.for_bracket = true;
+        Ok(())
     }
 
-    pub fn open_tupple(&mut self, pm: &mut ProgManager) -> Result<(), String> {
+    fn open_tupple(&mut self, pm: &mut ProgManager) -> Result<(), String> {
+        if self.deref_time == -1 {
+            return Err(String::from("You can't get get the reference of a value."))
+        }
         self.nb_exp = 0;
         if !pm.is_function(&self.name) {
             Err(format!("{} isn't a function", self.name))
@@ -86,10 +91,18 @@ impl CIdentTools {
         }
     }
 
-    pub fn new_expression(&mut self, pm: &mut ProgManager, stars: i32) -> Result<String, String>{
+    fn close(&mut self) {
+        if self.for_bracket {
+
+        }else{
+
+        }
+    }
+
+    fn new_expression(&mut self, pm: &mut ProgManager, stars: i32) -> Result<String, String>{
         self.nb_exp += 1;
         if self.for_bracket {
-            todo!("New expression for bracket");
+            Ok(String::new( ))
         }else{
             pm.handle_arg(&self.name, stars, (self.nb_exp-1) as usize)
         }
@@ -109,14 +122,18 @@ impl CIdentTools {
 
     // We raise the address of the function
     fn raise_func_call(&self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        if self.deref_time == -1 {
+            return Err(String::from("You can't get get the reference of a returned value."))
+        }
         pm.good_nb_arg(&self.name, self.nb_exp)?;
         let asm = format!("
 push {STACK_REG}
 add {STACK_REG}, {}
 call {}
 pop {STACK_REG}
-; Todo: dereferanecer le retour (eventuellement)
+
 {}", self.si_save, self.name, 
+        // pm.deref_var(pm.get_type_size(self.deref_time, &self.type_name) as usize, self.deref_time),
         if pm.get_func_by_name(&self.name)?.return_type().name() != "void" {"push rax"}else{""});
         Ok((TokenType::FuncCall(pm.get_func_addr(&self.name)), asm))
 
@@ -126,6 +143,18 @@ pop {STACK_REG}
         let mut res = format!("
 mov rax, {}
 add rax, {STACK_REG}", var_def.addr());
+        for i in 0..self.nb_exp {
+            res.push_str(&format!("
+_deref_dword 1
+mov rdx, rax
+mov rax, [rsp + {}]
+mov rcx, 4
+mul rcx
+add rdx, rax
+mov rax, rdx", (self.nb_exp-i-1)*8))
+        }
+        res.push_str(&format!("
+add rsp, {}", self.nb_exp*8));
         res.push_str(&pm.deref_var(var_def.type_var().size() as usize, deref_time));
         res.push_str("\npush rax    ; We push the value of a new identificator");
         res

@@ -2,15 +2,25 @@ use crate::zipiler::tools::include::*;
 
 use super::loop_trait::LoopTrait;
 
-pub struct WhileTools;
+pub struct WhileTools{
+    bi: u128
+}
 
-impl LoopTrait for WhileTools{}
+impl LoopTrait for WhileTools{
+    fn bi(&self) -> u128 {
+        self.bi
+    }
+}
 
 impl Tool for WhileTools {
 
     fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
         pm.jump_in();
-        Box::from(WhileTools)
+        let res =WhileTools{
+            bi: pm.bloc_id()
+        };
+        res.init(pm);
+        Box::from(res)
     }
 
     fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {

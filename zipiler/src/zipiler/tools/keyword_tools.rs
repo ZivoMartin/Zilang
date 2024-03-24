@@ -49,8 +49,7 @@ impl KeyWordTools {
         format!("\nglobal_end_if_{}:", pm.bloc_id())+&self.end_kw(pm) 
     }
 
-    fn end_kw(&self, pm: &mut ProgManager) -> String{
-        pm.inc_bi();
+    fn end_kw(&self, _pm: &mut ProgManager) -> String{
         String::new()
     }
 

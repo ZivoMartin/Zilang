@@ -3,18 +3,27 @@ use crate::zipiler::tools::include::*;
 use super::loop_trait::LoopTrait;
 
 pub struct ForTools {
+    bi: u128,
     inst_number: u8
 }
 
-impl LoopTrait for ForTools{}
+impl LoopTrait for ForTools{
+    fn bi(&self) -> u128 {
+        self.bi
+    }
+}
 
 impl Tool for ForTools {
 
     fn new(pm: &mut ProgManager) -> Box<dyn Tool> where Self: Sized {
         pm.jump_in();
-        Box::from(ForTools{
-            inst_number: 0
-        })
+        let res = ForTools{
+            inst_number: 0,
+            bi: pm.bloc_id()
+        };
+        res.init(pm);
+
+        Box::from(res)
 
     }
 

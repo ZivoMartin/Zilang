@@ -83,31 +83,20 @@ pop rax"
 
     fn alloc(&mut self, pm: &mut ProgManager) -> String {
         let mut res = String::new();
-        let mut previous_data: (usize, usize) = (1, pm.si());
-        if self.arr_dec.len() != 0 {
-            let tab_addr = pm.si();
-            for i in 1..self.arr_dec.len() {
-                let stack_index = pm.si();
+        if !self.arr_dec.is_empty() {
+            let mut previous_data: (usize, usize) = (1, pm.si()-4);
+            for i in 0..self.arr_dec.len() {
+                let save_si = pm.si();
                 let tab_size = self.arr_dec[i];
-                self.stars += 1;
-                let size = POINTER_SIZE;
+                let size = if i == self.arr_dec.len()-1 {pm.get_type_size(0, &self.type_name) as usize}else{POINTER_SIZE};
                 for j in 0..previous_data.0{
                     res.push_str(&pm.affect_to_wsize(previous_data.1+size*j, size, pm.si()));
                     pm.inc_si(size*tab_size);
                 }
-                if i != self.arr_dec.len()-1 {
-                    previous_data.0 *= tab_size;
-                }else{
-                    previous_data.0 = tab_size;
-                }
-                previous_data.1 = stack_index;
+                previous_data.0 *= tab_size;
+                previous_data.1 = save_si;
             }
-            res.push_str(&format!("
-mov rdx, {}
-add rdx, r15
-mov rax, {}
-add rax, r15
-mov [_stack+ rax], edx", tab_addr, pm.si()));
+            self.stars += self.arr_dec.len() as u32;
         }
         res
     }
