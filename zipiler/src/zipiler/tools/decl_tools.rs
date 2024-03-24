@@ -92,7 +92,7 @@ add rsp, {}", self.nb_exp*8));
 
     fn alloc(&mut self, pm: &mut ProgManager) -> String {
         let mut res = String::new();
-        self.save_si = pm.si()-4;
+        self.save_si = pm.si()- ((pm.si()!=0) as usize) * 4;
         let mut stack_val = 1;
         for (i, n) in self.arr_size.iter().enumerate() {
             let save_si = pm.si();

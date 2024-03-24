@@ -7,13 +7,13 @@ use std::iter::Peekable;
 use std::fs::File;
 use std::str::Chars;
 use std::io::prelude::*;
-
 pub struct Tokenizer {
     zilang: *mut ZiLang,
     group_map: HashMap<TokenType, Node>,
     priority_map: HashMap<TokenType, u8>,
     identity_map: HashMap<fn(char)->bool, Vec<TokenType>>
 }
+
 
 unsafe impl Send for Tokenizer{}
 
@@ -59,7 +59,10 @@ impl<'a> Tokenizer {
         while chars.peek().is_some() {  
             match self.curse(first_node, &mut chars) {
                 Ok(()) => (),
-                Err(_) => return Err("Failed to tokenise")
+                Err(_) => {
+                   self.push_token(TokenType::ERROR, &FAIL_MESSAGE.to_string());
+                   break;
+                }
             }
             self.skip_garbage(&mut chars); 
         }   
@@ -79,17 +82,16 @@ impl<'a> Tokenizer {
                 if chars.peek().is_some() {
                     let mut paths_vec = self.get_son_array(current_node);
                     let save = chars.clone();
-                    // println!("BEFORE: {}", save.peek().unwrap());
                     match self.get_next_token(&mut paths_vec, chars) {
                         Ok(token_string) => {
-                            // println!("AFTER: {}", chars.peek().unwrap());
                             match self.filter_nodes(&mut paths_vec, &token_string) {
                                 Some(path) => {
                                     path.proke_travel_functions(self, &token_string);
                                     for node in path.path.iter() {
                                         match self.curse(node, chars) {
                                             Ok(_) => {
-                                                if node.travel_react == Some(Tokenizer::push_group) {
+                                                if node.travel_react == Some(Tokenizer::push_group) ||
+                                                    node.travel_react == Some(Tokenizer::end_after) {
                                                     self.end_group(node.type_token, &token_string)
                                                 }
                                             },
@@ -229,8 +231,11 @@ impl<'a> Tokenizer {
 
     fn skip_garbage(&self, chars: &mut Peekable<Chars>) {
         while let Some(c) = chars.peek() {
-            if !DEFAULT_GARBAGE_CHARACTER.contains(c) {    
+            if !DEFAULT_GARBAGE_CHARACTER.contains(c) {                  
                 break;
+            }
+            if *c == '\n' {
+                self.push_token(TokenType::BackLine, &String::new())
             }
             chars.next();
         }
@@ -265,6 +270,10 @@ impl<'a> Tokenizer {
     pub fn push_ending_token(&self, token_type: TokenType, content: &String) {
         self.end_group(token_type, content);
         self.push_token(token_type, content);
+    }
+
+    pub fn end_after(&self, _token_type: TokenType, _content: &String) {
+        // Nothing to do here, the main function handle.
     }
 }
 

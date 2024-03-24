@@ -80,7 +80,6 @@ impl ProgManager {
         match self.var_map.get(addr) {
             Some(res) => { 
                 let vd = res.val().expect("addr stack is empty");
-                println!("{} {} {}", vd.name(), self.stage, vd.stage());
                 if vd.stage() != self.stage {
                     Err(format!("The variable {} isn't richieble in this scope", vd.name()))
                 }else{

@@ -55,6 +55,13 @@ pub enum TokenType {
     RaiseComplexChar(u8),   
     RaiseComplexType(usize, i32, u8), 
     RaiseDoKeyWord(u128),
+
+    // Flags
+    NoFlag,
+    New,
+    End,
+    BackLine,  // Indicate a new back line
+    ERROR,   // This is a flag for indicate something bad append during the tokenisation.
 }
 
 
@@ -65,24 +72,28 @@ static KEYWORD: &[&'static str; 9] = &["if", "else", "for", "while", "return", "
 pub static OPERATOR_COMPONENT: &[char; 9] = &['+', '%', '/', '<', '>', '=', '|', '&', '!'];
 pub static DEFAULT_GARBAGE_CHARACTER: &[char; 3] = &[' ', '\n', '\t'];
 static PRIMITIVE_TOKENTYPE: &[TokenType; 6] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator, TokenType::Keyword];
-
+pub static FAIL_MESSAGE: &str = "Synatax error";
 
 
 #[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
-    pub content: String
+    pub content: String,
+    pub flag: TokenType 
 }
 
 impl Token {
     pub fn new(token_type: TokenType, content: String) -> Token {
-        Token{token_type, content}
+        Token{token_type, content, flag: TokenType::NoFlag}
     }
 
     pub fn empty(token_type: TokenType) -> Token {
-        Token{token_type, content: String::new()}
+        Token{token_type, content: String::new(), flag: TokenType::NoFlag}
     }
-}
+
+    pub fn new_wflag(token_type: TokenType, content: String, flag: TokenType) -> Token {
+        Token{token_type, content, flag}
+    }}
 
 impl Copy for TokenType{}
 

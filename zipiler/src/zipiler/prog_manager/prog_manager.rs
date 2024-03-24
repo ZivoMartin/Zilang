@@ -39,7 +39,7 @@ impl ProgManager {
 
     
 
-    pub fn affect_to(&self, addr: usize) -> String {
+    pub fn _affect_to(&self, addr: usize) -> String {
         let size = self.get_var_def(&addr).unwrap().type_var().size() as usize;
         format!("\nmov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
     }

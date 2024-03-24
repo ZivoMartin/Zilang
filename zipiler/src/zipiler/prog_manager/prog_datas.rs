@@ -58,7 +58,6 @@ impl ProgManager {
                 .get_mut(var_def.name()).expect("The name doesn't exists")
                 .pop().expect("The varname stack is empty");
         }
-        println!("here: {}", last_jump.stack_index);
         self.stack_index = last_jump.stack_index;
     }
 

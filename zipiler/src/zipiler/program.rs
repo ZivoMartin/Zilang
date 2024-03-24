@@ -35,6 +35,7 @@ pub trait Tool {
 
 }
 
+
 fn build_constructor_map() -> HashMap<TokenType, fn(&mut ProgManager) -> Box<dyn Tool>> {
     let mut res = HashMap::<TokenType, fn(pm: &mut ProgManager) -> Box<dyn Tool>>::new();
     res.insert(TokenType::Instruction, InstructionTools::new);
@@ -59,6 +60,7 @@ pub struct Program {
     memory: ProgManager,
     tools_stack: Stack<Box<dyn Tool>>,
     constructor_map: HashMap<TokenType, fn(pm: &mut ProgManager) -> Box<dyn Tool>>,
+    line_number: u128
 }
 
 impl Program {
@@ -67,11 +69,29 @@ impl Program {
             memory: ProgManager::new(),
             tools_stack: Stack::new(),
             constructor_map: build_constructor_map(),
+            line_number: 1
         }
     }
 
     pub fn tokenize(&mut self, token: Token) -> Result<(String, usize), String> {
-        Ok((self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory)?, SCRIPTF))
+        match token.token_type {
+            TokenType::BackLine => {
+                self.new_line();
+                Ok((String::new(), SCRIPTF))
+            },
+            TokenType::ERROR => Err(self.error_msg(token.content)),
+            TokenType::End => self.end_group(),
+            TokenType::New => {
+                self.new_group(token.flag);
+                Ok((String::new(), SCRIPTF))
+            }
+            _ => {
+                match self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory) {
+                    Ok(asm) => Ok((asm, SCRIPTF)),
+                    Err(e) => Err(self.error_msg(e))
+                }
+            }
+        }
     }
 
     pub fn new_group(&mut self, type_token: TokenType) {
@@ -97,6 +117,14 @@ impl Program {
 
     pub fn end_prog(&mut self) {
         self.memory.end_prog();
+    }
+
+    fn new_line(&mut self) {
+        self.line_number += 1;
+    }
+
+    fn error_msg(&self, msg: String) -> String {
+        format!("{}: {}", self.line_number, msg)
     }
     
 }

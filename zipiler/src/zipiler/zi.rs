@@ -1,7 +1,6 @@
 use std::thread::{JoinHandle, spawn};
 use super::collections::Queue;
 use super::tokenizer::{include::{Token, TokenType}, tokenizer::Tokenizer};
-use std::process::exit;
 use super::program::Program;
 use std::fs::File;
 use super::prog_manager::include::{F_PATHS, files::*};
@@ -11,7 +10,7 @@ pub struct ZiLang {
     tokenizing_thread: Vec<JoinHandle<()>>,
     keep_compile: bool,
     tools: Program,
-    asm_files: Vec<File>
+    asm_files: Vec<File>,
 }
 
 
@@ -23,28 +22,24 @@ impl<'a> ZiLang {
             tokenizing_thread: Vec::new(),
             keep_compile: true,
             tools: Program::new(),
-            asm_files: open_asm_files()
+            asm_files: open_asm_files(),
         }
     }
 
-    pub fn compile(&mut self, input: File) {
+    pub fn compile(&mut self, input: File) -> Result<(), String>{
         let mut tokenizer = Tokenizer::new(self);
         self.tokenizing_thread.push(spawn(move || 
-            tokenizer.tokenize(input).unwrap_or_else(|e| {
-                eprintln!("{e}");
-                exit(1);
-            })
+            _ = tokenizer.tokenize(input)
         ));
-        while self.keep_compile {
+        while self.keep_compile || !self.token_queue.is_empty() {
             if !self.token_queue.is_empty() {
                 let token = self.token_queue.dequeue().expect("Queue empty");
-                match self.tools.tokenize(token) {
-                    Ok((asm, file_path)) => self.push_script(&asm, file_path),
-                    Err(e) => panic!("{e}")
-                };
+                let (asm, file_path) = self.tools.tokenize(token)?;
+                self.push_script(&asm, file_path);
             }
         }
         self.tools.end_prog();
+        Ok(())
     }
 
     pub fn new_token(&mut self, token: Token) {
@@ -56,14 +51,11 @@ impl<'a> ZiLang {
     }  
 
     pub fn new_group(&mut self, type_token: TokenType) {
-        self.tools.new_group(type_token);
+        self.new_token(Token::new_wflag(TokenType::New, String::new(), type_token));
     }
 
     pub fn end_group(&mut self) {
-        match self.tools.end_group() {
-            Ok((end_txt, file_path)) => self.push_script(&end_txt, file_path),
-            Err(e) => panic!("{e}")
-        };
+        self.new_token(Token::new(TokenType::End, String::new()));
     }
     
     fn push_script(&mut self, txt: &str, file_path: usize) {
