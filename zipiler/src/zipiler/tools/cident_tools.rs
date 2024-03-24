@@ -146,12 +146,10 @@ add rax, {STACK_REG}", var_def.addr());
         for i in 0..self.nb_exp {
             res.push_str(&format!("
 _deref_dword 1
-mov rdx, rax
+mov r13, rax
 mov rax, [rsp + {}]
-mov rcx, 4
-mul rcx
-add rdx, rax
-mov rax, rdx", (self.nb_exp-i-1)*8))
+mul {MUL_REGISTER}
+add rax, r13", (self.nb_exp-i-1)*8))
         }
         res.push_str(&format!("
 add rsp, {}", self.nb_exp*8));

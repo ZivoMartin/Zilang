@@ -5,7 +5,8 @@ pub struct DeclTools {
     type_name: String,
     stars: u32,
     aff: bool,
-    arr_dec: Vec<usize>
+    arr_size: Vec<usize>,
+    nb_exp: usize
 }
 
 impl Tool for DeclTools {
@@ -29,7 +30,8 @@ impl Tool for DeclTools {
             type_name: String::new(),
             stars: 0,
             aff: false,
-            arr_dec: Vec::new()
+            arr_size: Vec::new(),
+            nb_exp: 0
         })
     }
 
@@ -54,6 +56,7 @@ impl DeclTools {
         return if stars as u32 != self.stars {
             Err(String::from("Not the good type"))
         }else{
+            self.nb_exp += 1;
             Ok(())
         }
     }
@@ -78,17 +81,17 @@ pop rax"
     }
 
     fn new_number(&mut self, n: usize) {
-        self.arr_dec.push(n);
+        self.arr_size.push(n);
     }
 
     fn alloc(&mut self, pm: &mut ProgManager) -> String {
         let mut res = String::new();
-        if !self.arr_dec.is_empty() {
+        if !self.arr_size.is_empty() {
             let mut previous_data: (usize, usize) = (1, pm.si()-4);
-            for i in 0..self.arr_dec.len() {
+            for i in 0..self.arr_size.len() {
                 let save_si = pm.si();
-                let tab_size = self.arr_dec[i];
-                let size = if i == self.arr_dec.len()-1 {pm.get_type_size(0, &self.type_name) as usize}else{POINTER_SIZE};
+                let tab_size = self.arr_size[i];
+                let size = if i == self.arr_size.len()-1 {pm.get_type_size(0, &self.type_name) as usize}else{POINTER_SIZE};
                 for j in 0..previous_data.0{
                     res.push_str(&pm.affect_to_wsize(previous_data.1+size*j, size, pm.si()));
                     pm.inc_si(size*tab_size);
@@ -96,7 +99,7 @@ pop rax"
                 previous_data.0 *= tab_size;
                 previous_data.1 = save_si;
             }
-            self.stars += self.arr_dec.len() as u32;
+            self.stars += self.arr_size.len() as u32;
         }
         res
     }

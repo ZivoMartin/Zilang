@@ -101,3 +101,4 @@ _invalid_address:
 
 _start:
 xor r15, r15
+mov r14, 4

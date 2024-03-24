@@ -4,6 +4,7 @@ pub use std::collections::HashMap;
 pub static ASM_SIZES: [&str; 9] = ["", "byte", "word", "", "dword", "", "", "", "qword"];
 pub static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
 pub static STACK_REG: &str = "r15";
+pub static MUL_REGISTER: &str = "r14";
 pub static POINTER_SIZE: usize = 4; 
 pub struct Jump {
     pub stack_index: usize,
