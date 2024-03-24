@@ -6,6 +6,7 @@ pub struct DeclTools {
     stars: u32,
     aff: bool,
     arr_size: Vec<usize>,
+    save_si: usize,
     nb_exp: usize
 }
 
@@ -29,6 +30,7 @@ impl Tool for DeclTools {
             addr: 0,
             type_name: String::new(),
             stars: 0,
+            save_si: 0,
             aff: false,
             arr_size: Vec::new(),
             nb_exp: 0
@@ -72,11 +74,15 @@ impl DeclTools {
     fn build_asm(&mut self, pm: &mut ProgManager) -> String {
         let mut res = self.alloc(pm);
         if self.aff {
-            res.push_str("
-pop rax"
-           );
-           res.push_str(&pm.affect_to(self.addr));
+           for i in 0..self.nb_exp {
+            res.push_str(&format!("
+mov rax, [rsp + {}]
+mov dword[_stack + r15 + {}], eax", (self.nb_exp-i-1)*8, self.save_si));
+            self.save_si += 4;
+           }
         }
+        res.push_str(&format!("
+add rsp, {}", self.nb_exp*8));
         res
     }
 
@@ -86,21 +92,19 @@ pop rax"
 
     fn alloc(&mut self, pm: &mut ProgManager) -> String {
         let mut res = String::new();
-        if !self.arr_size.is_empty() {
-            let mut previous_data: (usize, usize) = (1, pm.si()-4);
-            for i in 0..self.arr_size.len() {
-                let save_si = pm.si();
-                let tab_size = self.arr_size[i];
-                let size = if i == self.arr_size.len()-1 {pm.get_type_size(0, &self.type_name) as usize}else{POINTER_SIZE};
-                for j in 0..previous_data.0{
-                    res.push_str(&pm.affect_to_wsize(previous_data.1+size*j, size, pm.si()));
-                    pm.inc_si(size*tab_size);
-                }
-                previous_data.0 *= tab_size;
-                previous_data.1 = save_si;
+        self.save_si = pm.si()-4;
+        let mut stack_val = 1;
+        for (i, n) in self.arr_size.iter().enumerate() {
+            let save_si = pm.si();
+            let size = if i == self.arr_size.len()-1 {pm.get_type_size(0, &self.type_name) as usize}else{POINTER_SIZE};
+            for j in 0..stack_val{
+                res.push_str(&pm.affect_to_wsize(self.save_si+size*j, size, pm.si()));
+                pm.inc_si(size*n);
             }
-            self.stars += self.arr_size.len() as u32;
+            self.save_si = save_si;
+            stack_val *= n;
         }
+        self.stars += self.arr_size.len() as u32;
         res
     }
 

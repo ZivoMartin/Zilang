@@ -14,7 +14,7 @@ pub enum TokenType {
     // Token group
     Program,        
     BlocProgram,
-    Instruction,        // TODO
+    Instruction,     
     Value,
     ComplexType,
     ComplexIdent,              

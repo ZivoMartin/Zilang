@@ -303,7 +303,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                 )
                             ),
                             vec!("}")
-                        )
+                        ).react(Tokenizer::end_group)
                     )
                 )
             ),
@@ -364,7 +364,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                             TokenType::SerieDTab,
                             vec!(),
                             vec!(
-                                Node::leaf_c(TokenType::Symbol, vec!("}"))
+                                Node::leaf_c(TokenType::Symbol, vec!("}")).react(Tokenizer::end_group)
                             )
                         )
                     ),
