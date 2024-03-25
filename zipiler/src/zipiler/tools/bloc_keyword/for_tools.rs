@@ -38,7 +38,7 @@ impl Tool for ForTools {
             TokenType::RaiseExpression(_) => self.compare_exp(pm)            ,
             TokenType::Instruction => self.new_inst(pm),
             TokenType::Bloc => String::new(),
-            _ => {panic_bad_token("while keyword", token);String::new()}
+            _ => {panic_bad_token("for keyword", token);String::new()}
         })
     }
     

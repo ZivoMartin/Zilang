@@ -1,7 +1,8 @@
-int a = 2;
-
-int b = 2*a;
-
-!dn(a);
+for(int i=0; do{
+    !dn(i);
+    i = i + 1;
+}; i<10){
+    !dn(2*i);
+};
 
 !exit(0);

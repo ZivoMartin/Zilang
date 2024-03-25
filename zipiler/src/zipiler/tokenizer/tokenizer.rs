@@ -1,21 +1,21 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use crate::zipiler::ZiLang;
 use super::include::*;
 use super::grammar_tree::build_grammar_tree;
 use std::iter::Peekable;
 use std::fs::File;
 use std::str::Chars;
 use std::io::prelude::*;
+use std::sync::mpsc::Sender;
+
 pub struct Tokenizer {
-    zilang: *mut ZiLang,
+    sender: Sender<Token>,
     group_map: HashMap<TokenType, Node>,
     priority_map: HashMap<TokenType, u8>,
     identity_map: HashMap<fn(char)->bool, Vec<TokenType>>
 }
 
 
-unsafe impl Send for Tokenizer{}
 
 
 fn build_priority_map() -> HashMap<TokenType, u8> {
@@ -42,16 +42,16 @@ fn build_identity_map() -> HashMap<fn(char)->bool, Vec<TokenType>> {
 
 impl<'a> Tokenizer {
 
-    pub fn new(zilang: &'a mut ZiLang) -> Tokenizer {
+    pub fn new(sender: Sender<Token>) -> Tokenizer {
         Tokenizer{
+            sender,
             group_map: build_grammar_tree(),
             priority_map: build_priority_map(),
             identity_map: build_identity_map(),
-            zilang
         }
     }
 
-    pub fn tokenize(&mut self, mut input: File) -> Result<(), &'static str> {
+    pub fn tokenize(&mut self, mut input: File) {
         let first_node = self.group_map.get(&TokenType::Program).unwrap();
         let mut s = String::new();
         input.read_to_string(&mut s).unwrap();
@@ -60,19 +60,15 @@ impl<'a> Tokenizer {
             match self.curse(first_node, &mut chars) {
                 Ok(()) => (),
                 Err(_) => {
-                   self.push_token(TokenType::ERROR, &FAIL_MESSAGE.to_string());
+                   push_token(self, TokenType::ERROR, &FAIL_MESSAGE.to_string());
                    break;
                 }
             }
             self.skip_garbage(&mut chars); 
         }   
-        unsafe{
-            (**&self.zilang).end_of_tokenizing_thread();
-        }
-        Ok(())
     } 
     
-    fn curse(&self, current_node: &Node, chars: &mut Peekable<Chars>) -> Result<(), i8> {
+    fn curse(&self, current_node: &'a Node, chars: &mut Peekable<Chars>) -> Result<(), i8> {
         if !current_node.is_leaf() {
             loop {
                 let mut retry = false;
@@ -90,9 +86,9 @@ impl<'a> Tokenizer {
                                     for node in path.path.iter() {
                                         match self.curse(node, chars) {
                                             Ok(_) => {
-                                                if node.travel_react == Some(Tokenizer::push_group) ||
-                                                    node.travel_react == Some(Tokenizer::end_after) {
-                                                    self.end_group(node.type_token, &token_string)
+                                                if node.travel_react == Some(push_group) ||
+                                                    node.travel_react == Some(end_after) {
+                                                    end_group(self, node.type_token, &token_string)
                                                 }
                                             },
                                             Err(depth) => {
@@ -235,46 +231,47 @@ impl<'a> Tokenizer {
                 break;
             }
             if *c == '\n' {
-                self.push_token(TokenType::BackLine, &String::new())
+                push_token(self, TokenType::BackLine, &String::new())
             }
             chars.next();
         }
     }
+}
 
-    pub fn push_token(&self, token_type: TokenType, content: &String) {
-        unsafe{(**&self.zilang).new_token(Token::new(token_type, content.clone()));}
-    }
 
-    pub fn push_group(&self, token_type: TokenType, _content: &String) {
-        unsafe{(**&self.zilang).new_group(token_type);}
-    }
+pub fn push_token(tk: &Tokenizer, token_type: TokenType, content: &String) {
+    tk.sender.send(Token::new(token_type, content.clone())).expect("Error while sending new token");
+}
 
-    pub fn end_group(&self, _token_type: TokenType, _content: &String) {
-        unsafe{(**&self.zilang).end_group();}
-    }
+pub fn push_group(tk: &Tokenizer, token_type: TokenType, _content: &String) {
+    tk.sender.send(Token::new_wflag(TokenType::New, String::new(), token_type)).expect("Error while sending new group");
+}
 
-    pub fn push_once(&self, token_type: TokenType, content: &String) {
-        self.push_group(token_type, content)
-    }
+pub fn end_group(tk: &Tokenizer, _token_type: TokenType, _content: &String) {
+    push_token(tk, TokenType::End, &String::new())
+}
 
-    pub fn push_ending_group(&self, token_type: TokenType, content: &String) {
-        self.end_group(token_type, content);
-        self.push_group(token_type, content);
-    }
+pub fn push_once(tk: &Tokenizer, token_type: TokenType, content: &String) {
+    push_group(tk, token_type, content)
+}
 
-    pub fn push_ending_once(&self, token_type: TokenType, content: &String) {
-        self.end_group(token_type, content);
-        self.push_once(token_type, content);
-    }
+pub fn push_ending_group(tk: &Tokenizer, token_type: TokenType, content: &String) {
+    end_group(tk, token_type, content);
+    push_group(tk, token_type, content);
+}
 
-    pub fn push_ending_token(&self, token_type: TokenType, content: &String) {
-        self.end_group(token_type, content);
-        self.push_token(token_type, content);
-    }
+pub fn push_ending_once(tk: &Tokenizer, token_type: TokenType, content: &String) {
+    end_group(tk, token_type, content);
+    push_once(tk, token_type, content);
+}
 
-    pub fn end_after(&self, _token_type: TokenType, _content: &String) {
-        // Nothing to do here, the main function handle.
-    }
+pub fn push_ending_token(tk: &Tokenizer, token_type: TokenType, content: &String) {
+    end_group(tk, token_type, content);
+    push_token(tk, token_type, content);
+}
+
+pub fn end_after(_tk: &Tokenizer, _token_type: TokenType, _content: &String) {
+    // Nothing to do here, the main function handle.
 }
 
 fn is_sign(c: char) -> bool {
