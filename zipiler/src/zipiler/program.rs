@@ -3,6 +3,7 @@ use crate::zipiler::tokenizer::include::{Token, TokenType};
 use super::collections::Stack;
 use std::collections::HashMap;
 use std::fs::File;
+use std::process::exit;
 use super::prog_manager::prog_manager::ProgManager;
 use super::prog_manager::include::{F_PATHS, files::*};
 use std::io::{prelude::*, Write};
@@ -110,7 +111,11 @@ impl Program {
     }
 
     pub fn end_group(&mut self) -> Result<(), String>{
-        let (token_to_raise, end_txt) = self.tools_stack.pop().unwrap().end(&mut self.memory)?;
+        let (token_to_raise, end_txt) = self.tools_stack.pop().unwrap()
+        .end(&mut self.memory).unwrap_or_else(|e| {
+            println!("{}", self.error_msg(e));
+            exit(1);
+        });
         self.push_script(&end_txt, SCRIPTF);
         // println!("end           {:?}", token_to_raise);
         if !self.tools_stack.is_empty() {
