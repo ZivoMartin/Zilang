@@ -92,12 +92,7 @@ impl Program {
         match token.token_type {
             TokenType::BackLine => self.new_line(),
             TokenType::ERROR => return Err(self.error_msg(token.content)),
-            TokenType::End => {
-                match self.end_group() {
-                    Ok(asm) => self.push_script(&asm, SCRIPTF),
-                    Err(e) => return Err(e)
-                }
-            },
+            TokenType::End => self.end_group()?, 
             TokenType::New => self.new_group(token.flag),
             _ => {
                 match self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory) {
@@ -114,13 +109,14 @@ impl Program {
         self.tools_stack.push((self.constructor_map.get(&type_token).unwrap())(&mut self.memory));
     }
 
-    pub fn end_group(&mut self) -> Result<String, String>{
+    pub fn end_group(&mut self) -> Result<(), String>{
         let (token_to_raise, end_txt) = self.tools_stack.pop().unwrap().end(&mut self.memory)?;
+        self.push_script(&end_txt, SCRIPTF);
         // println!("end           {:?}", token_to_raise);
         if !self.tools_stack.is_empty() {
-            self.tokenize(Token::empty(token_to_raise))?
-        }
-        Ok(end_txt)
+            self.tokenize(Token::empty(token_to_raise))?;
+        };
+        Ok(())
     }
 
     pub fn _get_preload(&self) -> &String {

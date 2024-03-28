@@ -46,15 +46,15 @@ impl Tool for ForTools {
 
 impl ForTools {
 
-    fn new_inst(&mut self, pm: &mut ProgManager) -> String {
+    fn new_inst(&mut self, _pm: &mut ProgManager) -> String {
         self.inst_number += 1;
         match self.inst_number {
             1 => format!("
 
 jmp skip_first_loop_{id}
-begin_loop_{id}:", id=pm.bloc_id()),
+begin_loop_{id}:", id=self.bi()),
             
-            2 => format!("\nskip_first_loop_{}:", pm.bloc_id()),
+            2 => format!("\nskip_first_loop_{}:", self.bi()),
             _ => String::new()
         }
     }

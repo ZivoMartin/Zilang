@@ -26,7 +26,7 @@ je end_loop_{}", self.bi())
     fn new_keyword(&self, kw: &str, _pm: &mut ProgManager) -> String {
         match kw {
             "for" => String::new(),     
-            "while" | "do" => format!("\nbegin_loop_{}:", self.bi()),
+            "while" | "do" =>   format!("\nbegin_loop_{}:", self.bi()),
             _ => panic!("Unknow keyword in a for loop: {kw}")
         }
     }

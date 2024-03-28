@@ -60,9 +60,10 @@ impl KeyWordTools {
     }
 
     fn end_do_kw(&mut self, id: u128) {
-        self.save = format!( "pop rax
-            and rax, rax
-            jne begin_loop_{}", id);
+        self.save = format!( "
+pop rax
+and rax, rax
+jne begin_loop_{}", id);
     }
 
 }

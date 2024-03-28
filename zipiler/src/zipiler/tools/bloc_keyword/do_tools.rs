@@ -36,7 +36,7 @@ impl Tool for DoTools {
     }
 
     // Raise the id of the bloc
-    fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
-        Ok((TokenType::RaiseDoKeyWord(pm.bloc_id()), String::new()))
+    fn end(&mut self, _pm: &mut ProgManager) -> Result<(TokenType, String), String> {
+        Ok((TokenType::RaiseDoKeyWord(self.bi()), String::new()))
     }
 }
