@@ -79,17 +79,8 @@ impl Program {
         }
     }
 
-    // pub fn compile(&mut self) {
-    //     loop {
-    //         if !self.token_queue.is_empty() {
-    //             let token = self.token_queue.dequeue().expect("Queue empty");
-    //             let (asm, file_path) = self.tokenize(token).unwrap();
-    //             self.push_script(&asm, file_path);
-    //         }
-    //     }
-    // }
-
     pub fn tokenize(&mut self, token: Token) -> Result<(), String> {
+        // println!("{token:?}");
         match token.token_type {
             TokenType::BackLine => self.new_line(),
             TokenType::ERROR => return Err(self.error_msg(token.content)),
@@ -106,7 +97,6 @@ impl Program {
     }
 
     pub fn new_group(&mut self, type_token: TokenType) {
-        // println!("new           {type_token:?}");
         self.tools_stack.push((self.constructor_map.get(&type_token).unwrap())(&mut self.memory));
     }
 
@@ -117,7 +107,6 @@ impl Program {
             exit(1);
         });
         self.push_script(&end_txt, SCRIPTF);
-        // println!("end           {:?}", token_to_raise);
         if !self.tools_stack.is_empty() {
             self.tokenize(Token::empty(token_to_raise))?;
         };

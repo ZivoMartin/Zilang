@@ -8,6 +8,7 @@ use super::tokenizer::{
     push_ending_group,
     push_ending_once,
     push_ending_token,
+    push_token_and_end
 };
 
 pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
@@ -202,17 +203,17 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
             TokenType::ComplexChar,
             vec!(),
             vec!(
-                Node::leaf_c(TokenType::Symbol, vec!("\\", "\"", "\'")).priv_const().react(push_token), // N'importe quoi sauf la contrainte
+                Node::leaf_c(TokenType::Symbol, vec!("\\", "\"", "\'")).priv_const().react(push_token_and_end), // N'importe quoi sauf la contrainte
                 Node::new_c(
                     TokenType::Symbol,
                     vec!(),
                     vec!(
-                        Node::leaf(TokenType::Symbol).react(push_token)
+                        Node::leaf(TokenType::Symbol).react(push_token_and_end)
                     ),
                     vec!("\\")
                 ).react(push_token)
             )
-        ).react(push_group)
+        )
     );
 
     group_map.insert(
@@ -230,7 +231,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                             vec!(
                                 Node::leaf_c(TokenType::Symbol, vec!("\'"))
                             ),
-                        ).react(push_group)
+                        ).react(push_once)
                     ),
                     vec!(
                     ),
@@ -251,7 +252,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(
                         Node::leaf_c(TokenType::Symbol, vec!("\""))
                     )
-                )
+                ).react(push_once)
             ),
             vec!()
         )

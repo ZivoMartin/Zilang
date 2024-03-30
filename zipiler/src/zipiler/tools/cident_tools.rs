@@ -148,8 +148,9 @@ add rax, {STACK_REG}", var_def.addr());
 _deref_dword 1
 mov r13, rax
 mov rax, [rsp + {}]
-mul {MUL_REGISTER}
-add rax, r13", (self.nb_exp-i-1)*8))
+{}
+add rax, r13", (self.nb_exp-i-1)*8, if i == self.nb_exp-1 {format!("mov r12, {}\nmul r12", var_def.get_true_size())}
+                                    else{format!("mul {MUL_REGISTER}")}))
         }
         res.push_str(&format!("
 add rsp, {}", self.nb_exp*8));

@@ -43,8 +43,7 @@ impl ProgManager {
             name.clone(),
             Type::new(name_type, size, stars),
             self.stage
-        )
-        ;
+        );
         match self.var_map.get_mut(&self.si()) {
             Some(s) => s.push(var_def),
             _ => {self.var_map.insert(self.si(), Stack::init(var_def));}
@@ -59,7 +58,7 @@ impl ProgManager {
         }
         let res = self.si();
         self.jump_stack.val_mut().expect("jump stack empty").add_addr(self.stack_index);
-        self.stack_index += size as usize;
+        self.stack_index += if stars == 0 { size as usize }else{POINTER_SIZE};
         res
     } 
 

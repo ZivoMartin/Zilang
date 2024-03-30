@@ -10,7 +10,7 @@ impl Tool for ComplexCharTools {
     fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String>{
         match token.token_type {
             TokenType::Symbol => self.new_symbol(token.content.chars().next().unwrap()),
-            _ => panic_bad_token("complex ident", token)
+            _ => panic_bad_token("complex char", token)
         }
         Ok(String::new())
     }

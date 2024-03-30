@@ -1,8 +1,12 @@
+char s[11] = "Hello World\n";
 
-for(int i = 0; i=i+1; i<10) {
-    !dn(i);
-};
+!print_char(s[2]);
 
-!dn(a);
+
+#int b;
+#b = 2;
+#int a[10][3];
+#a[2][1] = 1;
+#!dn(a[2][1]);
 
 !exit(0);

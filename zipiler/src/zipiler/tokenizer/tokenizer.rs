@@ -8,6 +8,8 @@ use std::str::Chars;
 use std::io::prelude::*;
 use std::sync::mpsc::Sender;
 
+static COM_CHAR: char = '#';
+
 pub struct Tokenizer {
     sender: Sender<Token>,
     group_map: HashMap<TokenType, Node>,
@@ -227,13 +229,17 @@ impl<'a> Tokenizer {
 
     fn skip_garbage(&self, chars: &mut Peekable<Chars>) {
         while let Some(c) = chars.peek() {
-            if !DEFAULT_GARBAGE_CHARACTER.contains(c) {                  
-                break;
+            if *c == COM_CHAR {
+                while chars.next() != Some('\n') && chars.peek() != None {}
+            }else{
+                if !DEFAULT_GARBAGE_CHARACTER.contains(c) {                  
+                    break;
+                }
+                if *c == '\n' {
+                    push_token(self, TokenType::BackLine, &String::new())
+                }
+                chars.next();
             }
-            if *c == '\n' {
-                push_token(self, TokenType::BackLine, &String::new())
-            }
-            chars.next();
         }
     }
 }
@@ -268,6 +274,11 @@ pub fn push_ending_once(tk: &Tokenizer, token_type: TokenType, content: &String)
 pub fn push_ending_token(tk: &Tokenizer, token_type: TokenType, content: &String) {
     end_group(tk, token_type, content);
     push_token(tk, token_type, content);
+}
+
+pub fn push_token_and_end(tk: &Tokenizer, token_type: TokenType, content: &String) {
+    push_token(tk, token_type, content);
+    end_group(tk, token_type, content);
 }
 
 pub fn end_after(_tk: &Tokenizer, _token_type: TokenType, _content: &String) {

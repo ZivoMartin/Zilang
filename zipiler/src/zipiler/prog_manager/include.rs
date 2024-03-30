@@ -156,6 +156,10 @@ impl VariableDefinition {
         }
     }
 
+    pub fn get_true_size(&self) -> u8 {
+        self.type_var.size
+    }
+
 }
 
 pub static F_PATHS: [&str; 4] = [
