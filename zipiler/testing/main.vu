@@ -1,9 +1,5 @@
-char s[15] = "Hello World !\n\0";
-
-int i = 0;
-while s[i] {
-    !print_char(s[i]);
-    i=i+1;
-};
-
+char c = ' ';
+!print_char(c);
+!print_char('s');
+!print_char(10);
 !exit(0);

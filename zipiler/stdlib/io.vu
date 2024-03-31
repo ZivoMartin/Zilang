@@ -1,0 +1,12 @@
+func print(char* s) void {
+    int i = 0;
+    while(s[i]) {
+        !print_char(s[i]);
+    };
+};
+
+char s[14] = "Hello World!\n\0"; 
+
+print(s);
+
+!exit(0);

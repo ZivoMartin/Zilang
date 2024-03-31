@@ -80,7 +80,7 @@ impl Program {
     }
 
     pub fn tokenize(&mut self, token: Token) -> Result<(), String> {
-        // println!("{token:?}");
+        println!("{token:?}");
         match token.token_type {
             TokenType::BackLine => self.new_line(),
             TokenType::ERROR => return Err(self.error_msg(token.content)),

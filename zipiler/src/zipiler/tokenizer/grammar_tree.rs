@@ -211,7 +211,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                         Node::leaf(TokenType::Symbol).react(push_token_and_end)
                     ),
                     vec!("\\")
-                ).react(push_token)
+                )
             )
         )
     );
@@ -231,12 +231,12 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                             vec!(
                                 Node::leaf_c(TokenType::Symbol, vec!("\'"))
                             ),
-                        ).react(push_once)
+                        ).react(push_once).consider_garbage()
                     ),
                     vec!(
                     ),
                     vec!("\'")
-                )
+                ).consider_garbage()
             )
         ).react(push_group)
     );

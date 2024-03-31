@@ -8,6 +8,7 @@ pub enum TokenType {
     Number,
     Type,
     Symbol,
+    Character,  // The difference between a symbol and a character is the symbol ignore garbage, the char not.
     Operator,
     Keyword,
 
@@ -220,6 +221,11 @@ impl Node {
 
     pub fn react(mut self, r: fn(&Tokenizer, TokenType, &String)) -> Node {
         self.travel_react = Some(r);
+        self
+    }
+
+    pub fn consider_garbage(mut self) -> Node {
+        self.consider_garbage = true;
         self
     }
 }
