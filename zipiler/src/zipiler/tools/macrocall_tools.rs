@@ -1,11 +1,17 @@
 use super::include::*;
 
+/// Proke generaly when we detect a '!'
 pub struct MacroCallTools {
-    name: String,
-    nb_param: u8,
-    nb_param_attempt: u8
+    /// Name of the macro
+    name: String,           
+    /// nb_param: Number of parameter on the called macro
+    nb_param: u8,           
+    /// nb_param_attempt: Number of parameter awaited
+    nb_param_attempt: u8   
 }
 
+
+/// The macro list with the number of parameter of each one
 static MACRO_LIST: [(&str, u8); 3] = [("dn", 1), ("exit", 1), ("print_char", 1)];
 
 static _SIZE_PARAM: u8 = 8;
@@ -20,6 +26,9 @@ impl Tool for MacroCallTools {
         })
     }
 
+
+    /// If the number of parameter of the macro isn't equal to the stored number of argument we throw an error 
+    /// otherwise we build asm code.
     fn end(&mut self, _pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         if self.nb_param != self.nb_param_attempt {
             Err(format!("{} args has been found for the macro {} when {} was attempts", self.nb_param, self.name, self.nb_param_attempt))
@@ -43,20 +52,27 @@ impl Tool for MacroCallTools {
 
 impl MacroCallTools {
 
+
+    /// Called when the name of the macro drops, gonna iterate through the macro list check if the macro exists,
+    /// if it is store the name and the number of arguments, throw an error otherwise.
     fn def_name(&mut self, name: String) -> Result<(), String> {
         for m in MACRO_LIST.iter() {
             if m.0 == &name {
                 self.name = m.0.to_string();
-                return Ok(self.nb_param_attempt = m.1)
+                self.nb_param_attempt = m.1;
+                return Ok(())
             }
         }
         Err(format!("Unknow macro: {}", name))
     }
 
+    /// Called when we detect an expression, this expression is anyway an arguments so we just increment the number
+    /// of arg. The result of the expression is already on the stack
     fn new_expression(&mut self) {
         self.nb_param += 1;
     }
 
+    /// We put the name of the macro, then each argument registered on the stack on one single line and return it
     fn build_asm(&self) -> String {
         let mut res = String::new();
         res.push_str(&format!("\n{} ", self.name));

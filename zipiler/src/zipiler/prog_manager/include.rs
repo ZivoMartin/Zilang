@@ -148,6 +148,7 @@ impl VariableDefinition {
         self.addr
     }
 
+    #[allow(dead_code)]
     pub fn get_size(&self) -> u8{
         if self.type_var.stars == 0 {
             self.type_var.size

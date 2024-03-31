@@ -1,14 +1,22 @@
 use super::include::*;
 
 pub struct DeclTools {
+    /// The name of the new variable
+    name: String,
+    /// The name of the type value of the declaration
     type_name: String,
+    /// The number of stars of the type of the declaration
     stars: u32,
+    /// Indicate if we are doing instently an affectation or not.
     aff: bool,
+    /// If its an array declaration indicate for each stage the number of square
     arr_size: Vec<usize>,
+    /// The stack index before the allocation of the entire asked memory
     save_si: usize,
+    /// The number of expression on the right (generaly uses for the direct array affectation)
     nb_exp: usize,
+    /// If its a direct string affectation, gonna be the aked string
     string: String,
-    name: String
 }
 
 impl Tool for DeclTools {
@@ -40,7 +48,7 @@ impl Tool for DeclTools {
         })
     }
 
-    // Raise the address of the new var
+    // Raise the address of the new var and returns the asm who affect the right expression on the new variable
     fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         let addr = pm.si();
         let asm = self.build_asm(pm);
@@ -51,15 +59,14 @@ impl Tool for DeclTools {
 
 impl DeclTools {
 
-    fn new_symbol(&mut self, symb: u8) {
-        self.string.push(symb as char);
-    }
-
+    /// Called when we raise the data of a complex type. So we receiv an id and we transform it with a name,
+    /// and we set the number of stars.
     fn def_type(&mut self, pm: &ProgManager, id: usize, stars: u32) {
         self.type_name = pm.get_type_name_with_id(id);
         self.stars = stars;
     }
 
+    /// Check if the number of stars of the right expression has the same value as the number of stars of our type.
     fn check_exp(&mut self, stars: i32) -> Result<(), String>{
         return if stars as u32 != self.stars {
             Err(String::from("Not the good type"))
@@ -69,14 +76,18 @@ impl DeclTools {
         }
     }
 
+    /// Set the name of the variable
     pub fn def_name(&mut self, name: String) {
         self.name = name;
     }
 
+    /// Called when we catch the equal operator, juste inform the tool that we are doing an affectation
     pub fn def_equal_operator(&mut self) {
         self.aff = true;
     }
 
+    /// If the string is empty, we just pop on the stack all the values of each expression and affect it to our new var.
+    /// Otherwise we memorize the built string and affect the address of it to our variable
     fn build_asm(&mut self, pm: &mut ProgManager) -> String {
         let mut res = self.alloc(pm);
         if self.aff {
@@ -86,10 +97,10 @@ impl DeclTools {
                 self.handle_string_aff(&mut res)
             }
         }
-        
         res
     }
 
+    /// Here the user define a new stage for an array with the size n. We just memorize this information.
     fn new_number(&mut self, n: usize) {
         self.arr_size.push(n);
     }
@@ -105,6 +116,8 @@ mov dword[_stack + r15 + {}], eax", (self.nb_exp-i-1)*8, self.save_si));
         add rsp, {}", self.nb_exp*8));
     }
     
+    /// Here we allocate the good place depends of the array of size for each stage. Basically we just create a big
+    /// empty zone and actualise the stack index.
     fn alloc(&mut self, pm: &mut ProgManager) -> String {
 
         self.save_si = pm.si();
@@ -125,6 +138,7 @@ mov dword[_stack + r15 + {}], eax", (self.nb_exp-i-1)*8, self.save_si));
         res
     }
 
+    /// We juste memorize each byte in the string of the tool. 
     fn handle_string_aff(&mut self, res: &mut String) {
         for b in self.string.as_bytes() {
             res.push_str(&format!("
@@ -133,4 +147,8 @@ mov byte[_stack + {}], {b}", self.save_si));
         }
     }
 
+    /// If we are building a string, add the symbol to the string.
+    fn new_symbol(&mut self, symb: u8) {
+        self.string.push(symb as char);
+    }
 }

@@ -1,12 +1,9 @@
-char s[11] = "Hello World\n";
+char s[15] = "Hello World !\n\0";
 
-!print_char(s[2]);
-
-
-#int b;
-#b = 2;
-#int a[10][3];
-#a[2][1] = 1;
-#!dn(a[2][1]);
+int i = 0;
+while s[i] {
+    !print_char(s[i]);
+    i=i+1;
+};
 
 !exit(0);

@@ -112,12 +112,13 @@ impl CIdentTools {
     // Raise the deref time, the number of stars and the size
     fn raise_mem_spot(&self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         let var_def = pm.get_var_def_by_name(&self.name)?;
-        let stars = var_def.type_var().stars() as i32 - self.deref_time;
+        let stars = var_def.type_var().stars() as i32 - self.deref_time - self.nb_exp as i32;
         if stars < -1 {
             return Err(format!("Bad dereferencment")) // If you want to modifie this line, care it could be dangerous because of the unsafe
         }
         let asm = self.build_asm(stars, self.deref_time, pm, var_def);
-        Ok((TokenType::MemorySpot(self.deref_time, stars, var_def.get_size()), asm))
+        Ok((TokenType::MemorySpot(self.deref_time, stars,   
+            if stars == 0 {var_def.get_true_size()}else{POINTER_SIZE as u8}), asm))
     }
 
     // We raise the address of the function
@@ -149,8 +150,7 @@ _deref_dword 1
 mov r13, rax
 mov rax, [rsp + {}]
 {}
-add rax, r13", (self.nb_exp-i-1)*8, if i == self.nb_exp-1 {format!("mov r12, {}\nmul r12", var_def.get_true_size())}
-                                    else{format!("mul {MUL_REGISTER}")}))
+add rax, r13", (self.nb_exp-i-1)*8, mul_deref_string(i, self.nb_exp, var_def)))
         }
         res.push_str(&format!("
 add rsp, {}", self.nb_exp*8));
@@ -159,4 +159,17 @@ add rsp, {}", self.nb_exp*8));
         res
     }
 
+}
+
+fn mul_deref_string(i: u8, nb_exp: u8, var_def: &VariableDefinition) -> String {
+    if i == nb_exp-1 {
+        let s = var_def.get_true_size();
+        if s == 1 {
+            String::new()
+        }else{
+            format!("mov r12, {}\nmul r12", s)
+        }
+    } else {
+        format!("mul {MUL_REGISTER}")
+    }
 }
