@@ -1,7 +1,6 @@
 mod zipiler;
 
 use std::env;
-use std::fs;
 use zipiler::compile_txt;
 
 use std::process::{Command, exit, ExitCode};
@@ -76,8 +75,7 @@ fn main() -> ExitCode {
 
 
 fn compile(input: &str, output: &str, debug: bool) ->  Result<(), std::io::Error> {
-    let input_file: fs::File = fs::File::open(String::from(input))?;
-    compile_txt(input.to_string(), input_file, debug).unwrap_or_else(|e| {
+    compile_txt(input.to_string(), input, debug).unwrap_or_else(|e| {
         eprintln!("{e}");
         exit(COMPILATION_ERROR as i32);
     });

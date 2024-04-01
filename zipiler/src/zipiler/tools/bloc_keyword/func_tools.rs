@@ -27,7 +27,7 @@ impl Tool for FuncTools {
             TokenType::Ident => res = self.set_ident(token.content),
             TokenType::RaiseComplexType(id, stars, size) => self.set_type(pm, id, stars as u32, size),
             TokenType::Bloc => res = self.end_of_func(),
-            _ => panic_bad_token("func keyword", token)
+            _ => pm.panic_bad_token("func keyword", token)
         }
         Ok(res)
     }

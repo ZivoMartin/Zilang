@@ -4,10 +4,10 @@ pub struct BlocTools;
 impl Tool for BlocTools {
 
 
-    fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String>{
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String>{
         match token.token_type {
             TokenType::Instruction => (),
-            _ => panic_bad_token("bloc", token)
+            _ => pm.panic_bad_token("bloc", token)
         }
         Ok(String::new())
     }

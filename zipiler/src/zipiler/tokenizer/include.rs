@@ -73,7 +73,7 @@ static KEYWORD: &[&'static str; 9] = &["if", "else", "for", "while", "return", "
 pub static OPERATOR_COMPONENT: &[char; 9] = &['+', '%', '/', '<', '>', '=', '|', '&', '!'];
 pub static DEFAULT_GARBAGE_CHARACTER: &[char; 3] = &[' ', '\n', '\t'];
 static PRIMITIVE_TOKENTYPE: &[TokenType; 6] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator, TokenType::Keyword];
-pub static FAIL_MESSAGE: &str = "Synatax error";
+pub static FAIL_MESSAGE: &str = "Syntax error";
 
 
 #[derive(Debug)]

@@ -29,7 +29,7 @@ impl Tool for DeclTools {
             TokenType::RaiseExpression(stars) => self.check_exp(stars)?,
             TokenType::RaiseComplexChar(char) => self.new_symbol(char),
             TokenType::Number => self.new_number(token.content.parse::<usize>().unwrap()),
-            _ => panic_bad_token("declaration", token)
+            _ => pm.panic_bad_token("declaration", token)
         }
         Ok(String::new())
     }

@@ -14,11 +14,11 @@ impl Tool for ReturnTools {
         })
     }
 
-    fn new_token(&mut self, token: Token, _pm: &mut ProgManager) -> Result<String, String> {
+    fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         let res = String::new();
         match token.token_type {    
             TokenType::RaiseExpression(stars) => self.set_exp(stars),
-            _ => panic_bad_token("return keyword", token)
+            _ => pm.panic_bad_token("return keyword", token)
         }
         Ok(res)
     }

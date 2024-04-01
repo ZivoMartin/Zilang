@@ -44,7 +44,7 @@ impl Tool for ExpTools {
             TokenType::Symbol => self.new_parenthesis(token.content),
             TokenType::MemorySpot(nb_deref, stars, size) => self.new_cident(nb_deref==-1, stars, size)?,
             TokenType::FuncCall(addr) => res = self.new_funccall(pm, addr)?,
-            _ => panic_bad_token("expression", token)
+            _ => pm.panic_bad_token("expression", token)
         }
         Ok(res)
     }

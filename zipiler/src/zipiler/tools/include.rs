@@ -5,7 +5,7 @@ pub use crate::zipiler::{
                             POINTER_SIZE,
                             MUL_REGISTER
                         }},
-                        program::{Tool, panic_bad_token},
+                        program::Tool,
                         tokenizer::include::{TokenType, Token, OPERATORS}
                     };
 pub use crate::zipiler::collections::Stack;

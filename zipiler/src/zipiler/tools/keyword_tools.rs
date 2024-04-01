@@ -39,7 +39,7 @@ impl Tool for KeyWordTools {
             TokenType::ReturnKeyword => res = self.end_kw(pm, token.token_type),
             TokenType::RaiseDoKeyWord(id) => self.end_do_kw(id),
             TokenType::RaiseExpression(_) => res = self.push_save(),
-            _ => panic_bad_token("keyword inst", token)
+            _ => pm.panic_bad_token("keyword inst", token)
         };
         Ok(res)
     }

@@ -1,11 +1,14 @@
 use super::include::*;
-use crate::zipiler::prog_manager::include::STACK_REG;
+use crate::zipiler::prog_manager::include::{STACK_REG, RAX_SIZE, ASM_SIZES};
+
 pub struct CIdentTools {
     deref_time: i32,
     name: String,
     for_bracket: bool, // If we catch an exp, its determine if its between a bracket or a tupple
     nb_exp: u8,
-    si_save: usize
+    si_save: usize,
+    /// Exemple: "+=", "-="...
+    equal_code: String
 }
 
 impl Tool for CIdentTools {
@@ -19,7 +22,8 @@ impl Tool for CIdentTools {
             TokenType::Brackets => self.open_brackets()?,
             TokenType::ExpressionTuple => self.open_tupple(pm)?,
             TokenType::RaiseExpression(stars) => res = self.new_expression(pm, stars)?,
-            _ => panic_bad_token("complex ident", token)
+            TokenType::Operator => self.set_equal_code(token.content),
+            _ => pm.panic_bad_token("complex ident", token)
         }
         Ok(res)
     }
@@ -30,7 +34,8 @@ impl Tool for CIdentTools {
             name: String::new(),
             for_bracket: true,
             nb_exp: 0,
-            si_save: pm.si()
+            si_save: pm.si(),
+            equal_code: String::new()
         })
     }
 
@@ -54,6 +59,9 @@ impl Tool for CIdentTools {
 
 impl CIdentTools {
 
+    fn set_equal_code(&mut self, equal_code: String) {
+        self.equal_code = equal_code;
+    }
 
     fn new_symbol(&mut self, s: String) -> Result<(), String>{
         if s == "*" {
@@ -100,11 +108,15 @@ impl CIdentTools {
     }
 
     fn new_expression(&mut self, pm: &mut ProgManager, stars: i32) -> Result<String, String>{
-        self.nb_exp += 1;
-        if self.for_bracket {
-            Ok(String::new( ))
+        if self.equal_code.is_empty() {
+            self.nb_exp += 1;
+            if self.for_bracket {
+                Ok(String::new( ))
+            }else{
+                pm.handle_arg(&self.name, stars, (self.nb_exp-1) as usize)
+            }
         }else{
-            pm.handle_arg(&self.name, stars, (self.nb_exp-1) as usize)
+            Ok(String::new())
         }
 
     }
@@ -140,7 +152,8 @@ pop {STACK_REG}
 
     }
 
-    fn build_asm(&self, _stars: i32, deref_time: i32, pm: &ProgManager, var_def: &VariableDefinition) -> String {
+    fn build_asm(&self, stars: i32, deref_time: i32, pm: &ProgManager, var_def: &VariableDefinition) -> String {
+        let size = if stars == 0 {var_def.get_true_size()}else{POINTER_SIZE as u8};
         let mut res = format!("
 mov rax, {}
 add rax, {STACK_REG}", var_def.addr());
@@ -156,6 +169,20 @@ add rax, r13", (self.nb_exp-i-1)*8, mul_deref_string(i, self.nb_exp, var_def)))
 add rsp, {}", self.nb_exp*8));
         res.push_str(&pm.deref_var(var_def.type_var().size() as usize, deref_time));
         res.push_str("\npush rax    ; We push the value of a new identificator");
+        if !self.equal_code.is_empty() {
+            res.push_str(&format!("
+pop rbx     ; addr of the left ident
+pop rax     ; result of the expression
+{}",         format!("{} {}[_stack + rbx], {}", 
+            match &self.equal_code as &str {
+                "=" => "mov",
+                "+=" => "add",
+                "-=" => "sub",
+                _ => panic!("Unknow equal code: {}", self.equal_code)
+            },
+            ASM_SIZES[size as usize], 
+            RAX_SIZE[size as usize])))
+        }
         res
     }
 

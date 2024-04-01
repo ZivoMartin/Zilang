@@ -14,7 +14,8 @@ pub struct ProgManager {
     pub titn: Vec::<String>,
     pub tnti: HashMap<String, (u8, usize)>,
     pub preload: String,
-    pub stage: u32
+    pub stage: u32,
+    line_number: u64
 }
 
 impl ProgManager {
@@ -33,7 +34,8 @@ impl ProgManager {
             jump_stack: Stack::init(Jump::new(0)),
             preload: String::from("\npreload:"),
             current_func: None,
-            stage: 0
+            stage: 0,
+            line_number: 1
         }
     }
 
@@ -94,6 +96,19 @@ mov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[siz
     pub fn is_in_func(&self) -> bool {
         self.current_func.is_some()
     }
+
+    pub fn new_line(&mut self) {
+        self.line_number += 1;
+    }
+
+    pub fn line_number(&self) -> u64 {
+        return self.line_number;
+    }
+
+    pub fn panic_bad_token(&self, receiver: &str, token: Token) {
+        panic!("Line {}: Unknow token type for a {receiver}: {:?}    {}", self.line_number(), token.token_type, token.content)
+    }
+
 }
 
 fn build_base_type_vec() -> Vec<String> {

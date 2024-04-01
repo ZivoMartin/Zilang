@@ -1,14 +1,13 @@
 use std::thread::spawn;
 use super::tokenizer::{include::Token, tokenizer::Tokenizer};
 use super::program::Program;
-use std::fs::File;
 use std::sync::mpsc::channel;
 
 
 
 
 
-pub fn compile(input: File) -> Result<(), String>{
+pub fn compile(input: String) -> Result<(), String>{
     let (sender, receiver) = channel::<Token>();
     let mut tokenizer = Tokenizer::new(sender);
     let mut prog = Program::new();

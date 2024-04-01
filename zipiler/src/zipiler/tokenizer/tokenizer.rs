@@ -53,21 +53,27 @@ impl<'a> Tokenizer {
         }
     }
 
-    pub fn tokenize(&mut self, mut input: File) {
+    pub fn tokenize(&mut self, path: String) {
+        let mut input = File::open(path.clone()).expect(&format!("File {} doesn't exists", path));
         let first_node = self.group_map.get(&TokenType::Program).unwrap();
-        let mut s = String::new();
-        input.read_to_string(&mut s).unwrap();
-        let mut chars = s.chars().peekable();
-        while chars.peek().is_some() {  
-            match self.curse(first_node, &mut chars) {
-                Ok(()) => (),
-                Err(_) => {
-                   push_token(self, TokenType::ERROR, &FAIL_MESSAGE.to_string());
-                   break;
-                }
+        let mut file_content = String::new();
+        input.read_to_string(&mut file_content).unwrap();
+        match self.precompile(file_content, &path) {
+            Ok(s) => {  
+                let mut chars = s.chars().peekable();
+                while chars.peek().is_some() {  
+                    match self.curse(first_node, &mut chars) {
+                        Ok(()) => (),
+                        Err(_) => {
+                           push_token(self, TokenType::ERROR, &FAIL_MESSAGE.to_string());
+                           break;
+                        }
+                    }
+                    self.skip_garbage(&mut chars); 
+                }   
             }
-            self.skip_garbage(&mut chars); 
-        }   
+            Err(e) => push_token(self, TokenType::ERROR, &e)
+        }
     } 
     
     fn curse(&self, current_node: &'a Node, chars: &mut Peekable<Chars>) -> Result<(), i8> {
@@ -240,6 +246,57 @@ impl<'a> Tokenizer {
                 }
                 chars.next();
             }
+        }
+    }
+
+    fn precompile(&self, input: String, current_file_path: &str) -> Result<String, String> {
+        let mut vec: Vec<String> = input.split("$").map(String::from).collect();
+        let mut annalyse_next = true;
+        let mut iter = vec.iter_mut();
+        iter.next();
+        while let Some(s) = iter.next() {
+            if annalyse_next {
+                let mut chars = s.chars();
+                let mut current_line = String::new();
+                while let Some(c) = chars.next() {
+                    if c == '\n' {
+                        break;
+                    }
+                    current_line.push(c);
+                }
+                *s = self.new_precompile_macro(current_line, &current_file_path)? + &chars.collect::<String>();
+            }else{
+                *s = String::from("$") + s;
+            }
+            annalyse_next = !s.ends_with("\\");
+        }
+        Ok(vec.join(""))
+    }
+
+    fn new_precompile_macro(&self, m: String, current_file_path: &str) -> Result<String, String> {
+        let split: Vec<&str> = m.split_whitespace().collect();
+        match &split[0] as &str {
+            "import" => {
+                let mut file_content = String::new();
+                let path = self.build_path(&split[1], current_file_path);
+                println!("{path}");
+                match File::open(path.clone()).expect("Could not open file").read_to_string(&mut file_content) {
+                    Ok(_) => self.precompile(file_content, &path),
+                    Err(_) => Err(format!("File {} doesn't exists", split[1])) 
+                } 
+            },
+            _ => Err(format!("Unknow token: {}", split[0]))
+        }
+
+    }
+
+    fn build_path(&self, relative_path: &str, current_file_path: &str) -> String {
+        if relative_path.starts_with('<') && relative_path.ends_with('>') {
+            String::from("/home/martin/Travail/Zilang/zipiler/stdlib/") + &relative_path[1..relative_path.len()-1] + ".zi"
+        }else{
+            let mut split: Vec<_> = current_file_path.split("/").collect();
+            split.pop();
+            split.join("/") + "/" + relative_path
         }
     }
 }

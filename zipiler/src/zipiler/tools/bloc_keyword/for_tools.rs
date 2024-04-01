@@ -33,13 +33,16 @@ impl Tool for ForTools {
     }
 
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
-        Ok(match token.token_type {
-            TokenType::Keyword => self.new_keyword(&token.content, pm),
-            TokenType::RaiseExpression(_) => self.compare_exp(pm)            ,
-            TokenType::Instruction => self.new_inst(pm),
-            TokenType::Bloc => String::new(),
-            _ => {panic_bad_token("for keyword", token);String::new()}
-        })
+        
+        let mut res = String::new();
+        match token.token_type {
+            TokenType::Keyword => res = self.new_keyword(&token.content, pm),
+            TokenType::RaiseExpression(_) => res = self.compare_exp(pm)            ,
+            TokenType::Instruction => res = self.new_inst(pm),
+            TokenType::Bloc => (),
+            _ => pm.panic_bad_token("for keyword", token)
+        }
+        Ok(res)
     }
     
 }

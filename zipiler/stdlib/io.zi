@@ -1,0 +1,7 @@
+func print(char* s) void {
+    int i = 0;
+    while s[i] {
+        !print_chard(s[i]);
+        i = i+1; 
+    };
+};

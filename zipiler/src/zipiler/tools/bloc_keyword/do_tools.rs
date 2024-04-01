@@ -30,7 +30,7 @@ impl Tool for DoTools {
         match token.token_type {
             TokenType::Keyword => res = self.new_keyword(&token.content, pm),
             TokenType::Bloc => (),
-            _ => panic_bad_token("do keyword", token)
+            _ => pm.panic_bad_token("do keyword", token)
         }
         Ok(res)
     }

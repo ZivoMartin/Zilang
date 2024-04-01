@@ -17,13 +17,15 @@ impl Tool for IfTools {
     }
 
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
-        Ok(match token.token_type {
-            TokenType::RaiseExpression(_) => self.compare_exp(pm),
-            TokenType::Keyword => self.new_keyword(pm, token.content),
-            TokenType::Bloc => self.end_bloc(pm),
-            TokenType::Instruction | TokenType::IfKeyword => String::new(),
-            _ => {panic_bad_token("if keyword", token);String::new()}
-        })
+        let mut res = String::new();
+        match token.token_type {
+            TokenType::RaiseExpression(_) => res = self.compare_exp(pm),
+            TokenType::Keyword => res = self.new_keyword(pm, token.content),
+            TokenType::Bloc => res = self.end_bloc(pm),
+            TokenType::Instruction | TokenType::IfKeyword => (),
+            _ => pm.panic_bad_token("if keyword", token)
+        }
+        Ok(res)
     }
 }
 

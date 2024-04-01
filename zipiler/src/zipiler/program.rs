@@ -24,8 +24,7 @@ use super::tools::{
                 do_tools::DoTools,
                 func_tools::FuncTools,
                 return_tools::ReturnTools
-            }
-            
+            }   
         };
 
 pub trait Tool {
@@ -64,7 +63,6 @@ pub struct Program {
     memory: ProgManager,
     tools_stack: Stack<Box<dyn Tool>>,
     constructor_map: HashMap<TokenType, fn(pm: &mut ProgManager) -> Box<dyn Tool>>,
-    line_number: u128,
     asm_files: Vec<File>,
 }
 
@@ -74,7 +72,6 @@ impl Program {
             memory: ProgManager::new(),
             tools_stack: Stack::new(),
             constructor_map: build_constructor_map(),
-            line_number: 1,
             asm_files: open_asm_files(),
         }
     }
@@ -82,7 +79,7 @@ impl Program {
     pub fn tokenize(&mut self, token: Token) -> Result<(), String> {
         println!("{token:?}");
         match token.token_type {
-            TokenType::BackLine => self.new_line(),
+            TokenType::BackLine => self.memory.new_line(),
             TokenType::ERROR => return Err(self.error_msg(token.content)),
             TokenType::End => self.end_group()?, 
             TokenType::New => self.new_group(token.flag),
@@ -96,6 +93,7 @@ impl Program {
         Ok(())
     }
 
+    #[inline]
     pub fn new_group(&mut self, type_token: TokenType) {
         self.tools_stack.push((self.constructor_map.get(&type_token).unwrap())(&mut self.memory));
     }
@@ -121,12 +119,10 @@ impl Program {
         self.memory.end_prog();
     }
 
-    fn new_line(&mut self) {
-        self.line_number += 1;
-    }
+    
 
     fn error_msg(&self, msg: String) -> String {
-        format!("{}: {}", self.line_number, msg)
+        format!("{}: {}", self.memory.line_number(), msg)
     }
     
     fn push_script(&mut self, txt: &str, file_path: usize) {
@@ -136,9 +132,6 @@ impl Program {
 }
 
 
-pub fn panic_bad_token(receiver: &str, token: Token) {
-    panic!("Unknow token type for a {receiver}: {:?}    {}", token.token_type, token.content)
-}
 
 fn open_asm_files() -> Vec<File> {
     let mut res = Vec::<File>::new();

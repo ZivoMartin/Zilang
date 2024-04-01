@@ -1,5 +1,0 @@
-char c = ' ';
-!print_char(c);
-!print_char('s');
-!print_char(10);
-!exit(0);

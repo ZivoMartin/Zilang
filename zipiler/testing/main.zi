@@ -1,0 +1,7 @@
+$import <io>
+
+char s[15] = "Hello World !\n\0";
+
+print(s);
+
+!exit(0);

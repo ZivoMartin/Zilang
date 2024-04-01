@@ -8,7 +8,7 @@ use super::tokenizer::{
     push_ending_group,
     push_ending_once,
     push_ending_token,
-    push_token_and_end
+    push_token_and_end,
 };
 
 pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
@@ -211,7 +211,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                         Node::leaf(TokenType::Symbol).react(push_token_and_end)
                     ),
                     vec!("\\")
-                )
+                ).react(push_token)
             )
         )
     );
@@ -231,7 +231,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                             vec!(
                                 Node::leaf_c(TokenType::Symbol, vec!("\'"))
                             ),
-                        ).react(push_once).consider_garbage()
+                        ).react(push_once)
                     ),
                     vec!(
                     ),
@@ -252,7 +252,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(
                         Node::leaf_c(TokenType::Symbol, vec!("\""))
                     )
-                ).react(push_once)
+                ).react(push_once).consider_garbage()
             ),
             vec!()
         )
@@ -451,7 +451,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(),
                     vec!("\""),
                     0
-                )
+                ).consider_garbage()
             )
         ).react(push_group)
     );
@@ -547,10 +547,10 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 Node::new_end(
                     TokenType::ComplexIdent,
                     vec!(
-                        Node::leaf(TokenType::Affectation).react(end_group),
+                        Node::leaf(TokenType::Affectation),
                     ),
                     vec!()
-                ).react(push_once),
+                ).react(push_group),
                 Node::leaf(TokenType::Declaration).react(push_group),
                 Node::leaf(TokenType::MacroCall).react(push_group)
             ),
