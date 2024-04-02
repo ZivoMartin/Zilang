@@ -2,6 +2,7 @@ $import <io>
 
 char s[15] = "Hello World !\n\0";
 
-print(s);
-
+int t[5][5];
+t[2][3] = 6;
+!dn(t[2][3]);
 !exit(0);
