@@ -1,8 +1,37 @@
-$import <io>
 
-char s[15] = "Hello World !\n\0";
+class Person {
+    
+    attribute{
+        int age;
+        char* name;
+        int sexe;
+    }
 
-int t[5][5];
-t[2][3] = 6;
-!dn(t[2][3]);
+    method {
+        func Person(int age, int sexe, char* name) void {
+#            self.age = age;
+#            self.sexe = sexe;
+#            self.name = name;
+        };
+
+        func get_age() int {
+#           return self.age;
+        };
+
+        func get_name() char* {
+#           return self.name;
+        };      
+    }
+
+};
+
+# A l'appel d'un constructeur, dans un premier temps allouer. Dans un second temps appeler le constructeur comme s'il s'agissait d'une méthode
+
+char name[7] = "Martin\0";
+
+.Person person = Person(19, 1, name);
+
+# !dn(person.get_age());
+
+
 !exit(0);

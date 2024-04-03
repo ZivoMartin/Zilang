@@ -42,6 +42,10 @@ pub enum TokenType {
     FuncKeyword,
     ReturnKeyword,
     DoKeyWord,
+    ClassKeyWord,
+    ClassDefinition,
+    AttributeKeyWord,
+    MethodKeyWord,
     MacroCall,
     DirectChar,
     PointerSymbolSerie,
@@ -69,7 +73,7 @@ pub enum TokenType {
 static TYPE_LIST: &[&'static str; 3] = &["int", "char", "void"];
 pub static OPERATORS: &[&'static str; 13] = &["+", "-", "*", "/", "%", "<", ">", "<=", ">=", "==", "!=", "||", "&&"];
 pub static AFFECT_OPERATOR: &[&'static str; 5] = &["=", "+=", "-=", "*=", "/="];
-static KEYWORD: &[&'static str; 9] = &["if", "else", "for", "while", "return", "continue", "break", "func", "do"];
+static KEYWORD: &[&'static str; 12] = &["if", "else", "for", "while", "return", "continue", "break", "func", "do", "class", "attribute", "method"];
 pub static OPERATOR_COMPONENT: &[char; 9] = &['+', '%', '/', '<', '>', '=', '|', '&', '!'];
 pub static DEFAULT_GARBAGE_CHARACTER: &[char; 3] = &[' ', '\n', '\t'];
 static PRIMITIVE_TOKENTYPE: &[TokenType; 6] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator, TokenType::Keyword];
@@ -88,6 +92,7 @@ impl Token {
         Token{token_type, content, flag: TokenType::NoFlag}
     }
 
+    #[allow(dead_code)]
     pub fn empty(token_type: TokenType) -> Token {
         Token{token_type, content: String::new(), flag: TokenType::NoFlag}
     }

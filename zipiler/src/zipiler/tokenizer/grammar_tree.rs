@@ -637,6 +637,20 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                         Node::leaf(TokenType::PointerSymbolSerie)
                     ),
                     vec!()
+                ).react(push_token),
+                Node::new_c(
+                    TokenType::Symbol,
+                    vec!(),
+                    vec!(
+                        Node::new_end(
+                            TokenType::Ident,
+                            vec!(
+                                Node::leaf(TokenType::PointerSymbolSerie)
+                            ),
+                            vec!()
+                        ).react(push_token)
+                    ),
+                    vec!(".")
                 ).react(push_token)
             )
         ).react(push_group)
@@ -671,6 +685,7 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                 Node::leaf(TokenType::FuncKeyword).react(push_group),
                 Node::leaf(TokenType::DoKeyWord).react(push_once),
                 Node::leaf(TokenType::ReturnKeyword).react(push_group),
+                Node::leaf(TokenType::ClassKeyWord).react(push_group),
             ),
             vec!()
         )
@@ -906,6 +921,142 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
             )
         )
     );
+
+    group_map.insert(
+        TokenType::ClassKeyWord,
+        Node::new(
+            TokenType::ClassKeyWord,
+            vec!(),
+            vec!(
+                Node::new_c(
+                    TokenType::Keyword,
+                    vec!(),
+                    vec!(
+                        Node::new(
+                            TokenType::Ident,
+                            vec!(),
+                            vec!(
+                                Node::new_c(
+                                    TokenType::Symbol,
+                                    vec!(
+                                        Node::new(
+                                            TokenType::ClassDefinition,
+                                            vec!(),
+                                            vec!(
+                                                  Node::leaf_c(TokenType::Symbol, vec!("}"))
+                                            )
+                                        )
+                                    ),
+                                    vec!(
+                                        Node::leaf_c(TokenType::Symbol, vec!("}"))
+                                    ),
+                                    vec!("{")
+                                )
+                            )
+                        ).react(push_token)
+                    ),
+                    vec!("class")
+                )
+            )
+        )
+    );
+
+    group_map.insert(
+        TokenType::ClassDefinition,
+        Node::new_end(
+            TokenType::ClassDefinition,
+            vec!(
+                    Node::new_end(
+                        TokenType::AttributeKeyWord,
+                        vec!(
+                            Node::leaf(TokenType::MethodKeyWord)
+                        ),
+                        vec!()
+                    ),
+                    Node::leaf(TokenType::MethodKeyWord)
+                ),
+            vec!()
+        )
+    );
+
+    group_map.insert(
+        TokenType::AttributeKeyWord,
+        Node::new(
+            TokenType::AttributeKeyWord,
+            vec!(),
+            vec!(
+                Node::new_c(
+                    TokenType::Keyword,
+                    vec!(),
+                    vec!(
+                        Node::new_c_r(
+                            TokenType::Symbol,
+                            vec!(
+                                Node::new(
+                                    TokenType::Declaration,
+                                    vec!(),
+                                    vec!(
+                                        Node::new_c(
+                                            TokenType::Symbol,
+                                            vec!(),
+                                            vec!(
+                                                Node::leaf_c(TokenType::Symbol, vec!("}"))
+                                            ),
+                                            vec!(";")
+                                        )
+                                    )
+                                )
+                            ),
+                            vec!(),
+                            vec!("{"),
+                            1
+                        )
+                    ),
+                    vec!("attribute")
+                )
+            )
+        )
+    );
+
+    group_map.insert(
+        TokenType::MethodKeyWord,
+        Node::new(
+            TokenType::MethodKeyWord,
+            vec!(),
+            vec!(
+                Node::new_c(
+                    TokenType::Keyword,
+                    vec!(),
+                    vec!(
+                        Node::new_c_r(
+                            TokenType::Symbol,
+                            vec!(
+                                Node::new(
+                                    TokenType::FuncKeyword,
+                                    vec!(),
+                                    vec!(
+                                        Node::new_c(
+                                            TokenType::Symbol,
+                                            vec!(),
+                                            vec!(
+                                                Node::leaf_c(TokenType::Symbol, vec!("}"))
+                                            ),
+                                            vec!(";")
+                                        )
+                                    )
+                                )
+                            ),
+                            vec!(),
+                            vec!("{"),
+                            1
+                        )
+                    ),
+                    vec!("method")
+                )
+            )
+        )
+    );
+
     group_map
 }
 

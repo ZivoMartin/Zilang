@@ -3,6 +3,7 @@ use crate::zipiler::tokenizer::include::{Token, TokenType};
 use super::collections::Stack;
 use std::collections::HashMap;
 use std::fs::File;
+#[allow(unused_imports)]
 use std::process::exit;
 use super::prog_manager::prog_manager::ProgManager;
 use super::prog_manager::include::{F_PATHS, files::*};
@@ -77,37 +78,39 @@ impl Program {
     }
 
     pub fn tokenize(&mut self, token: Token) -> Result<(), String> {
-        println!("{token:?}");
+        if token.content != "" {
+            println!("{}",token.content);
+        }
         match token.token_type {
             TokenType::BackLine => self.memory.new_line(),
             TokenType::ERROR => return Err(self.error_msg(token.content)),
             TokenType::End => self.end_group()?, 
             TokenType::New => self.new_group(token.flag),
             _ => {
-                match self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory) {
-                    Ok(asm) => self.push_script(&asm, SCRIPTF),
-                    Err(e) => return Err(self.error_msg(e))
-                }
+                // match self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory) {
+                //     Ok(asm) => self.push_script(&asm, SCRIPTF),
+                //     Err(e) => return Err(self.error_msg(e))
+                // }
             }
         };
         Ok(())
     }
 
     #[inline]
-    pub fn new_group(&mut self, type_token: TokenType) {
-        self.tools_stack.push((self.constructor_map.get(&type_token).unwrap())(&mut self.memory));
+    pub fn new_group(&mut self, _type_token: TokenType) {
+        //self.tools_stack.push((self.constructor_map.get(&type_token).unwrap())(&mut self.memory));
     }
 
     pub fn end_group(&mut self) -> Result<(), String>{
-        let (token_to_raise, end_txt) = self.tools_stack.pop().unwrap()
-        .end(&mut self.memory).unwrap_or_else(|e| {
-            println!("{}", self.error_msg(e));
-            exit(1);
-        });
-        self.push_script(&end_txt, SCRIPTF);
-        if !self.tools_stack.is_empty() {
-            self.tokenize(Token::empty(token_to_raise))?;
-        };
+        // let (token_to_raise, end_txt) = self.tools_stack.pop().unwrap()
+        //                                     .end(&mut self.memory).unwrap_or_else(|e| {
+        //                                         println!("{}", self.error_msg(e));
+        //                                         exit(1);
+        //                                     });
+        //self.push_script(&end_txt, SCRIPTF);
+        // if !self.tools_stack.is_empty() {
+            // self.tokenize(Token::empty(token_to_raise))?;
+        // };
         Ok(())
     }
 
@@ -125,6 +128,7 @@ impl Program {
         format!("{}: {}", self.memory.line_number(), msg)
     }
     
+    #[allow(dead_code)]
     fn push_script(&mut self, txt: &str, file_path: usize) {
         self.asm_files[file_path].write(txt.as_bytes()).unwrap();
     }

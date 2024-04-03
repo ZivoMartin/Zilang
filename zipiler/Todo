@@ -1,16 +1,5 @@
-- Regler les soucis pour le faux operateur *&.
+Introduire les mots clés
 
-ComplexIdent: 
-    *
+attribute, method et class
 
-DirectChar:
-    *
-
-Expressions:
-    - DirectChar
-    - ComplexIdent
-    - Catch the negatives symbol
-
-
-OTHER:
-    
+Modifier le noeud complexType en ajoutant . -> ident -> serie_star à la racine

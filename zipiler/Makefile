@@ -9,3 +9,6 @@ clean:
 
 stdio:
 	cargo run stdlib/io.vu -o io
+
+old:
+	./compiler_save testing/main.zi -o exe
