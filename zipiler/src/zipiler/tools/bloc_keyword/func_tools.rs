@@ -15,7 +15,7 @@ impl Tool for FuncTools {
             FuncTools{
                 name: String::new(),
                 type_args: Vec::new(),
-                return_type: Type::new(String::new(), 0, 0)
+                return_type: Type::new(String::new(), 0, 0, None)
             }
         )
     }
@@ -32,11 +32,11 @@ impl Tool for FuncTools {
         Ok(res)
     }
 
-    
+    /// Raise the address of the function we just defined
     fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         pm.out_func();
         let asm = format!("\n_end_of_{}:", self.name);
-        Ok((TokenType::FuncKeyword, asm))
+        Ok((TokenType::RaiseFuncDef(pm.get_func_addr(&self.name)), asm))
     }
 }
 
@@ -56,7 +56,7 @@ jmp _end_of_{n}
 
     fn set_type(&mut self, pm: &mut ProgManager, id: usize, stars: u32, size: u8) {
         let name = pm.get_type_name_with_id(id);
-        self.return_type = Type::new(name, size, stars);
+        self.return_type = Type::new(name, size, stars, None);
         pm.preload(format!("
 mov qword[_stack + {}], {}", pm.si(), self.name
         ));

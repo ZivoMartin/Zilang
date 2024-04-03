@@ -25,7 +25,7 @@ impl Tool for ComplexTypeTools {
     fn new_token(&mut self, token: Token, pm: &mut ProgManager) -> Result<String, String> {
         match token.token_type {
             TokenType::Symbol => self.new_star(),
-            TokenType::Type => self.set_name(token.content, pm),
+            TokenType::Type | TokenType::Ident => self.set_name(token.content, pm),
             _ => pm.panic_bad_token("complex type", token)
         }
         Ok(String::new())

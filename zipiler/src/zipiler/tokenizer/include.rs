@@ -60,6 +60,7 @@ pub enum TokenType {
     RaiseComplexChar(u8),   
     RaiseComplexType(usize, i32, u8), 
     RaiseDoKeyWord(u128),
+    RaiseFuncDef(usize),
 
     // Flags
     NoFlag,
@@ -70,10 +71,10 @@ pub enum TokenType {
 }
 
 
-static TYPE_LIST: &[&'static str; 3] = &["int", "char", "void"];
+pub static TYPE_LIST: &[&'static str; 3] = &["int", "char", "void"];
 pub static OPERATORS: &[&'static str; 13] = &["+", "-", "*", "/", "%", "<", ">", "<=", ">=", "==", "!=", "||", "&&"];
 pub static AFFECT_OPERATOR: &[&'static str; 5] = &["=", "+=", "-=", "*=", "/="];
-static KEYWORD: &[&'static str; 12] = &["if", "else", "for", "while", "return", "continue", "break", "func", "do", "class", "attribute", "method"];
+static KEYWORD: &[&'static str; 12] = &["if", "else", "for", "while", "return", "continue", "break", "func", "do", "class", "attributes", "methods"];
 pub static OPERATOR_COMPONENT: &[char; 9] = &['+', '%', '/', '<', '>', '=', '|', '&', '!'];
 pub static DEFAULT_GARBAGE_CHARACTER: &[char; 3] = &[' ', '\n', '\t'];
 static PRIMITIVE_TOKENTYPE: &[TokenType; 6] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator, TokenType::Keyword];

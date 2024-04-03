@@ -36,6 +36,9 @@ impl ProgManager {
     pub fn in_func(&mut self) {
         self.stage += 1;
         self.stack_index = 0;
+        if !self.current_class.is_empty() {
+            self.new_var(self.current_class.clone(), String::from("self"), 0);
+        }
     }
 
     pub fn out_func(&mut self) {

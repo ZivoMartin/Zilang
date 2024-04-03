@@ -126,7 +126,22 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(
                         Node::leaf(TokenType::BrackTuple)
                     ),
-                    vec!()
+                    vec!(
+                        Node::new_c(
+                            TokenType::Symbol,
+                            vec!(),
+                            vec!(
+                                Node::new_end(
+                                    TokenType::Ident,
+                                    vec!(
+                                        Node::leaf(TokenType::BrackTuple)
+                                    ),
+                                    vec!()
+                                ).react(push_token)
+                            ),
+                            vec!(".")
+                        )
+                    )
                 ).react(push_token),
                 Node::new_c(
                     TokenType::Symbol,
@@ -1003,16 +1018,16 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                                 Node::leaf_c(TokenType::Symbol, vec!("}"))
                                             ),
                                             vec!(";")
-                                        )
+                                        ).react(end_group)
                                     )
-                                )
+                                ).react(push_once)
                             ),
                             vec!(),
                             vec!("{"),
                             1
                         )
                     ),
-                    vec!("attribute")
+                    vec!("attributes")
                 )
             )
         )
@@ -1042,16 +1057,16 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                                 Node::leaf_c(TokenType::Symbol, vec!("}"))
                                             ),
                                             vec!(";")
-                                        )
+                                        ).react(end_group)
                                     )
-                                )
+                                ).react(push_once)
                             ),
                             vec!(),
                             vec!("{"),
                             1
                         )
                     ),
-                    vec!("method")
+                    vec!("methods")
                 )
             )
         )

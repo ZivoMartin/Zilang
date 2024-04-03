@@ -1,6 +1,7 @@
 pub use crate::zipiler::{
                         prog_manager::{prog_manager::ProgManager, include::{
                             VariableDefinition, 
+                            Class,
                             Type,
                             POINTER_SIZE,
                             MUL_REGISTER

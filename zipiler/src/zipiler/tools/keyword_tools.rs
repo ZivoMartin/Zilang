@@ -35,7 +35,8 @@ impl Tool for KeyWordTools {
             TokenType::IfKeyword => res = self.if_keyword(pm, token.token_type),
             TokenType::WhileKeyword | 
             TokenType::ForKeyword |
-            TokenType::FuncKeyword |
+            TokenType::RaiseFuncDef(_) |
+            TokenType::ClassDefinition |
             TokenType::ReturnKeyword => res = self.end_kw(pm, token.token_type),
             TokenType::RaiseDoKeyWord(id) => self.end_do_kw(id),
             TokenType::RaiseExpression(_) => res = self.push_save(),

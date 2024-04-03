@@ -3,6 +3,11 @@ use super::{include::*, prog_manager::ProgManager};
 
 
 impl ProgManager {
+
+    pub fn var_exists(&self, name: &str) -> bool {
+        return self.var_name_map.contains_key(name)
+    }
+
     pub fn is_function(&self, name: &str) -> bool {
         self.func_name_map.contains_key(name) && !self.func_name_map.get(name).unwrap().is_empty()
     }
@@ -38,10 +43,13 @@ impl ProgManager {
 
     pub fn new_var(&mut self, name_type: String, name: String, stars: u32) -> usize {
         let size = self.get_type_size_with_type_name(&name_type); 
+        let class = if self.class_exists(&name_type) {Some(self.get_class_by_name(&name_type).id())}else{None};
+        let type_var = Type::new(name_type, size, stars, class);
+
         let var_def =  VariableDefinition::new(
             self.si(),
             name.clone(),
-            Type::new(name_type, size, stars),
+            type_var,
             self.stage
         );
         match self.var_map.get_mut(&self.si()) {
@@ -95,4 +103,5 @@ impl ProgManager {
         }
         self.get_func_by_addr(self.current_func.unwrap())
     }
+
 }

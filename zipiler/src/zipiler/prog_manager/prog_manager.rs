@@ -2,6 +2,7 @@
 use super::include::*;
 
 pub struct ProgManager {
+    pub class_name_map: HashMap<String, Class>,
     pub var_name_map: HashMap<String, Stack<usize>>,
     pub var_map: HashMap<usize, Stack<VariableDefinition>>,
     pub func_name_map: HashMap<String, Stack<usize>>,
@@ -12,9 +13,10 @@ pub struct ProgManager {
     pub jump_stack: Stack<Jump>,
     pub current_func: Option<usize>,
     pub titn: Vec::<String>,
-    pub tnti: HashMap<String, (u8, usize)>,
+    pub tnti: HashMap<String, (u8, usize)>,  // Size, id
     pub preload: String,
     pub stage: u32,
+    pub current_class: String,
     line_number: u64
 }
 
@@ -22,6 +24,7 @@ impl ProgManager {
 
     pub fn new() -> ProgManager {
         ProgManager {
+            class_name_map: HashMap::new(),
             var_name_map: HashMap::new(),
             var_map: HashMap::new(),
             func_name_map: HashMap::new(),
@@ -35,6 +38,7 @@ impl ProgManager {
             preload: String::from("\npreload:"),
             current_func: None,
             stage: 0,
+            current_class: String::new(),
             line_number: 1
         }
     }
@@ -112,7 +116,7 @@ mov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[siz
 }
 
 fn build_base_type_vec() -> Vec<String> {
-    vec!("int", "char", "void").iter().map(|e| e.to_string()).collect()
+    Vec::from(TYPE_LIST).iter().map(|e| e.to_string()).collect()
 }
 
 fn build_tab_size_map() -> HashMap<String, (u8, usize)> {

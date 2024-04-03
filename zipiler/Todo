@@ -1,5 +1,2 @@
-Introduire les mots clés
+class -> id
 
-attribute, method et class
-
-Modifier le noeud complexType en ajoutant . -> ident -> serie_star à la racine

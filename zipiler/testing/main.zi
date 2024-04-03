@@ -1,35 +1,36 @@
 
 class Person {
     
-    attribute{
+    attributes{
         int age;
         char* name;
         int sexe;
+        char test;
     }
 
-    method {
+    methods {
         func Person(int age, int sexe, char* name) void {
-#            self.age = age;
-#            self.sexe = sexe;
-#            self.name = name;
+            self.age = age;
+            self.sexe = sexe;
+            self.name = name;
         };
 
         func get_age() int {
-#           return self.age;
+           return self.age;
         };
 
-        func get_name() char* {
+#        func get_name() char* {
 #           return self.name;
-        };      
+#        };      
     }
 
 };
 
-# A l'appel d'un constructeur, dans un premier temps allouer. Dans un second temps appeler le constructeur comme s'il s'agissait d'une méthode
 
 char name[7] = "Martin\0";
 
-.Person person = Person(19, 1, name);
+
+.Person person;
 
 # !dn(person.get_age());
 

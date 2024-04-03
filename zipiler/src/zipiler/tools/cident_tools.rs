@@ -22,7 +22,7 @@ impl Tool for CIdentTools {
         let mut res = String::new();
          match token.token_type {
             TokenType::Symbol => self.new_symbol(token.content)?,
-            TokenType::Ident => self.def_ident(token.content),
+            TokenType::Ident => self.new_ident(pm,token.content)?,
             TokenType::BrackTuple => self.close(),
             TokenType::Brackets => self.open_brackets()?,
             TokenType::ExpressionTuple => self.open_tupple(pm)?,
@@ -80,8 +80,21 @@ impl CIdentTools {
     }
 
     /// Simply set the name of the entire thing
-    fn def_ident(&mut self, name: String){
-        self.name = name;
+    fn new_ident(&mut self, pm: &ProgManager, name: String) -> Result<(), String>{
+        if self.name.is_empty() {
+            self.name = name;
+        }else{
+            let var_def = pm.get_var_def_by_name(&self.name)?;
+            if let Some(class_id) = var_def.type_var().get_class() {
+                let class = pm.get_class(class_id);
+                if !(class.attribute_exists(&name) || class.method_exists(&name)) {
+                    return Err(format!("The class {} doesn't have a field named {}", class.get_name(), name))
+                }
+            }else{
+                return Err(format!("The variable {} is not an object.", self.name))
+            }
+        }
+        Ok(())
     }
 
     /// Called when we catch a bracket group. Its a very smart system, we are not pushing a group but a simple token its like flag indicates hey 
