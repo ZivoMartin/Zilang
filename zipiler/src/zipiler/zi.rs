@@ -21,7 +21,6 @@ pub fn compile(input: String) -> Result<(), String>{
             Err(_) => keep_compile = false
         };
     }
-    prog.end_prog();
     Ok(())
 }
 

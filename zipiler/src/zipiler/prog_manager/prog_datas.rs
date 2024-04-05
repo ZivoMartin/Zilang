@@ -33,11 +33,15 @@ impl ProgManager {
         self.stack_index
     }
 
+    pub fn pmi(&self) -> usize {
+        self.progmem_index
+    }
+
     pub fn in_func(&mut self) {
         self.stage += 1;
         self.stack_index = 0;
         if !self.current_class.is_empty() {
-            self.new_var(self.current_class.clone(), String::from("self"), 0);
+            self.new_var(self.current_class.clone(), String::from("self"), 1);
         }
     }
 
@@ -47,6 +51,10 @@ impl ProgManager {
 
     pub fn jump_in(&mut self) {
         self.jump_stack.push(Jump::new(self.si()));
+    }
+
+    pub fn hi(&self) -> usize {
+        self.heap_index
     }
 
     pub fn jump_out(&mut self) {

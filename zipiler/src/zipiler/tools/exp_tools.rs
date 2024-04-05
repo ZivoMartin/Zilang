@@ -28,7 +28,7 @@ enum ExpTokenType {
     /// A number with his value.
     Number(i128),
     /// A value, a boolean indicates if its a reference and the size of the value.
-    Ident(bool, u8)
+    Ident(bool, u8, u8)
 }
 
 
@@ -42,7 +42,7 @@ impl Tool for ExpTools {
             TokenType::RaiseComplexChar(v) => self.new_number(v as i128),
             TokenType::Operator => self.new_operator(token.content),
             TokenType::Symbol => self.new_parenthesis(token.content),
-            TokenType::MemorySpot(nb_deref, stars, size) => self.new_cident(nb_deref==-1, stars, size)?,
+            TokenType::MemorySpot(nb_deref, stars, size, spot) => self.new_cident(nb_deref==-1, stars, size, spot)?,
             TokenType::FuncCall(addr) => res = self.new_funccall(pm, addr)?,
             _ => pm.panic_bad_token("expression", token)
         }
@@ -61,7 +61,7 @@ impl Tool for ExpTools {
     }
 
     /// The expressions raise the number of stars of the expression. The result is pushed on the stack.
-    /// Before doing anything start to empty the operator stack.
+    /// Before doing anything begin by empty the operator stack.
     fn end(&mut self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         while self.op_stack.size() != 0 {
             self.push_op_val();
@@ -78,7 +78,7 @@ impl ExpTools {
     fn new_funccall(&mut self, pm: &ProgManager, addr: usize) -> Result<String, String> {
         let f = pm.get_func_by_addr(addr);
         let stars = f.return_type().stars();
-        self.new_cident(true, stars as i32, pm.get_type_size(stars as i32, f.return_type().name()))?;
+        self.new_cident(true, stars as i32, pm.get_type_size(stars as i32, f.return_type().name()), 1)?;
         Ok(String::from("\npush rax"))
     }
 
@@ -117,13 +117,13 @@ impl ExpTools {
     /// ident (his number of stars) and the size of the ident. Gonna verifie if the number 
     /// of stars is the same of the number of stars of the entire expression, or if this is the first time we 
     /// find a value with a depth superior than 0. Then gonna push the value with the size and the is_ref boolean. 
-    fn new_cident(&mut self, is_ref: bool, stars: i32, size: u8) -> Result<(), String> {
+    fn new_cident(&mut self, is_ref: bool, stars: i32, size: u8, spot: u8) -> Result<(), String> {
         if self.stars == 0 {
             self.stars = stars;
         }else if stars != 0 && stars != self.stars {
             return Err(String::from("Bad type."))
         }
-        self.pf_exp.push(ExpTokenType::Ident(is_ref, size));
+        self.pf_exp.push(ExpTokenType::Ident(is_ref, size, spot));
         self.esp_decal += 8;
         Ok(())
     }
@@ -153,7 +153,7 @@ impl ExpTools {
             match t {
                 ExpTokenType::Operator(op_code) => self.op_found(&mut res, *op_code),
                 ExpTokenType::Number(v) => self.number_found(&mut res, *v),
-                ExpTokenType::Ident(is_ref, size) =>  self.cident_found(&mut res, pm, &mut nb_ident, *is_ref, *size),
+                ExpTokenType::Ident(is_ref, size, spot) =>  self.cident_found(&mut res, pm, &mut nb_ident, *is_ref, *size, *spot),
             }
         }
         nb_ident -=1 ;
@@ -172,11 +172,11 @@ push rax", nb_ident*8))
     /// Pop the two last value and do the operation
     fn op_found(&self, res: &mut String, op_code: u8) {
         res.push_str(&format!("
-        mov r12, {op_code}        ; We found an operator, lets do the operation
-        pop r11             ; First operande
-        pop r10             ; Second operande
-        call _operation     ; call the operation
-        push rax            ; Then save the result"             
+mov r12, {op_code}        ; We found an operator, lets do the operation
+pop r11             ; First operande
+pop r10             ; Second operande
+call _operation     ; call the operation
+push rax            ; Then save the result"             
         ))       
     }
 
@@ -189,11 +189,11 @@ push {v}            ; We found a number, lets push it"
 
     /// Keep the ident on the stack, then if isn't a ref dereference it and push his value on the stack.
     /// Uses esp_decall to know where to find the address.
-    fn cident_found(&self, res: &mut String, pm: &ProgManager, nb_ident: &mut i64, is_ref: bool, size: u8) {
+    fn cident_found(&self, res: &mut String, pm: &ProgManager, nb_ident: &mut i64, is_ref: bool, size: u8, spot: u8) {
         res.push_str(&format!("      
 mov rax, [rbp+{}]   ; We found an ident, its on the satck, lets keep it.
 {}
-push rax", self.esp_decal-*nb_ident*8, if is_ref {String::new()}else{pm.deref_var(size as usize, 1)}
+push rax", self.esp_decal-*nb_ident*8, if is_ref {String::new()}else{pm.deref_var(size as usize, 1, spot)}
         ));
         *nb_ident += 1;
         

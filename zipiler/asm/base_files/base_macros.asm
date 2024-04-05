@@ -114,3 +114,8 @@ ret
         jmp %%_deref_loop 
     %%_deref_end_loop:    
 %endmacro
+
+%macro _heap_deref 0
+    mov eax, dword[_stack+rax]
+    mov rax, [_heap+rax]
+%endmacro

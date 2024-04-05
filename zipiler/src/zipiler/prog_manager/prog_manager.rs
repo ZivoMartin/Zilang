@@ -2,21 +2,41 @@
 use super::include::*;
 
 pub struct ProgManager {
+    /// Link class name to class definitions
     pub class_name_map: HashMap<String, Class>,
+    /// Link var name to a stack of variable address on the stack. The top is the good one
     pub var_name_map: HashMap<String, Stack<usize>>,
+    /// Link var address to a stack of variable definition. The top is the good one, two variable can have the
+    /// same address if there are not on the same stage 
     pub var_map: HashMap<usize, Stack<VariableDefinition>>,
+    /// Link name to a stack of func address on the mem prog
     pub func_name_map: HashMap<String, Stack<usize>>,
+    /// Link an address to a function definition
     pub func_map: HashMap<usize, Function>,
+    /// The top of the stack memory
     pub stack_index: usize,
+    /// The top of the prog memory index
+    pub progmem_index: usize,
+    /// The top of the heap
+    pub heap_index: usize,
+    /// The id of the next bloc
     pub bloc_id: u128,
+    /// Used for counting the mount of if statment in a if serie
     pub if_count: u32,
+    /// Store all the information about the jump through the blocs
     pub jump_stack: Stack<Jump>,
+    /// Contains the address of the function we are currently defining
     pub current_func: Option<usize>,
+    /// Link a type id (index to access the vec) to type name
     pub titn: Vec::<String>,
+    /// Link a type name to his id and his size. For a class the size gonna be the size of a pointer, the
+    /// fields of the class are stored on the heap
     pub tnti: HashMap<String, (u8, usize)>,  // Size, id
-    pub preload: String,
+    /// The current stage
     pub stage: u32,
+    /// Name of the class we are currently defining
     pub current_class: String,
+    /// The current line of the script.
     line_number: u64
 }
 
@@ -32,10 +52,11 @@ impl ProgManager {
             titn: build_base_type_vec(),
             tnti: build_tab_size_map(),
             stack_index: 0,
+            heap_index: 0,
+            progmem_index: 0,
             bloc_id: 0,
             if_count: 0,
             jump_stack: Stack::init(Jump::new(0)),
-            preload: String::from("\npreload:"),
             current_func: None,
             stage: 0,
             current_class: String::new(),
@@ -54,9 +75,13 @@ impl ProgManager {
         format!("\nmov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], addr, val)        
     }
 
-    pub fn deref_var(&self, size: usize, stars: i32) -> String {
+    pub fn deref_var(&self, size: usize, stars: i32, spot: u8) -> String {
         if stars > 0 {
-            format!("\n_deref_{} {}", ASM_SIZES[size], stars)
+            if spot == 0 {
+                format!("mov rax, [_heap + rax]")
+            }else{
+                format!("\n_deref_{} {}", ASM_SIZES[size], stars)
+            }
         }else{
             String::new()
         }
@@ -64,8 +89,7 @@ impl ProgManager {
 
     
 
-    pub fn handle_arg(&mut self, f_name: &str, stars: i32, nth: usize) -> Result<String, String> {
-        let f = self.get_func_by_name(f_name)?;
+    pub fn handle_arg(&mut self, f: &Function, stars: i32, nth: usize) -> Result<String, String> {
         if f.args()[nth as usize].stars() as i32 != stars {
             return Err("Not the good type for the call.".to_string())
         }
@@ -78,23 +102,12 @@ mov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[siz
     }
 
     pub fn good_nb_arg(&mut self, name: &str, nb_arg: u8) -> Result<(), String>{
-        if self.get_func_by_name(name)?.nb_arg() != nb_arg as usize {
-            Err(String::from("not the good number of arg"))
-        }else{
-            Ok(())
-        }
+        self.get_func_by_name(name)?.good_nb_arg(nb_arg)
     }
 
-    pub fn preload(&mut self, script: String) {
-        self.preload.push_str(&script)
-    }
 
-    pub fn _get_preload(&self) -> &String {
-        &self.preload
-    }
-
-    pub fn end_prog(&mut self) {
-        self.preload.push_str("\nret");
+    pub fn end_prog(&self) {
+        println!("{} {}", self.si(), self.hi())
     }
 
     pub fn is_in_func(&self) -> bool {

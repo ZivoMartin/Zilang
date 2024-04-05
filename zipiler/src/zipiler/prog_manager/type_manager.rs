@@ -56,7 +56,4 @@ impl ProgManager {
         self.class_name_map.get_mut(name).expect(&format!("The class {} doesn't exists", name))
     }
 
-    pub fn get_class_mut(&mut self, id: usize) -> &mut Class {
-        self.get_class_by_name_mut(&self.get_type_name_with_id(id))
-    }
 }

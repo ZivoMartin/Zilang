@@ -4,23 +4,24 @@ use super::{include::*, prog_manager::ProgManager};
 
 impl ProgManager {
 
-    pub fn var_exists(&self, name: &str) -> bool {
+    pub fn _var_exists(&self, name: &str) -> bool {
         return self.var_name_map.contains_key(name)
     }
 
     pub fn is_function(&self, name: &str) -> bool {
         self.func_name_map.contains_key(name) && !self.func_name_map.get(name).unwrap().is_empty()
     }
-
-    pub fn new_function(&mut self, name: String, args: Vec<Type>, return_type: Type) {
-        let f = Function::new(self.si(), name.clone(), args, return_type);
+    /// Returns the address of the new function
+    pub fn new_function(&mut self, name: String, args: Vec<Type>, return_type: Type) -> usize {
+        let f = Function::new(self.pmi(), name.clone(), args, return_type);
         match self.func_name_map.get_mut(&name) {
-            Some(s) => s.push(self.stack_index),
-            _ => {self.func_name_map.insert(name, Stack::init(self.si()));}
+            Some(s) => s.push(f.addr()),
+            _ => {self.func_name_map.insert(name, Stack::init(f.addr()));}
         };
-        self.func_map.insert(self.si(), f);
-        self.current_func = Some(self.si());
-        // self.stack_index += 8;
+        self.func_map.insert(f.addr(), f);
+        self.current_func = Some(self.pmi());
+        self.progmem_index += 8;
+        self.progmem_index-8
     }
 
     pub fn get_func_addr(&self, name: &str) -> usize {
@@ -104,4 +105,25 @@ impl ProgManager {
         self.get_func_by_addr(self.current_func.unwrap())
     }
 
+    pub fn allocate_new_object(&mut self, obj_name: &String) -> usize {
+        let addr = self.hi();
+        self.heap_index += self.get_class_by_name(obj_name).size() as usize;
+        addr
+    }
+
+    /// Used for the declaration who just gives informations to the compiler like attributes in a class
+    /// def
+    pub fn cancel_allocation(&mut self, addr: usize) {
+        let var_def = self.var_map.get_mut(&addr).unwrap().pop().unwrap();
+        self.var_name_map.get_mut(var_def.name()).unwrap().pop();
+        self.stack_index -= var_def.get_size() as usize;
+    }
+
+    /// Doesn't destroy the function, simply remove it in the compiler memory, generally after the 
+    /// call of the function the func gonna be stored in a class def
+    pub fn remove_func(&mut self, addr: usize) -> Function {
+        let func = self.func_map.remove(&addr).unwrap();
+        self.func_name_map.get_mut(func.name()).unwrap().pop();
+        func
+    }
 }

@@ -2,38 +2,30 @@ $import <io>
 
 class Person {
     
-    attributes{
+    attributes {
         int age;
-        char* name;
-        int sexe;
-        char test;
+        int sexe;   
+        int name;
+        int other;
     }
 
     methods {
-        func Person(int age, int sexe, char* name) void {
-            self.age = age;
-            self.sexe = sexe;
-            self.name = name;
+        func Person() void {
+            self.name = 10;
+            self.age = 12;
+            self.sexe = 5;
+            self.other = 12;
         };
-
-        func get_age() int {
-           return self.age;
-        };
-
-#        func get_name() char* {
-#           return self.name;
-#        };      
     }
 
 };
 
+int a;
 
-char name[7] = "Martin\0";
+.Person p1 = new Person();
 
+!dn(p1.name);
+!dn(p1.age);
+!dn(p1.sexe);
+!dn(p1.other); 
 
-.Person person;
-
-# !dn(person.get_age());
-
-
-!exit(0);

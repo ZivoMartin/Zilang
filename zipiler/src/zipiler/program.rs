@@ -26,7 +26,10 @@ use super::tools::{
                 func_tools::FuncTools,
                 return_tools::ReturnTools
             },
-            class_tools::class_tools::ClassTools
+            class_tools::{
+                class_tools::ClassTools, 
+                new_tools::NewKeyword
+            }
         };
 
 pub trait Tool {
@@ -59,6 +62,7 @@ fn build_constructor_map() -> HashMap<TokenType, fn(&mut ProgManager) -> Box<dyn
     res.insert(TokenType::DoKeyWord, DoTools::new);
     res.insert(TokenType::ReturnKeyword, ReturnTools::new);
     res.insert(TokenType::ClassKeyWord, ClassTools::new);
+    res.insert(TokenType::NewKeyWord, NewKeyword::new);
     res
 }
 
@@ -80,11 +84,12 @@ impl Program {
     }
 
     pub fn tokenize(&mut self, token: Token) -> Result<(), String> {
-        println!("{token:?}");
+        //println!("{token:?}");
         match token.token_type {
             TokenType::BackLine => self.memory.new_line(),
             TokenType::ERROR => return Err(self.error_msg(token.content)),
-            TokenType::End => self.end_group()?, 
+            TokenType::End => self.end_group()?,
+            TokenType::EndProgram => self.push_script(&self.end_prog(), SCRIPTF), 
             TokenType::New => self.new_group(token.flag),
             _ => {
                 match self.tools_stack.val_mut().unwrap().new_token(token, &mut self.memory) {
@@ -114,12 +119,10 @@ impl Program {
         Ok(())
     }
 
-    pub fn _get_preload(&self) -> &String {
-        &self.memory._get_preload()
-    }
 
-    pub fn end_prog(&mut self) {
+    pub fn end_prog(&self) -> String{
         self.memory.end_prog();
+        String::from("\nexit 0")
     }
 
     

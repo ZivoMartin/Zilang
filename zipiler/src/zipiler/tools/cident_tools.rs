@@ -1,5 +1,4 @@
 use super::include::*;
-use crate::zipiler::prog_manager::include::{STACK_REG, RDX_SIZE, ASM_SIZES};
 
 pub struct CIdentTools {
     /// The mount of times that we have to dereferance our memory spot
@@ -13,7 +12,9 @@ pub struct CIdentTools {
     /// Working field used for save the address at the begining of the life of the tool.
     si_save: usize,
     /// Exemple: "+=", "-="...
-    equal_code: String
+    equal_code: String,
+    field: String,
+    class: Option<usize>
 }
 
 impl Tool for CIdentTools {
@@ -40,7 +41,9 @@ impl Tool for CIdentTools {
             for_bracket: true,
             nb_exp: 0,
             si_save: pm.si(),
-            equal_code: String::new()
+            equal_code: String::new(),
+            field: String::new(),
+            class: None
         })
     }
 
@@ -84,20 +87,26 @@ impl CIdentTools {
         if self.name.is_empty() {
             self.name = name;
         }else{
-            let var_def = pm.get_var_def_by_name(&self.name)?;
-            if let Some(class_id) = var_def.type_var().get_class() {
+            let type_var = if self.for_bracket {
+                pm.get_var_def_by_name(&self.name)?.type_var()
+            } else {
+                pm.get_func_by_name(&self.name)?.return_type()
+            };
+            if let Some(class_id) = type_var.get_class() {
                 let class = pm.get_class(class_id);
                 if !(class.attribute_exists(&name) || class.method_exists(&name)) {
                     return Err(format!("The class {} doesn't have a field named {}", class.get_name(), name))
                 }
-            }else{
+                self.class = Some(class.id());
+                self.field = name;
+            } else {
                 return Err(format!("The variable {} is not an object.", self.name))
             }
         }
         Ok(())
     }
 
-    /// Called when we catch a bracket group. Its a very smart system, we are not pushing a group but a simple token its like flag indicates hey 
+    /// Called when we catch a bracket group. Its a very smart system, we are not pushing a group but a simple token as a flag indicates hey 
     /// the next expression are gonna be for a bracket usage.
     fn open_brackets(&mut self) -> Result<(), String>{
         self.nb_exp = 0;
@@ -137,7 +146,8 @@ impl CIdentTools {
             if self.for_bracket {
                 Ok(String::new( ))
             }else{
-                pm.handle_arg(&self.name, stars, (self.nb_exp-1) as usize)
+                let f = pm.get_func_by_name(&self.name)?.clone();
+                pm.handle_arg(&f, stars, (self.nb_exp-1) as usize)
             }
         }else{
             Ok(String::new())
@@ -145,7 +155,7 @@ impl CIdentTools {
 
     }
 
-    // Raise the deref time, the number of stars of the entire memory spot and the size (4 if stars != 0)
+    // Raise the deref time, the number of stars of the entire memory spot and the size (4 if stars != 0) and the memSpot
     fn raise_mem_spot(&self, pm: &mut ProgManager) -> Result<(TokenType, String), String> {
         let var_def = pm.get_var_def_by_name(&self.name)?;
         let stars = var_def.type_var().stars() as i32 - self.deref_time - self.nb_exp as i32; // Here we compute the the global number of stars
@@ -154,7 +164,8 @@ impl CIdentTools {
         }
         let asm = self.build_asm(stars, self.deref_time, pm, var_def);
         Ok((TokenType::MemorySpot(self.deref_time, stars,   
-            if stars == 0 {var_def.get_true_size()}else{POINTER_SIZE as u8}), asm))
+            if stars == 0 {var_def.get_true_size()}else{POINTER_SIZE as u8},
+            if !self.field.is_empty(){ 1 }else{0}), asm))
     }
 
     // We raise the address of the function
@@ -163,17 +174,19 @@ impl CIdentTools {
             return Err(String::from("You can't get get the reference of a returned value."))
         }
         pm.good_nb_arg(&self.name, self.nb_exp)?;
-        let asm = format!("
+        let mut asm = format!("
 push {STACK_REG}
 add {STACK_REG}, {}
-call {}
+mov rax, [_progmem + {}]
+call rax
 pop {STACK_REG}
 
-{}", self.si_save, self.name, 
+{}", self.si_save, pm.get_func_addr(&self.name), 
         // pm.deref_var(pm.get_type_size(self.deref_time, &self.type_name) as usize, self.deref_time),
         if pm.get_func_by_name(&self.name)?.return_type().name() != "void" {"push rax"}else{""});   // We just check if the function return something witch the name of the return type
+        pm.stack_index = self.si_save;
+        self.handle_field(pm, &mut asm);
         Ok((TokenType::FuncCall(pm.get_func_addr(&self.name)), asm))    
-
     }
 
 
@@ -195,12 +208,12 @@ add rax, r13", (self.nb_exp-i-1)*8, mul_deref_string(i, self.nb_exp, var_def)))
         res.push_str(&format!("
 add rsp, {}", self.nb_exp*8));
 
-        res.push_str(&pm.deref_var(var_def.type_var().size() as usize, deref_time));
-        res.push_str("\npush rax    ; We push the value of a new identificator");
+        res.push_str(&pm.deref_var(var_def.type_var().size() as usize, deref_time, 1));
+        self.handle_field(pm, &mut res);
         if !self.equal_code.is_empty() {
             res.push_str(&format!("
 pop rax     ; addr of the left ident
-{}",         format!("{} {}[_stack + rax], {}", 
+{}",         format!("{} {}[{} + rax], {}", 
             match &self.equal_code as &str {
                 "=" => "mov",
                 "+=" => "add",
@@ -208,9 +221,20 @@ pop rax     ; addr of the left ident
                 _ => panic!("Unknow equal code: {}", self.equal_code)
             },
             ASM_SIZES[size as usize], 
+            if self.field.is_empty() {"_stack"} else {"_heap"},
             RDX_SIZE[size as usize])))
         }
         res
+    }
+
+    fn handle_field(&self, pm: &ProgManager, asm: &mut String) {
+        if let Some(id) = self.class {
+            let class = pm.get_class(id);
+            asm.push_str(&format!("
+_heap_deref
+add rax, {}", class.get_field_decall(&self.field)))
+        }
+        asm.push_str("\npush rax    ; We push the value of a new identificator");
     }
 
 }

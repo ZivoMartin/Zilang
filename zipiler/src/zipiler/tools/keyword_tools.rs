@@ -10,7 +10,7 @@ pub struct KeyWordTools {
 }
 
 /// Uses for determinate on wich keyword we have to jump out
-static DONT_JUMP_OUT_KW: [TokenType; 1] =  [TokenType::ReturnKeyword];
+static DONT_JUMP_OUT_KW: [TokenType; 2] =  [TokenType::ReturnKeyword, TokenType::ClassDefinition];
 
 impl Tool for KeyWordTools {
 

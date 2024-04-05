@@ -24,8 +24,8 @@ impl Tool for FuncTools {
         let mut res = String::new();
         match token.token_type {
             TokenType::RaiseDeclaration(addr) => self.new_arg(pm, addr),
-            TokenType::Ident => res = self.set_ident(token.content),
-            TokenType::RaiseComplexType(id, stars, size) => self.set_type(pm, id, stars as u32, size),
+            TokenType::Ident => self.set_ident(token.content),
+            TokenType::RaiseComplexType(id, stars, size) => res = self.set_type(pm, id, stars as u32, size),
             TokenType::Bloc => res = self.end_of_func(),
             _ => pm.panic_bad_token("func keyword", token)
         }
@@ -47,20 +47,19 @@ impl FuncTools {
         self.type_args.push(var_def.type_var().clone())
     }
 
-    fn set_ident(&mut self, name: String) -> String {
+    fn set_ident(&mut self, name: String) {
         self.name = name;
-        format!("
-jmp _end_of_{n}
-{n}:", n=self.name)
+        
     } 
 
-    fn set_type(&mut self, pm: &mut ProgManager, id: usize, stars: u32, size: u8) {
+    fn set_type(&mut self, pm: &mut ProgManager, id: usize, stars: u32, size: u8) -> String {
         let name = pm.get_type_name_with_id(id);
         self.return_type = Type::new(name, size, stars, None);
-        pm.preload(format!("
-mov qword[_stack + {}], {}", pm.si(), self.name
-        ));
-        pm.new_function(self.name.clone(), self.type_args.clone(), self.return_type.clone());
+        let addr = pm.new_function(self.name.clone(), self.type_args.clone(), self.return_type.clone());
+        format!("
+mov qword[_progmem + {}], {n}
+jmp _end_of_{n}
+{n}:", addr, n=self.name)
     }
 
     fn end_of_func(&self) -> String {

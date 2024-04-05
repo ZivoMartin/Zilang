@@ -11,3 +11,4 @@ pub use crate::zipiler::{
                     };
 pub use crate::zipiler::collections::Stack;
 pub use std::collections::HashMap;
+pub use crate::zipiler::prog_manager::include::{STACK_REG, RDX_SIZE, ASM_SIZES};

@@ -9,7 +9,7 @@ impl Tool for InstructionTools {
         match token.token_type {
             TokenType::Operator => (),
             TokenType::RaiseExpression(_) => (),
-            TokenType::MemorySpot(_, _, _) => (),
+            TokenType::MemorySpot(_, _, _, _) => (),
             TokenType::RaiseDeclaration(_) | TokenType::MacroCall => (),
             TokenType::KeywordInstruction => (),
             TokenType::FuncCall(_) => (),

@@ -6,3 +6,5 @@ section .data
 
 section .bss
      _stack: resb 300000
+     _heap: resb 300000
+     _progmem: resb 3000

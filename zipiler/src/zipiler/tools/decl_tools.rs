@@ -29,6 +29,7 @@ impl Tool for DeclTools {
             TokenType::RaiseExpression(stars) => self.check_exp(stars)?,
             TokenType::RaiseComplexChar(char) => self.new_symbol(char),
             TokenType::Number => self.new_number(token.content.parse::<usize>().unwrap()),
+            TokenType::RaiseNewClass(id) => self.raise_class(pm, id)?,
             _ => pm.panic_bad_token("declaration", token)
         }
         Ok(String::new())
@@ -76,13 +77,22 @@ impl DeclTools {
         }
     }
 
+    fn raise_class(&mut self, pm: &ProgManager, id: usize) -> Result<(), String> {
+        let class = pm.get_class(id);
+        if *class.get_name() != self.type_name {
+            return Err(format!("The variable {} has the type {}", self.name, self.type_name));
+        }
+        self.nb_exp += 1;
+        Ok(())
+    }
+
     /// Set the name of the variable
-    pub fn def_name(&mut self, name: String) {
+    fn def_name(&mut self, name: String) {
         self.name = name;
     }
 
     /// Called when we catch the equal operator, juste inform the tool that we are doing an affectation
-    pub fn def_equal_operator(&mut self) {
+    fn def_equal_operator(&mut self) {
         self.aff = true;
     }
 
@@ -113,7 +123,7 @@ mov dword[_stack + r15 + {}], eax", (self.nb_exp-i-1)*8, self.save_si));
             self.save_si += 4;
         }
         res.push_str(&format!("
-        add rsp, {}", self.nb_exp*8));
+add rsp, {}", self.nb_exp*8));
     }
     
     /// Here we allocate the good place depends of the array of size for each stage. Basically we just create a big

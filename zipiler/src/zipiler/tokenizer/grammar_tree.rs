@@ -543,7 +543,8 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                     vec!(
                         Node::leaf(TokenType::Expression).react(push_group),
                         Node::leaf(TokenType::DirectTab),
-                        Node::leaf(TokenType::String)
+                        Node::leaf(TokenType::String),
+                        Node::leaf(TokenType::NewKeyWord).react(push_group)
                     ),
                     vec!(),
                     Vec::from(AFFECT_OPERATOR)
@@ -1022,7 +1023,9 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                     )
                                 ).react(push_once)
                             ),
-                            vec!(),
+                            vec!(
+                                Node::leaf_c(TokenType::Symbol, vec!("}"))
+                            ),
                             vec!("{"),
                             1
                         )
@@ -1061,12 +1064,38 @@ pub fn build_grammar_tree() -> HashMap<TokenType, Node> {
                                     )
                                 ).react(push_once)
                             ),
-                            vec!(),
+                            vec!(
+                                Node::leaf_c(TokenType::Symbol, vec!("}"))
+                            ),
                             vec!("{"),
                             1
                         )
                     ),
                     vec!("methods")
+                )
+            )
+        )
+    );
+
+    group_map.insert(
+        TokenType::NewKeyWord,
+        Node::new(
+            TokenType::NewKeyWord,
+            vec!(),
+            vec!(
+                Node::new_c(
+                    TokenType::Keyword,
+                    vec!(),
+                    vec!(
+                        Node::new(
+                            TokenType::Ident,
+                            vec!(
+                                Node::leaf(TokenType::ExpressionTuple)
+                            ),
+                            vec!()
+                        ).react(push_token)
+                    ),
+                    vec!("new")
                 )
             )
         )

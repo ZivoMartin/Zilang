@@ -71,6 +71,7 @@ impl<'a> Tokenizer {
                     }
                     self.skip_garbage(&mut chars); 
                 }   
+                push_token(self, TokenType::EndProgram, &String::new());
             }
             Err(e) => push_token(self, TokenType::ERROR, &e)
         }

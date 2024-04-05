@@ -46,6 +46,7 @@ pub enum TokenType {
     ClassDefinition,
     AttributeKeyWord,
     MethodKeyWord,
+    NewKeyWord,
     MacroCall,
     DirectChar,
     PointerSymbolSerie,
@@ -53,7 +54,7 @@ pub enum TokenType {
 
     // Raise up token
     FuncCall(usize),
-    MemorySpot(i32, i32, u8),
+    MemorySpot(i32, i32, u8, u8),
     Adress(usize),
     RaiseExpression(i32),
     RaiseDeclaration(usize),
@@ -61,12 +62,14 @@ pub enum TokenType {
     RaiseComplexType(usize, i32, u8), 
     RaiseDoKeyWord(u128),
     RaiseFuncDef(usize),
+    RaiseNewClass(usize),
 
     // Flags
     NoFlag,
     New,
     End,
     BackLine,  // Indicate a new back line
+    EndProgram,
     ERROR,   // This is a flag for indicate something bad append during the tokenisation.
 }
 

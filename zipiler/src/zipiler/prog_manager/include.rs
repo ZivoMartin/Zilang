@@ -78,6 +78,13 @@ impl Function {
             self.return_type.stars() == stars as u32
         }
     }
+
+    pub fn good_nb_arg(&self, n: u8) -> Result<(), String> {
+        if self.args.len() != n.into() {
+            return Err(format!("Not the good number of args for the function {}", self.name))
+        }
+        Ok(())
+    }
 }
 
 
@@ -128,7 +135,7 @@ impl Type {
     }
 
     pub fn size(&self) -> u8 {
-        if self.class.is_some() {
+        if self.class.is_some() || self.stars != 0 {
             return POINTER_SIZE as u8;
         }
         self.size
@@ -142,6 +149,7 @@ impl Type {
         self.class
     }
 }
+
 
 pub struct VariableDefinition{
     name: String,
@@ -203,7 +211,7 @@ pub mod files {
 #[allow(dead_code)]
 pub struct Class {
     name: String,
-    attributes: HashMap<String, Type>,
+    attributes: HashMap<String, (Type, u32)>,
     methods: HashMap<String, Function>,
     size: u8,
     id: usize
@@ -230,6 +238,10 @@ impl Class {
         self.id
     }
 
+    pub fn get_field_decall(&self, field: &String) -> u32 {
+        self.attributes.get(field).unwrap().1
+    }
+
     pub fn attribute_exists(&self, name: &String) -> bool {
         return self.attributes.contains_key(name)
     }
@@ -241,13 +253,14 @@ impl Class {
         if !self.attribute_exists(name) {
             Err(format!("Attribute {} doesn't exists", name))
         }else{
-            Ok(self.attributes.get(name).unwrap())
+            Ok(&self.attributes.get(name).unwrap().0)
         }
     }
 
     pub fn add_attr(&mut self, name: String, type_attr: Type) {
-        self.size += type_attr.size();
-        self.attributes.insert(name, type_attr);
+        let s = type_attr.size();
+        self.attributes.insert(name, (type_attr, self.size as u32));
+        self.size += s;
     }
 
     pub fn add_meth(&mut self, f: Function) {
@@ -260,5 +273,9 @@ impl Class {
 
     pub fn size(&self) -> u8 {
         self.size
+    }
+
+    pub fn get_constructor(&self) -> &Function {
+        self.methods.get(&self.name).expect(&format!("There is no constructor for the class {}", self.name))
     }
 }
