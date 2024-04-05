@@ -2,6 +2,8 @@ pub use crate::zipiler::collections::Stack;
 pub use std::collections::HashMap;
 pub use crate::zipiler::tokenizer::include::{Token, TYPE_LIST};
 
+use super::prog_manager::ProgManager;
+
 pub static ASM_SIZES: [&str; 9] = ["", "byte", "word", "", "dword", "", "", "", "qword"];
 pub static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
 pub static RDX_SIZE: [&str; 9] = ["", "dil", "di", "", "edi", "", "", "", "rdx"];
@@ -193,6 +195,10 @@ impl VariableDefinition {
         self.type_var.size
     }
 
+    pub fn get_class<'a>(&'a self, pm: &'a ProgManager) -> Option<&'a Class> {
+        Some(pm.get_class(self.type_var().get_class()?))
+    }
+
 }
 
 pub static F_PATHS: [&str; 4] = [
@@ -277,5 +283,9 @@ impl Class {
 
     pub fn get_constructor(&self) -> &Function {
         self.methods.get(&self.name).expect(&format!("There is no constructor for the class {}", self.name))
+    }
+
+    pub fn get_method(&self, name: &String) -> &Function {
+        self.methods.get(name).expect("Method doesn't exists")
     }
 }

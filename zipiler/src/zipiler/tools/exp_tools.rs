@@ -28,7 +28,7 @@ enum ExpTokenType {
     /// A number with his value.
     Number(i128),
     /// A value, a boolean indicates if its a reference and the size of the value.
-    Ident(bool, u8, u8)
+    Ident(bool, u8, MemZone)
 }
 
 
@@ -78,7 +78,7 @@ impl ExpTools {
     fn new_funccall(&mut self, pm: &ProgManager, addr: usize) -> Result<String, String> {
         let f = pm.get_func_by_addr(addr);
         let stars = f.return_type().stars();
-        self.new_cident(true, stars as i32, pm.get_type_size(stars as i32, f.return_type().name()), 1)?;
+        self.new_cident(true, stars as i32, pm.get_type_size(stars as i32, f.return_type().name()), MemZone::Stack)?;
         Ok(String::from("\npush rax"))
     }
 
@@ -117,7 +117,7 @@ impl ExpTools {
     /// ident (his number of stars) and the size of the ident. Gonna verifie if the number 
     /// of stars is the same of the number of stars of the entire expression, or if this is the first time we 
     /// find a value with a depth superior than 0. Then gonna push the value with the size and the is_ref boolean. 
-    fn new_cident(&mut self, is_ref: bool, stars: i32, size: u8, spot: u8) -> Result<(), String> {
+    fn new_cident(&mut self, is_ref: bool, stars: i32, size: u8, spot: MemZone) -> Result<(), String> {
         if self.stars == 0 {
             self.stars = stars;
         }else if stars != 0 && stars != self.stars {
@@ -189,7 +189,7 @@ push {v}            ; We found a number, lets push it"
 
     /// Keep the ident on the stack, then if isn't a ref dereference it and push his value on the stack.
     /// Uses esp_decall to know where to find the address.
-    fn cident_found(&self, res: &mut String, pm: &ProgManager, nb_ident: &mut i64, is_ref: bool, size: u8, spot: u8) {
+    fn cident_found(&self, res: &mut String, pm: &ProgManager, nb_ident: &mut i64, is_ref: bool, size: u8, spot: MemZone) {
         res.push_str(&format!("      
 mov rax, [rbp+{}]   ; We found an ident, its on the satck, lets keep it.
 {}

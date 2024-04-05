@@ -1,7 +1,15 @@
 use super::tokenizer::Tokenizer;
 
-#[derive(Eq, Hash, PartialEq, Debug)]
 #[allow(dead_code)]
+
+#[derive(Eq, Hash, PartialEq, Debug)]
+pub enum MemZone {
+    Heap,
+    Stack
+}
+
+#[allow(dead_code)]
+#[derive(Eq, Hash, PartialEq, Debug)]
 pub enum TokenType {
     // Primitive Token
     Ident,  
@@ -54,7 +62,7 @@ pub enum TokenType {
 
     // Raise up token
     FuncCall(usize),
-    MemorySpot(i32, i32, u8, u8),
+    MemorySpot(i32, i32, u8, MemZone),
     Adress(usize),
     RaiseExpression(i32),
     RaiseDeclaration(usize),
@@ -83,6 +91,14 @@ pub static DEFAULT_GARBAGE_CHARACTER: &[char; 3] = &[' ', '\n', '\t'];
 static PRIMITIVE_TOKENTYPE: &[TokenType; 6] = &[TokenType::Ident, TokenType::Type, TokenType::Symbol, TokenType::Number, TokenType::Operator, TokenType::Keyword];
 pub static FAIL_MESSAGE: &str = "Syntax error";
 
+
+impl Clone for MemZone {
+    fn clone(&self) -> MemZone {
+        *self
+    }
+}
+
+impl Copy for MemZone {}
 
 #[derive(Debug)]
 pub struct Token {

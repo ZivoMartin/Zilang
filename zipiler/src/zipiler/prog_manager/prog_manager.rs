@@ -1,4 +1,6 @@
 
+use crate::zipiler::tokenizer::include::MemZone;
+
 use super::include::*;
 
 pub struct ProgManager {
@@ -75,12 +77,11 @@ impl ProgManager {
         format!("\nmov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], addr, val)        
     }
 
-    pub fn deref_var(&self, size: usize, stars: i32, spot: u8) -> String {
+    pub fn deref_var(&self, size: usize, stars: i32, spot: MemZone) -> String {
         if stars > 0 {
-            if spot == 0 {
-                format!("mov rax, [_heap + rax]")
-            }else{
-                format!("\n_deref_{} {}", ASM_SIZES[size], stars)
+            match spot {
+                MemZone::Heap => format!("mov {}, {}[_heap + rax]", RAX_SIZE[size], ASM_SIZES[size]),
+                MemZone::Stack => format!("\n_deref_{} {}", ASM_SIZES[size], stars)
             }
         }else{
             String::new()
@@ -100,11 +101,6 @@ mov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], self.si(), RAX_SIZE[siz
         self.stack_index += size;
         Ok(res)
     }
-
-    pub fn good_nb_arg(&mut self, name: &str, nb_arg: u8) -> Result<(), String>{
-        self.get_func_by_name(name)?.good_nb_arg(nb_arg)
-    }
-
 
     pub fn end_prog(&self) {
         println!("{} {}", self.si(), self.hi())

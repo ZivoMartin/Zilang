@@ -50,7 +50,7 @@ impl NewKeyword {
         let asm = format!("
 push {ha}
 mov dword[_stack + {STACK_REG} + {}], {ha}", pm.si(), ha=heap_addr);
-
+        pm.stack_index += POINTER_SIZE;
         Ok(asm)
     }
 
@@ -61,7 +61,6 @@ mov dword[_stack + {STACK_REG} + {}], {ha}", pm.si(), ha=heap_addr);
     }
 
     fn build_asm(&self, pm: &mut ProgManager) -> Result<String, String> {
-        pm.stack_index += POINTER_SIZE;     // For self 
         let constructor = pm.get_class_by_name(&self.class_name).get_constructor();
         constructor.good_nb_arg(self.nb_exp as u8)?;
         let asm = format!("

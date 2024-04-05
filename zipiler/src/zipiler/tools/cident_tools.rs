@@ -26,7 +26,7 @@ impl Tool for CIdentTools {
             TokenType::Ident => self.new_ident(pm,token.content)?,
             TokenType::BrackTuple => self.close(),
             TokenType::Brackets => self.open_brackets()?,
-            TokenType::ExpressionTuple => self.open_tupple(pm)?,
+            TokenType::ExpressionTuple => res = self.open_tupple(pm)?,
             TokenType::RaiseExpression(stars) => res = self.new_expression(pm, stars)?,
             TokenType::Operator => self.set_equal_code(token.content),
             _ => pm.panic_bad_token("complex ident", token)
@@ -87,6 +87,7 @@ impl CIdentTools {
         if self.name.is_empty() {
             self.name = name;
         }else{
+            self.deref_time += 1;
             let type_var = if self.for_bracket {
                 pm.get_var_def_by_name(&self.name)?.type_var()
             } else {
@@ -116,17 +117,30 @@ impl CIdentTools {
 
     /// Called when we catch a tupple group. Its a very smart system, we are not pushing a group but a simple token its like flag indicates hey 
     /// the next expression are gonna be for a func call.
-    fn open_tupple(&mut self, pm: &mut ProgManager) -> Result<(), String> {
+    fn open_tupple(&mut self, pm: &mut ProgManager) -> Result<String, String> {
         if self.deref_time == -1 {
             return Err(String::from("You can't get get the reference of a value."))
         }
+        let mut res = String::new();
         self.nb_exp = 0;
         if !pm.is_function(&self.name) {
-            Err(format!("{} isn't a function", self.name))
-        }else{
-            self.for_bracket = false;
-            Ok(())
+            let var_def = pm.get_var_def_by_name(&self.name)?;
+            if let Some(id) = var_def.type_var().get_class() {
+                let class = pm.get_class(id);
+                if !class.method_exists(&self.field) {
+                    return Err(format!("{} is an attribute of the class {}, not a method.", self.field, class.get_name()))
+                }
+                res = format!("
+mov eax, dword[_stack+{STACK_REG}+{}]
+mov eax, dword[_stack+eax]
+mov dword[_stack+{STACK_REG}+{}], eax", var_def.addr(), pm.si());
+                pm.stack_index += POINTER_SIZE;
+            }else {
+                return Err(format!("{} isn't a function", self.name))
+            }
         }
+        self.for_bracket = false;
+        Ok(res)
     }
     
     fn close(&mut self) {
@@ -146,7 +160,7 @@ impl CIdentTools {
             if self.for_bracket {
                 Ok(String::new( ))
             }else{
-                let f = pm.get_func_by_name(&self.name)?.clone();
+                let f = if self.field.is_empty() { pm.get_func_by_name(&self.name)?.clone() } else { pm.get_var_def_by_name(&self.name)?.get_class(pm).unwrap().get_method(&self.field).clone() };
                 pm.handle_arg(&f, stars, (self.nb_exp-1) as usize)
             }
         }else{
@@ -165,7 +179,7 @@ impl CIdentTools {
         let asm = self.build_asm(stars, self.deref_time, pm, var_def);
         Ok((TokenType::MemorySpot(self.deref_time, stars,   
             if stars == 0 {var_def.get_true_size()}else{POINTER_SIZE as u8},
-            if !self.field.is_empty(){ 1 }else{0}), asm))
+            if self.field.is_empty(){ MemZone::Stack }else{ MemZone::Heap }), asm))
     }
 
     // We raise the address of the function
@@ -173,20 +187,21 @@ impl CIdentTools {
         if self.deref_time == -1 {
             return Err(String::from("You can't get get the reference of a returned value."))
         }
-        pm.good_nb_arg(&self.name, self.nb_exp)?;
-        let mut asm = format!("
+        let f = if self.field.is_empty() { pm.get_func_by_name(&self.name)? } else { pm.get_var_def_by_name(&self.name)?.get_class(pm).unwrap().get_method(&self.field) };
+        f.good_nb_arg(self.nb_exp)?;
+        let asm = format!("
 push {STACK_REG}
 add {STACK_REG}, {}
 mov rax, [_progmem + {}]
 call rax
 pop {STACK_REG}
 
-{}", self.si_save, pm.get_func_addr(&self.name), 
+{}", self.si_save,  f.addr(), 
         // pm.deref_var(pm.get_type_size(self.deref_time, &self.type_name) as usize, self.deref_time),
-        if pm.get_func_by_name(&self.name)?.return_type().name() != "void" {"push rax"}else{""});   // We just check if the function return something witch the name of the return type
+        if f.return_type().name() != "void" {"push rax"}else{""});   // We just check if the function return something witch the name of the return type
+        let f_addr = f.addr();
         pm.stack_index = self.si_save;
-        self.handle_field(pm, &mut asm);
-        Ok((TokenType::FuncCall(pm.get_func_addr(&self.name)), asm))    
+        Ok((TokenType::FuncCall(f_addr), asm))    
     }
 
 
@@ -199,21 +214,20 @@ mov rax, {}
 add rax, {STACK_REG}", var_def.addr()));
         for i in 0..self.nb_exp {
             res.push_str(&format!("
-_deref_dword 1
+mov rax, [_stack + rax]
 mov r13, rax
 mov rax, [rsp + {}]
 {}
 add rax, r13", (self.nb_exp-i-1)*8, mul_deref_string(i, self.nb_exp, var_def)))
         }
-        res.push_str(&format!("
-add rsp, {}", self.nb_exp*8));
-
-        res.push_str(&pm.deref_var(var_def.type_var().size() as usize, deref_time, 1));
+        if self.nb_exp != 0 {
+            res.push_str(&format!("\nadd rsp, {}", self.nb_exp*8));
+        }
+        res.push_str(&pm.deref_var(var_def.type_var().size() as usize, deref_time, MemZone::Stack));
         self.handle_field(pm, &mut res);
         if !self.equal_code.is_empty() {
             res.push_str(&format!("
-pop rax     ; addr of the left ident
-{}",         format!("{} {}[{} + rax], {}", 
+{} {}[{} + rax], {}", 
             match &self.equal_code as &str {
                 "=" => "mov",
                 "+=" => "add",
@@ -222,19 +236,19 @@ pop rax     ; addr of the left ident
             },
             ASM_SIZES[size as usize], 
             if self.field.is_empty() {"_stack"} else {"_heap"},
-            RDX_SIZE[size as usize])))
+            RDX_SIZE[size as usize]));
+        }else{
+            res.push_str("\npush rax");
         }
         res
     }
 
+
     fn handle_field(&self, pm: &ProgManager, asm: &mut String) {
         if let Some(id) = self.class {
             let class = pm.get_class(id);
-            asm.push_str(&format!("
-_heap_deref
-add rax, {}", class.get_field_decall(&self.field)))
+            asm.push_str(&format!("\nadd rax, {}", class.get_field_decall(&self.field)))
         }
-        asm.push_str("\npush rax    ; We push the value of a new identificator");
     }
 
 }
