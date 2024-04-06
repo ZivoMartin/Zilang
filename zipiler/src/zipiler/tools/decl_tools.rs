@@ -139,7 +139,7 @@ add rsp, {}", self.nb_exp*8));
             let save_si = pm.si();
             let size = if i == self.arr_size.len()-1 {pm.get_type_size(0, &self.type_name) as usize}else{POINTER_SIZE};
             for j in 0..stack_val{
-                res.push_str(&pm.affect_to_wsize(self.save_si+size*j, POINTER_SIZE, pm.si()));
+                res.push_str(&pm.affect_to_wsize(self.save_si+size*j, POINTER_SIZE, pm.si(), true));
                 pm.inc_si(size*n);
             }
             self.save_si = save_si;
@@ -152,7 +152,7 @@ add rsp, {}", self.nb_exp*8));
     fn handle_string_aff(&mut self, res: &mut String) {
         for b in self.string.as_bytes() {
             res.push_str(&format!("
-mov byte[_stack + {}], {b}", self.save_si));
+mov byte[_stack + r15 + {}], {b}", self.save_si));
             self.save_si += 1;
         }
     }

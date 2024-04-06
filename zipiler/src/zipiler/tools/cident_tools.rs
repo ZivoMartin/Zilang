@@ -29,6 +29,7 @@ impl Tool for CIdentTools {
             TokenType::ExpressionTuple => res = self.open_tupple(pm)?,
             TokenType::RaiseExpression(stars) => res = self.new_expression(pm, stars)?,
             TokenType::Operator => self.set_equal_code(token.content),
+            TokenType::RaiseNewClass(_) => res = self.new_expression(pm, 0)?,
             _ => pm.panic_bad_token("complex ident", token)
         }
         Ok(res)
@@ -125,6 +126,9 @@ impl CIdentTools {
         self.nb_exp = 0;
         if !pm.is_function(&self.name) {
             let var_def = pm.get_var_def_by_name(&self.name)?;
+            if var_def.type_var().stars() - self.deref_time as u32 != 0 {
+                return Err(format!("You tried to access to a field of a pointer.."))
+            }
             if let Some(id) = var_def.type_var().get_class() {
                 let class = pm.get_class(id);
                 if !class.method_exists(&self.field) {
@@ -214,7 +218,7 @@ mov rax, {}
 add rax, {STACK_REG}", var_def.addr()));
         for i in 0..self.nb_exp {
             res.push_str(&format!("
-mov rax, [_stack + rax]
+mov eax, dword[_stack + eax]
 mov r13, rax
 mov rax, [rsp + {}]
 {}

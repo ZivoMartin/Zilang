@@ -1,37 +1,49 @@
+$import <io>
 
-class Person {
+class Rect {
     
     attributes {
-        int age;
-        int sexe;   
-        int name;
-        int other;
+        int x;
+        int y;   
+        int width;
+        int height;
     }
 
     methods {
-        func Person(int name, int age, int sexe, int other) void {
-            self.name = name;
-            self.age = age;
-            self.sexe = sexe;
-            self.other = other;
-        };
-        
-        func set_age(int s) void {
-            self.age = s;
+        func Rect(int x, int y, int width, int height) void {
+            self.x = x;
+            self.y = y;
+            self.width = width;
+            self.height = height;
         };
 
-        func print_age() void {
-            !dn(self.age);
+        func print_r() void {
+            char x_s[4] = "x: \0";
+            print(x_s); 
+            !dn(self.x);
+            char y_s[5] = "y: \0";
+            print(y_s); 
+            !dn(self.y);
+            char width_s[9] = "Width: \0";
+            print(width_s); 
+            !dn(self.width);
+            char height_s[10] = "Height: \0";
+            print(height_s); 
+            !dn(self.height);
+        };
+
+        func change_width(int w) void {
+            self.width = w;
+        };
+
+        func clone() .Rect {
+            .Rect result = new Rect(self.x, self.y, self.width, self.height);
+            return result;
         };
     }
 
 };
+.Rect r = new Rect(10, 8, 30, 40);
 
 
-.Person p1;
-
-p1 =  = new Person(1, 2, 3, 4);
-
-p1.print_age();
-
-
+r.print_r();

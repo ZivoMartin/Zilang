@@ -73,15 +73,28 @@ impl ProgManager {
         format!("\nmov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
     }
 
-    pub fn affect_to_wsize(&self, addr: usize, size: usize, val: usize) -> String {
-        format!("\nmov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], addr, val)        
+    pub fn affect_to_wsize(&self, addr: usize, size: usize, val: usize, add_r15: bool) -> String {
+        if add_r15 {
+            format!("
+mov rax, r15
+add rax, {}
+mov {}[_stack + {STACK_REG} + {}], {}", val, ASM_SIZES[size], addr, RAX_SIZE[size])        
+        }else {
+            format!("\nmov {}[_stack + {STACK_REG} + {}], {}", ASM_SIZES[size], addr, val)        
+        }
     }
 
     pub fn deref_var(&self, size: usize, stars: i32, spot: MemZone) -> String {
         if stars > 0 {
             match spot {
                 MemZone::Heap => format!("mov {}, {}[_heap + rax]", RAX_SIZE[size], ASM_SIZES[size]),
-                MemZone::Stack => format!("\n_deref_{} {}", ASM_SIZES[size], stars)
+                MemZone::Stack => {
+                    let mut res = String::new();
+                    for _ in 0..stars {
+                        res.push_str(&format!("\nmov {}, {}[_stack+rax]", RAX_SIZE[size], ASM_SIZES[size]))
+                    }
+                    res
+                }
             }
         }else{
             String::new()
