@@ -1,5 +1,0 @@
-
-
-!print_char('1');
-!print_char('\n');
-!exit(0);

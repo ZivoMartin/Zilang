@@ -1,0 +1,45 @@
+$import <io>
+
+class Rect {
+    
+    attributes {
+        int x;
+        int y;   
+        int width;
+        int height;
+    }
+
+    methods {
+        func Rect(int x, int y, int width, int height) void {
+            self.x = x;
+            self.y = y;
+            self.width = width;
+            self.height = height;
+        };
+
+        func print_r() void {
+            char x_s[4] = "x: \0";
+            print(x_s); 
+            !dn(self.x);
+            char y_s[5] = "y: \0";
+            print(y_s); 
+            !dn(self.y);
+            char width_s[9] = "Width: \0";
+            print(width_s); 
+            !dn(self.width);
+            char height_s[10] = "Height: \0";
+            print(height_s); 
+            !dn(self.height);
+        };
+
+        func change_width(int w) void {
+            self.width = w;
+        };
+
+        func clone() .Rect {
+            .Rect result = new Rect(self.x, self.y, self.width, self.height);
+            return result;
+        };
+    }
+
+};

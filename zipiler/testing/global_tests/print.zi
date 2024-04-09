@@ -1,0 +1,5 @@
+$import <io>
+
+char s[8] = "martin\n\0";
+
+print(s);

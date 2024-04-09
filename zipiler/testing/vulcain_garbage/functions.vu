@@ -1,5 +1,0 @@
-
-
-func display_x(int x) -> void {
-    !dn(x);
-}

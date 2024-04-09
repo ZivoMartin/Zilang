@@ -1,5 +1,0 @@
-do {
-    !dn(i);
-}while i != 1;
-
-!exit(0);
