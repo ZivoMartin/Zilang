@@ -110,3 +110,26 @@ fn compile_asm_to_executable(file_path: &str, output: &str) {
             exit(1);
         });
 }
+
+
+#[cfg(test)]
+mod tests {
+
+    static PATHS: [&str; 5] = [
+        "testing/main.zi", 
+        "testing/global_tests/operations.zi",
+        "testing/global_tests/class_definition.zi",
+        "testing/global_tests/class_method_call.zi",
+        "testing/global_tests/print.zi"
+        ];
+
+    #[test]
+    fn ctest_ompile() {
+        for p in PATHS {
+            match super::compile_txt(String::new(), p, false) {
+                Ok(()) => println!("PASSED: {p}"),
+                Err(e) => panic!("During the test of {p}: {e}")
+            }
+        }
+    }
+}

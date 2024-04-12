@@ -44,6 +44,4 @@ class Rect {
 
 };
 .Rect r = new Rect(10, 8, 30, 40);
-
-
 r.print_r();

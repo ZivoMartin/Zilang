@@ -14,7 +14,7 @@ pub fn compile(input: String) -> Result<(), String>{
     spawn(move || 
         tokenizer.tokenize(input)
     );
-    let mut keep_compile = true;
+    let mut keep_compile: bool = true;
     while keep_compile {
         match receiver.recv(){
             Ok(token) => prog.tokenize(token)?,

@@ -136,7 +136,6 @@ impl CIdentTools {
                 }
                 res = format!("
 mov eax, dword[_stack+{STACK_REG}+{}]
-mov eax, dword[_stack+eax]
 mov dword[_stack+{STACK_REG}+{}], eax", var_def.addr(), pm.si());
                 pm.stack_index += POINTER_SIZE;
             }else {
