@@ -4,7 +4,7 @@ use super::include::*;
 
 
 pub static ASM_SIZES: [&str; 9] = ["", "byte", "word", "", "dword", "", "", "", "qword"];
-static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
+pub static RAX_SIZE: [&str; 9] = ["", "al", "ax", "", "eax", "", "", "", "rax"];
 
 pub struct Memory {
     var_name_map: HashMap<String, Stack<usize>>,
@@ -74,7 +74,6 @@ impl Memory {
         let size = self.get_var_def(&addr).unwrap().type_var.size as usize;
         format!("\nmov {}[_stack + {}], {}", ASM_SIZES[size], addr, RAX_SIZE[size])
     }
-
 
     pub fn deref_var(&self, size: usize, stars: i32) -> String {
         if stars > 0 {

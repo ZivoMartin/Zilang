@@ -8,15 +8,16 @@ pub struct CIdentTools {
 
 impl Tool for CIdentTools {
 
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<(), String>{
-        Ok(match token.token_type {
+    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String>{
+        match token.token_type {
             TokenType::Symbol => self.new_symbol(token.content)?,
             TokenType::Ident => self.def_ident(token.content),
             TokenType::Brackets => self.open_brackets(),
             TokenType::ExpressionTuple => self.open_tupple(),
             TokenType::Expression => self.new_expression(),
             _ => panic_bad_token("complex ident", token)
-        })
+        }
+        Ok(String::new())
     }
     
     fn new() -> Box<dyn Tool> {
@@ -27,7 +28,14 @@ impl Tool for CIdentTools {
         })
     }
 
-   
+    /// We raise at first the deref_time, if its equals to -1 if we are looking for a direct reference, 
+    /// otherwise 0 if we just want the value of the ident or x which is the value but dereferenced x times.
+    /// We raise at second the number of stars of the ident, if t is of type
+    /// int*, t has 1 star and t[2] has 0, *t[2] has -1 so its invalid
+    /// We raise at third the size of the type, 4 for a pointer and the type size otherwise.
+    /// In asm we are gonna push on the stack the reference of the value we are looking for, exemple if 'a' has address 3 and 
+    /// the value 8, we are gonna push 3, then if we want the value of a
+    /// we keep the adress on the stack and keep the value in the memory.
     fn end(&mut self, memory: &mut Memory) -> Result<(Token, String), String> {
         let var_def = match memory.get_var_def_by_name(&self.name) {
             Ok(var_def) => var_def,
@@ -39,7 +47,7 @@ impl Tool for CIdentTools {
         }
         
         let asm = self.build_asm(stars, self.deref_time, &memory, var_def);
-        Ok((Token::new(TokenType::ComplexIdent, format!("{stars} {}", var_def.get_size())), asm))
+        Ok((Token::new(TokenType::ComplexIdent, format!("{} {stars} {}", self.deref_time, var_def.get_size())), asm))
     }
 }
 
@@ -56,7 +64,7 @@ impl CIdentTools {
                 return Err(String::from("You can't dereferance like this.."))
             }
         }else{
-            panic!("Bad symbol for a complxident: {s}")
+            panic!("Bad symbol for a complexident: {s}")
         }
         Ok(())
     }
@@ -87,7 +95,6 @@ impl CIdentTools {
         let mut res = format!("\nmov rax, {}", var_def.addr);
         res.push_str(&memory.deref_var(var_def.type_var.size as usize, deref_time));
         res.push_str("\npush rax    ; We push the value of a new identificator");
-        println!("RES: {res}");
         res
     }
 

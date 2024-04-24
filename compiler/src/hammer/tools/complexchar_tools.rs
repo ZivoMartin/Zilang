@@ -7,11 +7,12 @@ pub struct ComplexCharTools {
 
 impl Tool for ComplexCharTools {
 
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<(), String>{
-        Ok(match token.token_type {
+    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String>{
+        match token.token_type {
             TokenType::Symbol => self.new_symbol(token.content.chars().next().unwrap()),
             _ => panic_bad_token("complex ident", token)
-        })
+        }
+        Ok(String::new())
     }
     
     fn new() -> Box<dyn Tool> {

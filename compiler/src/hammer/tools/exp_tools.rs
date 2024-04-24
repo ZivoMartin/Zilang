@@ -8,23 +8,24 @@ static ASM_TO_REMOVE: [&str; 2] = [
 
 pub struct ExpTools {
     op_stack: Stack<String>,
-    pf_exp: Vec<ExpToken>,
+    pf_exp: Vec<ExpTokenType>,
     operator_priority: HashMap<String, u8>,
-    op_id_map: HashMap<String, i64>,
+    op_id_map: HashMap<String, u8>,
     esp_decal: i64,
     stars: i32
 }
 
 impl Tool for ExpTools {
     
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<(), String>{
-        Ok(match token.token_type {
+    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String>{
+        match token.token_type {
             TokenType::Number | TokenType::ComplexChar => self.new_number(token.content),
             TokenType::Operator => self.new_operator(token.content),
             TokenType::Symbol => self.new_parenthesis(token.content),
             TokenType::ComplexIdent => self.new_cident(token.content)?,
             _ => panic_bad_token("expression", token)
-        })
+        }
+        Ok(String::new())
     }
 
     fn new() -> Box<dyn Tool> {
@@ -60,7 +61,7 @@ impl ExpTools {
     }
 
     fn new_number(&mut self, number: String) {
-        self.pf_exp.push(ExpToken::new(ExpTokenType::Number, str::parse::<i64>(&number).unwrap()));
+        self.pf_exp.push(ExpTokenType::Number(str::parse::<i128>(&number).unwrap()));
     }
 
     pub fn new_parenthesis(&mut self, par: String) {
@@ -76,19 +77,15 @@ impl ExpTools {
         } 
     }
 
-    fn extract_cident_data(&self, d: &str) -> (i32, i64) {
-        let mut split = d.split_whitespace();
-        (str::parse::<i32>(split.next().unwrap()).unwrap(), str::parse::<i64>(split.next().unwrap()).unwrap())
-    }
 
     fn new_cident(&mut self, ident_stars: String) -> Result<(), String> {
-        let (stars, size) = self.extract_cident_data(&ident_stars);
+        let (deref_t, stars, size) = extract_cident_data(&ident_stars);
         if self.stars == 0 {
             self.stars = stars;
         }else if stars != 0 && stars != self.stars {
             return Err(String::from("Bad type."))
         }
-        self.pf_exp.push(ExpToken::new(ExpTokenType::Ident, size));
+        self.pf_exp.push(ExpTokenType::Ident(if deref_t==-1 {-1}else{1}, size));
         self.esp_decal += 8;
         Ok(())
     }
@@ -100,16 +97,8 @@ impl ExpTools {
     }
 
     fn push_op_val(&mut self) {
-        let val = *self.op_id_map.get(&self.op_stack.pop()).unwrap();
-        self.pf_exp.push(ExpToken::new(ExpTokenType::Operator, val));    
-    }
-
-    fn _vec_exp(&self) -> Vec<i64> {
-        let mut res = Vec::new();
-        for t in self.pf_exp.iter() {
-            res.push(t.content);
-        }
-        res
+        let val: u8 = *self.op_id_map.get(&self.op_stack.pop()).unwrap();
+        self.pf_exp.push(ExpTokenType::Operator(val));    
     }
 
     fn build_asm(&self, memory: &Memory) -> String {
@@ -117,11 +106,10 @@ impl ExpTools {
         let mut res = String::new();
         res.push_str("\nmov rbp, rsp");
         for t in self.pf_exp.iter() {
-            let n = t.content;
-            match t.token_type {
-                ExpTokenType::Operator => {
+            match t {
+                ExpTokenType::Operator(op_code) => {
                     res.push_str(&format!("
-mov r12, {n}        ; We found an operator, lets do the operation
+mov r12, {op_code}        ; We found an operator, lets do the operation
 pop r11             ; First operande
 pop r10             ; Second operande
 call _operation     ; call the operation
@@ -129,27 +117,28 @@ push rax            ; Then save the result"
                     ))
     
                 },
-                ExpTokenType::Number => {
+                ExpTokenType::Number(v) => {
                     res.push_str(&format!("
-push {n}            ; We found a number, lets push it"
+push {v}            ; We found a number, lets push it"
                     ))
                 },
-                ExpTokenType::Ident => {
+                ExpTokenType::Ident(is_ref, size) => {
                     res.push_str(&format!("      
 mov rax, [rbp+{}]   ; We found an ident, its on the satck, lets keep it.
 {}
-push rax", self.esp_decal-nb_ident*8 as i64, memory.deref_var(n as usize, 1)
+push rax", self.esp_decal-nb_ident*8 as i64, if *is_ref==-1 {String::new()}else{memory.deref_var(*size as usize, 1)}
                     ));
                     nb_ident += 1;
 
                 }
             }
         }
+        nb_ident -=1 ;
         if nb_ident != 0 {
             res.push_str(&format!("
 pop rax
 add rsp, {}
-push rax", nb_ident*8));
+push rax", nb_ident))
         }
         for a in ASM_TO_REMOVE.iter() {
             res = res.replace(a, "");
@@ -174,28 +163,17 @@ fn build_prio_map() -> HashMap<String, u8>{
     res
 }
 
-fn build_op_id() -> HashMap<String, i64> {
+fn build_op_id() -> HashMap<String, u8> {
     let mut res = HashMap::new();
     for (i, op) in OPERATORS.iter().enumerate() {
-        res.insert(op.to_string(), i as i64);
+        res.insert(op.to_string(), i as u8);
     }
     res
 }
 
 enum ExpTokenType {
-    Operator,
-    Number,
-    Ident
+    Operator(u8),
+    Number(i128),
+    Ident(i8, u32)
 }
 
-#[allow(dead_code)]
-struct ExpToken {
-    token_type: ExpTokenType,
-    content: i64
-}
-
-impl ExpToken {
-    fn new(token_type: ExpTokenType, content: i64) -> ExpToken {
-        ExpToken{token_type, content}
-    }
-}

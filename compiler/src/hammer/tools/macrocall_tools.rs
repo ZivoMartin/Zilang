@@ -29,13 +29,14 @@ impl Tool for MacroCallTools {
         }
     }
 
-    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<(), String> {
-        Ok(match token.token_type {
+    fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String> {
+        match token.token_type {
             TokenType::Ident => self.def_name(token.content)?,
             TokenType::Expression => self.new_expression(),
             TokenType::ExpressionTuple => (),
             _ => panic_bad_token("macro call", token)
-        })
+        }
+        Ok(String::new())
     }
 
 }

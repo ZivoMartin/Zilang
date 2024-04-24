@@ -281,6 +281,11 @@ impl<'a> Tokenizer {
     pub fn push_once(&self, token_type: TokenType, content: &String) {
         self.push_group(token_type, content)
     }
+
+    pub fn push_ending_group(&self, token_type: TokenType, content: &String) {
+        self.end_group(token_type, content);
+        self.push_group(token_type, content);
+    }
 }
 
 fn is_sign(c: char) -> bool {

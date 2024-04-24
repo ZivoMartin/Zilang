@@ -9,15 +9,16 @@ pub struct DeclTools {
 
 impl Tool for DeclTools {
 
-    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<(), String>{
-        Ok(match token.token_type {
+    fn new_token(&mut self, token: Token, memory: &mut Memory) -> Result<String, String>{
+        match token.token_type {
             TokenType::Type => self.def_type(token.content),
             TokenType::Ident => self.def_name(token.content, memory),
             TokenType::Symbol => self.new_star(token.content),
             TokenType::Operator => self.def_equal_operator(),
             TokenType::Expression => self.check_exp(token.content)?,
             _ => panic_bad_token("declaration", token)
-        })
+        }
+        Ok(String::new())
     }
 
 
