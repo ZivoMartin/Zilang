@@ -15,7 +15,7 @@ impl Tool for KeyWordTools {
 
     fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String> {
         match token.token_type {
-            TokenType::IfKeyword => (),
+            TokenType::IfKeyword | TokenType::Bloc => (),
             _ => panic_bad_token("keyword inst", token)
         }
         Ok(String::new())

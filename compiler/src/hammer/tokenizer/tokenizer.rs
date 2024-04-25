@@ -91,6 +91,7 @@ impl<'a> Tokenizer {
                 Ok(()) => (),
                 Err(_) => return Err("Failed to tokenise")
             }
+            self.end_group(TokenType::Instruction, &String::new());
             self.skip_garbage(&mut chars); 
         }   
         unsafe{
@@ -109,14 +110,16 @@ impl<'a> Tokenizer {
                 if chars.peek().is_some() {
                     let mut paths_vec = self.get_son_array(current_node);
                     let save = chars.clone();
+                    // println!("BEFORE: {}", save.peek().unwrap());
                     match self.get_next_token(&mut paths_vec, chars) {
                         Ok(token_string) => {
+                            // println!("AFTER: {}", chars.peek().unwrap());
                             match self.filter_nodes(&mut paths_vec, &token_string) {
                                 Some(path) => {
                                     path.proke_travel_functions(self, &token_string);
                                     for node in path.path.iter() {
                                         match self.curse(node, chars) {
-                                            Ok(()) => {
+                                            Ok(_) => {
                                                 if node.travel_react == Some(Tokenizer::push_group) {
                                                     self.end_group(node.type_token, &token_string)
                                                 }
@@ -132,18 +135,18 @@ impl<'a> Tokenizer {
                                     }
                                 }
                                 _ => {
+                                    *chars = save;
                                     if !current_node.can_end {
                                         return Err(0)
                                     }
-                                    *chars = save;
                                 }
                             }
                         },
                         Err(_) => {
+                            *chars = save;
                             if !current_node.can_end {
                                 return Err(0)
                             }
-                            *chars = save;
                         }
                     }
                 }else if !current_node.can_end {
@@ -158,7 +161,6 @@ impl<'a> Tokenizer {
     }
 
     fn get_next_token(&self, path_vec: &mut VecDeque<Path>, chars: &mut Peekable<Chars>) -> Result<String, String> {
-        //println!("{:?}\n\n", path_vec);
         let c = chars.peek().unwrap();
         if self.detect_char_token(path_vec, &c.to_string()) {
             return Ok(chars.next().unwrap().to_string()) 
@@ -230,7 +232,6 @@ impl<'a> Tokenizer {
         for group in node.groups.iter() {
             let mut paths = self.get_son_array(self.group_map.get(&group.type_token).unwrap());
             if group.travel_react.is_some() || !group.is_leaf() {
-                //println!("{:?}", group.type_token);
                 for p in paths.iter_mut() {
                     p.path.push(group);
                 }

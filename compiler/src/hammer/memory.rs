@@ -57,7 +57,7 @@ impl Memory {
 
     pub fn get_var_def_by_name(&self, name: &String) -> Result<&VariableDefinition, ()> {
         let addr = match self.var_name_map.get(name) {
-            Some(stack) => stack.val(),
+            Some(stack) => stack.val().expect("The stack of a var name is empty"),
             _ => return Err(()) 
         };
         Ok(self.var_map.get(addr).unwrap())

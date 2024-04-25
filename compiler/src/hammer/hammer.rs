@@ -37,7 +37,7 @@ impl<'a> Hammer {
         ));
         while self.keep_compile {
             if !self.token_queue.is_empty() {
-                let token = self.token_queue.dequeue();
+                let token = self.token_queue.dequeue().expect("Queue empty");
                 match self.tools.tokenize(token) {
                     Ok(asm) => self.push_script(&asm),
                     Err(e) => panic!("{e}")

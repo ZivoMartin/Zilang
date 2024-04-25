@@ -6,7 +6,7 @@ impl Tool for BlocTools {
 
     fn new_token(&mut self, token: Token, _memory: &mut Memory) -> Result<String, String>{
         match token.token_type {
-            TokenType::Instruction => println!("receiv"),
+            TokenType::Instruction => (),
             _ => panic_bad_token("bloc", token)
         }
         Ok(String::new())
@@ -19,6 +19,6 @@ impl Tool for BlocTools {
     }
 
     fn end(&mut self, _memory: &mut Memory) -> Result<(Token, String), String> {
-        Ok((Token::new(TokenType::Instruction, String::new()), String::new()))
+        Ok((Token::new(TokenType::Bloc, String::new()), String::new()))
     }
 }

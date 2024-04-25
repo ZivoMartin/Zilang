@@ -22,20 +22,16 @@ impl<T> Stack<T>{
         self.vec.push(x);
     }
 
-    pub fn pop(&mut self) -> T{
-        self.vec.pop().unwrap()
+    pub fn pop(&mut self) -> Option<T>{
+        self.vec.pop()
     }
 
-    pub fn val(&self) -> &T{
-        self.vec.last().unwrap_or_else(||{
-            panic!("The stack is empty.");
-        })
+    pub fn val(&self) -> Option<&T>{
+        self.vec.last()
     }
 
-    pub fn val_mut(&mut self) -> &mut T{
-        self.vec.last_mut().unwrap_or_else(||{
-            panic!("The stack is empty");
-        })
+    pub fn val_mut(&mut self) -> Option<&mut T>{
+        self.vec.last_mut()
     }
 
     pub fn is_empty(&self) -> bool{
@@ -47,7 +43,7 @@ impl<T> Stack<T>{
     }
 
     pub fn change_top(&mut self, new: T) {
-        *self.val_mut() = new;
+        *self.val_mut().unwrap() = new;
     }
 } 
 
@@ -77,22 +73,24 @@ impl<T> Queue<T> {
         self.vec.push_back(x);
     }
 
-    pub fn dequeue(&mut self) -> T{
-        self.vec.pop_front().unwrap()
+    pub fn dequeue(&mut self) -> Option<T>{
+        self.vec.pop_front()
     }
 
-    pub fn val(&self) -> &T{
+    pub fn val(&self) -> Option<&T>{
         if self.is_empty() {
-            panic!("The queue is empty.")
+            None
+        }else{
+            Some(&self.vec[0])
         }
-        &self.vec[0]
     }
 
-    pub fn val_mut(&mut self) -> &mut T{
+    pub fn val_mut(&mut self) -> Option<&mut T>{
         if self.is_empty() {
-            panic!("The queue is empty.")
+            None
+        }else{
+            Some(&mut self.vec[0])
         }
-        &mut self.vec[0]
     }
 
     pub fn is_empty(&self) -> bool{

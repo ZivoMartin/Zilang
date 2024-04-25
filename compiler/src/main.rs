@@ -20,7 +20,7 @@ fn main() -> ExitCode {
     let debut = Instant::now();
     let mut args: Vec<String> = env::args().collect();
     if args.len() == 1 {
-        args = vec!("compiler".to_string(), "testing/tokenizer/first.vu".to_string(), "-t".to_string());
+        args = vec!("compiler".to_string(), "testing/tokenizer/first.vu".to_string(), "-o".to_string(), "exe".to_string());
     }
     let operations: Vec<&str> = vec!("-o");
     let parameters: Vec<&str> = vec!("-opt");

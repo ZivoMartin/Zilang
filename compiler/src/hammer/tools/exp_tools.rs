@@ -54,7 +54,9 @@ impl ExpTools {
 
 
     fn new_operator(&mut self, content: String) {
-        while !self.op_stack.is_empty() && self.op_stack.val() != "(" && self.get_priority(self.op_stack.val()) >= self.get_priority(&content){
+        while !self.op_stack.is_empty() && 
+              self.op_stack.val().unwrap() != "(" && 
+              self.get_priority(self.op_stack.val().unwrap()) >= self.get_priority(&content){
             self.push_op_val();
         }
         self.op_stack.push(content);
@@ -68,7 +70,7 @@ impl ExpTools {
         match &par as &str {
             "(" => self.op_stack.push(par),
             ")" => {
-                while self.op_stack.val() != "(" {
+                while self.op_stack.val().unwrap() != "(" {
                     self.push_op_val();
                 }
                 self.op_stack.pop();
@@ -97,7 +99,7 @@ impl ExpTools {
     }
 
     fn push_op_val(&mut self) {
-        let val: u8 = *self.op_id_map.get(&self.op_stack.pop()).unwrap();
+        let val: u8 = *self.op_id_map.get(&self.op_stack.pop().unwrap()).unwrap();
         self.pf_exp.push(ExpTokenType::Operator(val));    
     }
 

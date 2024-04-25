@@ -49,7 +49,7 @@ je next_comp_if_{}_{}", self.id_bloc, self.nb_cond)
 
     fn end_bloc(&mut self) -> String {
         let res = format!("
-jmp global_end_if_{}:
+jmp global_end_if_{}
 next_comp_if_{}_{}:", self.id_bloc, self.id_bloc, self.nb_cond);
         self.nb_cond += 1;
         res
