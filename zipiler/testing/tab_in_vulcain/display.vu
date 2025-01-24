@@ -1,7 +1,0 @@
-func display_tab(int* t, int n) -> void{
-    int i = 0;
-    while i<n {
-        !dn(t[i]);
-        i += 1;
-    }
-}
